@@ -4,9 +4,10 @@ post-2.2 release:
 
 2005-01-31    <layer@HOBART>
 
-	* Makefile: copy 2.2 binaries to cobweb
+	* Makefile: copy 2.2 binaries to cobweb; use scp to get to cobweb
+	  for the non-demo dist
 
-x2005-01-31    <layer@HOBART>
+2005-01-31    <layer@HOBART>
 2.2
 
 	* nfs.cl: change version to 2.2

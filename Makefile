@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.38.2.1 2005/01/31 21:05:02 layer Exp $
+# $Id: Makefile,v 1.38.2.2 2005/01/31 21:12:31 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -75,7 +75,8 @@ dist-demo: build-demo installer-demo
 demo-dist: dist-demo
 
 update_cobweb: FORCE
-	cp -p dists/setup-nfs-2.2.exe //cobweb/nfsforwindows/prod/downloadables
+	scp -p dists/setup-nfs-2.2.exe \
+		layer@cobweb:/www/nfsforwindows/prod/downloadables
 
 update_demo_cobweb: FORCE
 	scp -p dists/setup-nfs-2.2-demo.exe \
