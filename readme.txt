@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.14 2003/07/03 21:57:45 dancy Exp $
+$Id: readme.txt,v 1.15 2003/11/06 23:25:37 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -67,7 +67,13 @@ Edit nfs.cfg and replace the values of the parameters to your liking.
 
 *nfs-rw-uids* is a list of remote user ids that are granted read/write
  access to exported filesystems.  *nfslocaluid* implicity in this list
- so it is not necessary to include it.
+ so it is not necessary to include it.  For this option to work
+ properly, you'll need to have the NFS server tell clients that all
+ files and directories are writable by everyone.  You can do this by
+ using the *nfs-set-mode-bits* option below.  You should probably use
+ value #o666.  For example: (*nfs-set-mode-bits* #o666).  The NFS
+ server will enforce proper security even though the permission bits
+ may indicate otherwise.
 
 Currently, group id is not used to determine read/write access.  
 
