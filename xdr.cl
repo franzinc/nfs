@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.4 2001/05/23 18:17:01 dancy Exp $
+;; $Id: xdr.cl,v 1.5 2001/05/23 21:02:59 dancy Exp $
 
 (in-package :user)
 
@@ -11,7 +11,7 @@
   pos ;; for extracting
   )
 
-(defparameter *xdrdefaultsize* (+ 8192 100))
+(defparameter *xdrdefaultsize* 16000)
 
 (defun create-xdr (&key (direction :extract) vec (size *xdrdefaultsize*))
   (let ((xdr (make-xdr)))
@@ -107,9 +107,8 @@
       (incf (xdr-size xdr) plen)))))
 
       
-(defun xdr-opaque-variable (xdr &optional vec)
-  (let ((direction (xdr-direction xdr))
-        len)
+(defun xdr-opaque-variable (xdr &key vec len)
+  (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
       (setf len (xdr-int xdr))
@@ -119,10 +118,26 @@
      ((eq direction :build)
       (unless vec
         (error "xdr-opaque-variable: 'vec' parameter is required"))
-      (setf len (length vec))
+      (unless len
+	(setf len (length vec)))
       (xdr-int xdr len)
-      (xdr-opaque-fixed xdr :vec vec)))))
+      (xdr-opaque-fixed xdr :vec vec :len len)))))
 
+(defun xdr-opaque-variable-from-stream (xdr stream count)
+  (unless (eq (xdr-direction xdr) :build)
+    (error "xdr-opaque-variable-from-stream is only good for building"))
+  (xdr-int xdr 0) ;; placeholder since we don't know the count yet
+  (xdr-expand-check xdr (compute-padded-len count))
+  (let* ((newpos 
+	  (read-sequence (xdr-vec xdr) stream 
+			:start (xdr-size xdr)
+			:end (+ (xdr-size xdr) count)))
+	 (bytesread (- newpos (xdr-size xdr))))
+    ;; now backtrack and update the count
+    (decf (xdr-size xdr) 4)
+    (xdr-int xdr bytesread)
+    ;; now update the size
+    (incf (xdr-size xdr) bytesread)))
 
 (defun xdr-array-fixed (xdr typefunc &key len things)
   (let ((direction (xdr-direction xdr))
@@ -171,7 +186,7 @@
         oa))
      ((eq direction :build)
       (xdr-int xdr flavor)
-      (xdr-opaque-variable xdr body)))))
+      (xdr-opaque-variable xdr :vec body)))))
 
 (defun xdr-auth-null (xdr)
   (unless (eq (xdr-direction xdr) :build)

@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.7 2001/05/23 20:22:38 layer Exp $
+;;; $Id: nfs.cl,v 1.8 2001/05/23 21:02:58 dancy Exp $
 
 (in-package :user)
 
@@ -146,8 +146,13 @@
          (p (fhandle-to-pathname fhandle)))
     (if *nfsdebug*
 	(format t "nfsd-getattr(~A)~%" p))
-    (send-successful-reply peer xid (nfsd-null-verf) 
-                           (make-attrstat 0 (make-fattr-from-pathname p)))))
+    (if (null p)
+	(send-successful-reply 
+	 peer xid (nfsd-null-verf) 
+	 (make-attrstat NFSERR_STALE nil))
+      (send-successful-reply
+       peer xid (nfsd-null-verf) 
+       (make-attrstat 0 (make-fattr-from-pathname p))))))
                            
 
 (defun make-fattr-from-pathname (p)
@@ -306,8 +311,7 @@ struct entry {
   (let ((fileid (second (multiple-value-list (pathname-to-fhandle p))))
         (filename (basename p))
         (xdr (create-xdr :direction :build)))
-    (when *nfsdebug*
-      (format t "~A ~A ~A~%" filename fileid cookie))
+    ;;(when *nfsdebug* (format t "~A ~A ~A~%" filename fileid cookie))
     (xdr-int xdr 1) ;; indicate that data follows
     (xdr-unsigned-int xdr fileid)
     (xdr-string xdr filename)
@@ -320,7 +324,7 @@ struct entry {
         entry)
     (if (and (> startindex 0 )(>= startindex (length dirlist)))
 	(progn
-	  (format t "add-direntries: Doing bogus startindex hack.~%")
+	  ;;(format t "add-direntries: Doing bogus startindex hack.~%")
 	  (setf startindex 0)
 	  (setf nextindex 1)
 	  ))
@@ -338,7 +342,7 @@ struct entry {
       (decf max (xdr-size entry))
       (incf nextindex))
     (xdr-int xdr 0) ;; no more entries
-    (format t "Reached end of entries~%")
+    ;;(format t "Reached end of entries~%")
     (values xdr t)))
 
 (defun make-readdirres-xdr (stat readdirok)
@@ -397,8 +401,7 @@ struct entry {
          (newpath (add-filename-to-dirname dir filename))
          (newfhandle
 	  (third (multiple-value-list (pathname-to-fhandle newpath)))))
-    (if *nfsdebug*
-	(format t "nfds-lookup ~A~%" newpath))
+    ;;(if *nfsdebug* (format t "nfds-lookup ~A~%" newpath))
     (if (probe-file newpath)
 	(send-successful-reply 
 	 peer xid 
@@ -505,7 +508,7 @@ struct readargs {
       (setf bytesread (read-sequence *nfs-readbuf* f :end count)))
     (xdr-int res NFS_OK) 
     (xdr-xdr res (make-fattr-from-pathname p))
-    (xdr-opaque-variable res (subseq *nfs-readbuf* 0 bytesread))
+    (xdr-opaque-variable res :vec *nfs-readbuf* :len bytesread)
     (send-successful-reply 
      peer xid 
      (nfsd-null-verf) 

@@ -1,3 +1,15 @@
+2001-05-23    <dancy@SUCK>
+
+	* nfs.cl:  nfsd-getattr:  Added check for stale file handle.
+	Commented out some debugging lines.
+
+	nfsd-read: Changed call to xdr-opaque-variable to be more
+	efficient (no subseq).
+
+	* xdr.cl: Changed xdr-opaque-variable to allow for efficient
+	operation.   Added a function xdr-opaque-variable-from-stream
+	which isn't used yet.
+
 2001-05-23    <layer@HOBART>
 
 	* nfs.cl (nfsd-write): handle case of fhandle-vec-to-pathname
@@ -29,11 +41,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -44,15 +56,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.8 2001/05/23 20:22:38 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
