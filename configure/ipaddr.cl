@@ -1,7 +1,7 @@
 (in-package :cg-user)
 
 (eval-when (compile load eval)
-  (require :socket))
+  (require :sock))
 
 (defstruct network-address
   network

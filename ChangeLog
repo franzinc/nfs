@@ -1,3 +1,7 @@
+2004-02-19    <Ahmon Dancy@GOBY>
+
+	* configure/ipaddr.cl:	Require :sock, not :socket.
+
 2004-02-19    <dancy@DANCYSOFT>
 
 	* Makefile: for 'dists' rule, build w/ two separate calls to make.
