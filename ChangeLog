@@ -2,9 +2,12 @@
 
 	* nfs.cl (update-stat-times-and-size): Added a keyword arg 'trunc'
 	that can be used to set the new file size to a specific value.
-
-	* nfs.cl (nfsd-setattr): Make use of the new keyword are to
-	update-stat-times-and-size when truncating a file.
+	(nfsd-setattr): Make use of the new keyword are to
+	update-stat-times-and-size when truncating a file.  (parent-dir):
+	new function that computes the parent pathname of a pathname.
+	Note that the parent of c:\ is c:\.  (nfsd-lookup): Make use of
+	new parent-dir function when the 'filename' is "..".  This ensures
+	that filehandles remain consistent.
 
 2001-09-04    <dancy@DANCY2K>
 
@@ -335,11 +338,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -350,15 +353,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.37 2001/09/05 18:05:18 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.32 2001/09/05 18:05:18 dancy Exp $
+;; $Id: nfs.cl,v 1.33 2001/09/05 22:02:31 dancy Exp $
 
 ;; nfs
 
@@ -393,6 +393,14 @@
       (setf dir (concatenate 'string dir "\\")))
   dir)
 
+;; only works when 'dir' doesn't have a trailing backslash.
+;; this probably could use some security checks.
+(defun parent-dir (dir)
+  (setf dir (path-namestring dir))
+  (if (string= ":\\" (subseq dir 1))
+      (pathname dir)
+    (pathname (subseq dir 0 (1- (length dir))))))
+
 ;;; readdirargs:  fhandle dir, cookie, count
 
 ;; perhaps directory listings should be cached?
@@ -586,12 +594,15 @@ struct entry {
     (let* ((dir (xdr-fhandle-to-pathname params))
 	   (filename (xdr-string params))
 	   newpath)
+      (if *nfsdebug* (format t "nfsd-lookup ~S in ~S~%" filename dir))
       (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
 	(if (null dir)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)
 	  (progn
-	    (setf newpath (add-filename-to-dirname dir filename))
-	    (if *nfsdebug* (format t "nfsd-lookup(~A)~%" newpath))
+	    (if (string= filename "..")
+		(setf newpath (parent-dir dir))
+	      (setf newpath (add-filename-to-dirname dir filename)))
+	    (if (eq *nfsdebug* :verbose) (format t "newpath is ~S~%" newpath))
 	    (if* (or (null newpath) (not (probe-file newpath)))
 	       then
 		    (if (eq *nfsdebug* :verbose) (format t "file not found~%"))
