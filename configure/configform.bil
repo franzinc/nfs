@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 13, 2004 10:24)"; cg: "1.38"; form: configform; -*-
+;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 18, 2004 15:42)"; cg: "1.40"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -17,7 +17,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*)))
-     (exterior (make-box 672 124 1220 494)) (name :configform)
+     (exterior (make-box 474 124 1022 494)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner
@@ -48,7 +48,7 @@
 (defun make-configform-widgets ()
   (list (make-instance 'combo-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       27 :name :export-selection-combo :on-change
+                       28 :name :export-selection-combo :on-change
                        'configform-export-selection-combo-on-change
                        :range '(:one :two :three) :tab-control
                        '(:tab-control :exports) :top 46 :value :one)
@@ -57,10 +57,10 @@
                        127 :name :new-export-button :on-change
                        'configform-new-export-button-on-change
                        :tab-control '(:tab-control :exports) :title
-                       "New" :top 43)
+                       "~New" :top 43)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       212 :name :remove-export-button :on-change
+                       211 :name :remove-export-button :on-change
                        'configform-remove-export-button-on-change
                        :tab-control '(:tab-control :exports) :title
                        "~Delete" :top 43)
@@ -139,7 +139,7 @@
                        27 :name :nfs-debug-checkbox :on-change
                        'configform-nfs-debug-checkbox-on-change
                        :tab-control '(:tab-control :global) :title
-                       "Turn on ~NFS protocol debugging" :top 46 :width
+                       "Turn on NF~S protocol debugging" :top 46 :width
                        180)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
@@ -208,13 +208,13 @@
                        :value :one)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       128 :name :new-user-list-button :on-change
+                       127 :name :new-user-list-button :on-change
                        'configform-new-user-list-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "New" :top 43)
+                       "~New" :top 43)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       212 :name :user-list-remove-button :on-change
+                       211 :name :user-list-remove-button :on-change
                        'configform-user-list-remove-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
                        "~Delete" :top 43)

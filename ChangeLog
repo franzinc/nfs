@@ -1,3 +1,23 @@
+2004-02-19    <Ahmon Dancy@GOBY>
+
+	* Makefile:
+
+	(LISPDIR): Changed to 6.2 lisp.
+
+	(clean): Clean the configure subtree too.   Removed the real-clean
+	rule. 
+
+	(build-prologue): Always remove fasls before building.  This is
+	because the 7.0 that is used to build the configure program will
+	generate incompatible fasls for the shared source files.
+
+	* configure/Makefile:
+
+	(LISPDIR):  always use 7.0
+
+	* configure/configform.nil:  Repositioned some controls.  Finished
+	up keyboard shortcuts.
+
 2004-02-19    <dancy@CANDY2K>
 
 	* loadem.cl: Removed conditionalizations for command line switches

@@ -1,6 +1,4 @@
-ifndef LISPDIR
-LISPDIR="/c/Program Files/acl62"
-endif
+LISPDIR="/c/Program Files/acl70pb"
 ALLEGRO=$(LISPDIR)/allegro
 
 build: configure/configure.exe
