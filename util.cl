@@ -1,6 +1,10 @@
-;; $Id: util.cl,v 1.5 2001/06/07 17:14:05 dancy Exp $
+;; $Id: util.cl,v 1.6 2001/08/11 17:23:25 dancy Exp $
 
 (in-package :user)
+
+(eval-when (compile load eval)
+  (require 'winapi)
+  (require 'winapi-dev))
 
 (ff:def-foreign-type stat
     (:struct
@@ -35,7 +39,16 @@
 					  (totalbytes :foreign-address)
 					  (realfreebytes :foreign-address)))
 
-  
+(ff:def-foreign-call SetFilePointer (hFile lDistanceToMove lpDistanceToMoveHigh dwMoveMethod))
+
+(ff:def-foreign-call SetEndOfFile (hFile))
+
+(defconstant FILE_BEGIN           0)
+(defconstant FILE_CURRENT         1)
+(defconstant FILE_END             2)
+
+(defconstant INVALID_SET_FILE_POINTER -1)
+
 (defun diskfree (root)
   (with-native-string (nativestring (namestring root))
     (let ((freebytes (ff:allocate-fobject 'large-integer))
@@ -68,3 +81,33 @@
 (defun howmany (value blocksize)
   (/ (roundup value blocksize) blocksize))
   
+(defun truncate-file (filename size)
+  (let ((hFile (win:CreateFile 
+		filename 
+		win:GENERIC_WRITE 
+		0
+		0
+		win:OPEN_EXISTING
+		win:FILE_ATTRIBUTE_NORMAL
+		0))
+	res)
+    (if (= hFile win:INVALID_HANDLE_VALUE)
+	(return-from truncate-file (win:GetLastError)))
+    
+    (if* (= (SetFilePointer hFile size 0 FILE_BEGIN) INVALID_SET_FILE_POINTER -1)
+	    then
+	    (setf res (win:GetLastError))
+	    (win:CloseHandle hFile)
+	    (return-from truncate-file res))
+
+    (if* (= 0 (SetEndOfFile hFile))
+       then
+	    (setf res (win:GetLastError))
+	    (win:CloseHandle hFile)
+	    (return-from truncate-file res))
+    
+    (win:CloseHandle hFile)			
+    0))
+    
+    
+

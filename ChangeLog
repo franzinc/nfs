@@ -1,3 +1,8 @@
+2001-08-11    <Ahmon Dancy@GOBY>
+
+	* util.cl:  Added truncate-file function which uses foreign functions.  
+	* removed extra.c, extra.cl, and Makefile.  No more C code.
+
 2001-08-10    <layer@HOBART>
 
 	* portmap.cl (portmap-callit): add declare to get rid of compiler
@@ -227,11 +232,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -242,15 +247,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.23 2001/08/11 00:27:42 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.24 2001/08/11 17:23:25 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
