@@ -1,3 +1,7 @@
+2004-09-16    <layer@HOBART>
+
+	* configure/Makefile: use acl70pf instead of acl70pb to build
+
 2004-02-26    <layer@HOBART>
 
 	* Makefile: copy to cobweb using scp
