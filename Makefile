@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 2003/12/15 22:33:04 dancy Exp $
+# $Id: Makefile,v 1.18 2003/12/15 22:39:11 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -37,7 +37,7 @@ installer-common:
 	rm -f nfs/nfs.cfg
 
 installer: installer-common
-	$(MAKENSIS) /DVERSION=$(version) nfs.nsi
+	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
 
 installer-demo: installer-common
 	$(MAKENSIS) /DVERSION=$(version)-demo nfs.nsi	
