@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.5 2001/05/23 18:17:01 dancy Exp $
+;; $Id: sunrpc.cl,v 1.6 2001/05/24 01:03:34 dancy Exp $
 
 (in-package :user)
 
@@ -178,16 +178,18 @@
      ((eq type :stream)
       (let ((sizexdr (create-xdr :direction :build :size 4)))
         (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
-	(write-sequence (xdr-get-vec sizexdr) (rpc-peer-socket peer))
+	(write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
         (write-sequence (xdr-get-vec xdr) (rpc-peer-socket peer))))
      ((eq type :datagram)
+      (mp:wait-for-input-available
+       (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))
       (socket:send-to (rpc-peer-socket peer) 
-                      (xdr-get-vec xdr) 
+                      (xdr-get-complete-vec xdr) 
                       (xdr-size xdr) 
                       :remote-host (rpc-peer-addr peer)
                       :remote-port (rpc-peer-port peer))))))
 
-(defun rpc-send-msg (peer xid rbody)  ;; rbody should be an xdr
+(defun rpc-send-reply (peer xid rbody)  ;; rbody should be an xdr
   (let ((xdr (create-xdr :direction :build)))
     (xdr-int xdr xid)
     (xdr-int xdr 1) ;; REPLY
@@ -207,11 +209,23 @@
 (defun send-successful-reply (peer xid verf results)
   (send-accepted-reply peer xid verf 0 results))
 
+(defmacro with-successful-reply ((xdr-name peer xid verf) &body body)
+  `(let ((,xdr-name (create-xdr :direction :build)))
+     (xdr-int ,xdr-name ,xid)
+     (xdr-int ,xdr-name 1) ;; REPLY
+     (xdr-int ,xdr-name 0) ;; MSG_ACCEPTED
+     (xdr-xdr ,xdr-name ,verf) 
+     (xdr-int ,xdr-name 0) ;; SUCCESS
+     ,@body
+     (rpc-send ,xdr-name ,peer)))
+
+
+
 (defun rpc-send-rejected-reply (peer xid rreply)
   (let ((xdr (create-xdr :direction :build)))
     (xdr-int xdr 1) ;; MSG_DENIED
     (xdr-xdr xdr rreply)
-    (rpc-send-msg peer xid xdr)))
+    (rpc-send-reply peer xid xdr)))
 
 (defun rpc-send-auth-error-rejected-reply (peer xid stat)
   (let ((xdr (create-xdr :direction :build)))

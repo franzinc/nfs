@@ -1,4 +1,4 @@
-;; $Id: util.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
+;; $Id: util.cl,v 1.4 2001/05/24 01:03:34 dancy Exp $
 
 (in-package :user)
 
@@ -21,7 +21,7 @@
 
 (ff:def-foreign-call (stat "_stat") ((filename (* :char) string)
                                      (statbuf (* stat)))
-  :strings-convert nil)
+  :strings-convert t)
 
 (ff:def-foreign-type intholder
     (:struct
@@ -32,7 +32,7 @@
                                        (bps (* :int) intholder)
                                        (fc (* :int) intholder)
                                        (tc (* :int) intholder))
-  :strings-convert nil)
+  :strings-convert t)
 
 (defun diskfree (root)
   (let ((spc (ff:allocate-fobject 'intholder))

@@ -1,4 +1,4 @@
-;; $Id: extra.cl,v 1.3 2001/05/23 16:51:40 layer Exp $
+;; $Id: extra.cl,v 1.4 2001/05/24 01:03:34 dancy Exp $
 
 (in-package :user)
 
@@ -6,4 +6,4 @@
 
 (ff:def-foreign-call (truncate-file "truncate")
     ((filename (* :char)) (size :int))
-  :strings-convert nil)
+  :strings-convert t)

@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.5 2001/05/23 21:02:59 dancy Exp $
+;; $Id: xdr.cl,v 1.6 2001/05/24 01:03:34 dancy Exp $
 
 (in-package :user)
 
@@ -8,10 +8,18 @@
   vec
   size
   direction
-  pos ;; for extracting
+  pos 
   )
 
-(defparameter *xdrdefaultsize* 16000)
+(defparameter *xdrdefaultsize* 10000)
+
+(eval-when (compile eval load)
+  (defmacro xdr-with-seek ((xdr pos) &body body)
+    (let ((oldpos (gensym)))
+      `(let ((,oldpos (xdr-pos ,xdr)))
+	 (incf (xdr-pos ,xdr) ,pos)
+	 ,@body
+	 (setf (xdr-pos ,xdr) ,oldpos)))))
 
 (defun create-xdr (&key (direction :extract) vec (size *xdrdefaultsize*))
   (let ((xdr (make-xdr)))
@@ -32,19 +40,26 @@
       (error "create-xdr: Unknown direction: ~A~%" direction)))
     xdr))
 
-;;; should this use the new 'pos' slot?
 (defun xdr-get-vec (xdr)
   (subseq (xdr-vec xdr) 0 (xdr-size xdr)))
 
+(defun xdr-get-complete-vec (xdr)
+  (xdr-vec xdr))
+
 (defun xdr-expand-check (xdr more)
-  (if (> (+ (xdr-size xdr) more) (length (xdr-vec xdr)))
+  (if (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
       (progn
 	(format t "expanding xdr~%")
-	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec *xdrdefaultsize*))))))
+	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec (max *xdrdefaultsize* more)))))))
 
 (defun xdr-advance (xdr size)
   (decf (xdr-size xdr) size)
   (incf (xdr-pos xdr) size))
+
+(defun xdr-update-pos (xdr amount)
+  (incf (xdr-pos xdr) amount)
+  (if (> (xdr-pos xdr) (xdr-size xdr))
+      (setf (xdr-size xdr) (xdr-pos xdr))))
 
 (defun xdr-unsigned-int (xdr &optional int)
   (let ((direction (xdr-direction xdr)))
@@ -64,10 +79,11 @@
       (let ((shifts -24)
             (mask #xff000000))
         (dotimes (i 4)
-          (setf (aref (xdr-vec xdr) (+ (xdr-size xdr) i)) (ash (logand int mask) shifts))
+          (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i)) (ash (logand int mask) shifts))
           (incf shifts 8)
           (setf mask (ash mask -8)))
-	(incf (xdr-size xdr) 4))))))
+	(xdr-update-pos xdr 4))))))
+
 
 (defun xdr-int (xdr &optional int)
   (let ((direction (xdr-direction xdr))
@@ -103,8 +119,9 @@
       (setf plen (compute-padded-len len))
       (xdr-expand-check xdr plen)
       (dotimes (i len)
-        (setf (aref (xdr-vec xdr) (+ i (xdr-size xdr))) (aref vec i)))
-      (incf (xdr-size xdr) plen)))))
+        (setf (aref (xdr-vec xdr) (+ i (xdr-pos xdr))) (aref vec i)))
+      (xdr-update-pos xdr plen)))))
+
 
       
 (defun xdr-opaque-variable (xdr &key vec len)
@@ -126,18 +143,18 @@
 (defun xdr-opaque-variable-from-stream (xdr stream count)
   (unless (eq (xdr-direction xdr) :build)
     (error "xdr-opaque-variable-from-stream is only good for building"))
-  (xdr-int xdr 0) ;; placeholder since we don't know the count yet
-  (xdr-expand-check xdr (compute-padded-len count))
-  (let* ((newpos 
-	  (read-sequence (xdr-vec xdr) stream 
-			:start (xdr-size xdr)
-			:end (+ (xdr-size xdr) count)))
-	 (bytesread (- newpos (xdr-size xdr))))
-    ;; now backtrack and update the count
-    (decf (xdr-size xdr) 4)
+  ;;(format t "count is ~D~%" count)
+  (let (bytesread)
+    (xdr-with-seek (xdr 4)
+		   (xdr-expand-check xdr (compute-padded-len count))
+		   (setf bytesread 
+		     (- (read-sequence (xdr-vec xdr) stream 
+				       :start (xdr-pos xdr)
+				       :end (+ (xdr-pos xdr) count))
+			(xdr-pos xdr))))
+    ;;(format t "bytes read is ~D~%" bytesread)
     (xdr-int xdr bytesread)
-    ;; now update the size
-    (incf (xdr-size xdr) bytesread)))
+    (xdr-update-pos xdr bytesread)))
 
 (defun xdr-array-fixed (xdr typefunc &key len things)
   (let ((direction (xdr-direction xdr))
@@ -255,8 +272,8 @@
       (xdr-int xdr len)
       (xdr-expand-check xdr plen)
       (dotimes (i len)
-        (setf (aref (xdr-vec xdr) (+ (xdr-size xdr) i)) (char-code (schar string i))))
-      (incf (xdr-size xdr) plen)))))
+        (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i)) (char-code (schar string i))))
+      (xdr-update-pos xdr plen)))))
 
       
       
@@ -272,9 +289,9 @@
 	(xdr-expand-check xdr size)
 	;; do the copy....
 	(dotimes (i size)
-	  (setf (aref (xdr-vec xdr) (+ i (xdr-size xdr)))
-	    (aref (xdr-vec xdr2) (+ i (xdr-pos xdr2))))) 
-	(incf (xdr-size xdr) size)))
+	  (setf (aref (xdr-vec xdr) (+ i (xdr-pos xdr)))
+	    (aref (xdr-vec xdr2) i)))
+	(xdr-update-pos xdr size)))
      ((eq direction :extract)
       (setf res 
 	(create-xdr :vec (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) (xdr-size xdr)))))

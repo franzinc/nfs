@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.8 2001/05/23 21:02:58 dancy Exp $
+;;; $Id: nfs.cl,v 1.9 2001/05/24 01:03:34 dancy Exp $
 
 (in-package :user)
 
@@ -62,6 +62,10 @@
 (defconstant NFSERR_STALE 70)
 (defconstant NFSERR_WFLUSH 99)
 
+(defun map-errno-to-nfs-error-code (errno)
+  (cond
+   ((= errno 13) NFSERR_ACCES)
+   (t NFSERR_IO)))
     
     
 (defun make-nfsdsockets ()
@@ -144,16 +148,13 @@
 (defun nfsd-getattr (peer xid cbody)
   (let* ((fhandle (call-body-params cbody))
          (p (fhandle-to-pathname fhandle)))
-    (if *nfsdebug*
-	(format t "nfsd-getattr(~A)~%" p))
-    (if (null p)
-	(send-successful-reply 
-	 peer xid (nfsd-null-verf) 
-	 (make-attrstat NFSERR_STALE nil))
-      (send-successful-reply
-       peer xid (nfsd-null-verf) 
-       (make-attrstat 0 (make-fattr-from-pathname p))))))
-                           
+    (if *nfsdebug* (format t "nfsd-getattr(~A)~%" p))
+    (with-successful-reply (res peer xid (nfsd-null-verf))
+      (if (null p)
+	  (xdr-int res NFSERR_STALE)
+	(progn
+	  (xdr-int res NFS_OK)
+	  (update-fattr-from-pathname p res))))))
 
 (defun make-fattr-from-pathname (p)
   (let* ((id (second (multiple-value-list (pathname-to-fhandle p))))
@@ -175,6 +176,37 @@
      (list (ff:fslot-value sb 'st_atime) 0) ;; atime
      (list (ff:fslot-value sb 'st_mtime) 0) ;; mtime
      (list (ff:fslot-value sb 'st_mtime) 0)))) ; ctime
+
+
+
+
+(defun update-fattr-from-pathname (p xdr)
+  (let* ((id (second (multiple-value-list (pathname-to-fhandle p))))
+         (isdir (directoryp p))    
+         (sb (ff:allocate-fobject 'stat))
+	 res)
+    (setf res (stat (namestring p) sb))
+    (if (= 0 res)
+	(progn
+	  (update-fattr 
+	   xdr
+	   (if isdir 2 1) ;; type
+	   (logand (ff:fslot-value sb 'st_mode) (lognot *nfslocalumask*))
+	   (ff:fslot-value sb 'st_nlink)
+	   *nfslocaluid* ;;(ff:fslot-value sb 'st_uid)
+	   *nfslocalgid* ;;(ff:fslot-value sb 'st_gid)
+	   (ff:fslot-value sb 'st_size)
+	   1024 ;; blocksize
+	   (ff:fslot-value sb 'st_rdev) 
+	   (howmany (ff:fslot-value sb 'st_size) 1024) ;;blocks
+	   (ff:fslot-value sb 'st_rdev) ;; fsid
+	   id ;; fileid 
+	   (list (ff:fslot-value sb 'st_atime) 0) ;; atime
+	   (list (ff:fslot-value sb 'st_mtime) 0) ;; mtime
+	   (list (ff:fslot-value sb 'st_mtime) 0) ; ctime
+	   )
+	  t)
+      nil)))
 
 (defun make-attrstat (stat attributes)
   (let ((xdr (create-xdr :direction :build)))
@@ -211,7 +243,6 @@
   ctime;
   )
 
-
 (defun make-fattr-xdr (type mode nlink uid gid size blocksize rdev blocks fsid fileid atime mtime ctime)
   (let ((xdr (create-xdr :direction :build)))
     (xdr-int xdr type)
@@ -229,6 +260,24 @@
     (xdr-timeval xdr mtime)
     (xdr-timeval xdr ctime)
     xdr))
+
+;; 68 bytes
+(defun update-fattr (xdr type mode nlink uid gid size blocksize rdev blocks fsid fileid atime mtime ctime)
+  (xdr-int xdr type)
+  (xdr-int xdr mode)
+  (xdr-int xdr nlink)
+  (xdr-int xdr uid)
+  (xdr-int xdr gid)
+  (xdr-int xdr size)
+  (xdr-int xdr blocksize)
+  (xdr-int xdr rdev)
+  (xdr-int xdr blocks)
+  (xdr-int xdr fsid)
+  (xdr-int xdr fileid)
+  (xdr-timeval xdr atime)
+  (xdr-timeval xdr mtime)
+  (xdr-timeval xdr ctime))
+
 
 
 (defun make-statfsres (stat info)
@@ -283,8 +332,7 @@
   (let* ((rda (xdr-to-readdirargs (call-body-params cbody)))
          (p (fhandle-to-pathname (readdirargs-fhandle rda)))
          (dir (directory (canonicalize-dir p)) ))
-    (if *nfsdebug*
-	(format t "nfsd-readdir(~A, count ~D, cookie ~S)~%" p (readdirargs-count rda) (readdirargs-cookie rda)))
+    ;;(if *nfsdebug* (format t "nfsd-readdir(~A, count ~D, cookie ~S)~%" p (readdirargs-count rda) (readdirargs-cookie rda)))
     (if p
         (multiple-value-bind (xdr eof)
             (add-direntries dir
@@ -401,16 +449,14 @@ struct entry {
          (newpath (add-filename-to-dirname dir filename))
          (newfhandle
 	  (third (multiple-value-list (pathname-to-fhandle newpath)))))
-    ;;(if *nfsdebug* (format t "nfds-lookup ~A~%" newpath))
-    (if (probe-file newpath)
-	(send-successful-reply 
-	 peer xid 
-	 (nfsd-null-verf) 
-	 (make-diropres-xdr 
-	  0 (make-diropok newfhandle (make-fattr-from-pathname newpath))))
-      (send-successful-reply
-       peer xid (nfsd-null-verf)
-       (make-diropres-xdr NFSERR_NOENT nil)))))
+    (if *nfsdebug* (format t "nfds-lookup ~A~%" newpath))
+    (with-successful-reply (res peer xid (nfsd-null-verf))
+      (if (probe-file newpath)
+	  (progn
+	    (xdr-int res NFS_OK)
+	    (xdr-xdr res newfhandle) ;; might be optimisable 
+	    (update-fattr-from-pathname newpath res))
+	(xdr-int res NFSERR_NOENT)))))
 
 
 
@@ -436,9 +482,6 @@ struct readargs {
 		   };
 		   |#
 
-(defparameter *nfs-readbuf* 
-    (make-array *maxdata* :element-type '(unsigned-byte 8)))
-
 (defparameter *nfs-openfilelist* nil)
 
 (defstruct openfile
@@ -450,23 +493,26 @@ struct readargs {
 (defparameter *nfs-openfilelist-lock* (mp:make-process-lock))
 
 (defun get-open-file (pathname direction)
-  (mp:with-process-lock (*nfs-openfilelist-lock*)
-    (let* ((newof (make-openfile :pathname pathname
-				 :direction direction))
-	   (oldof (locate-open-file newof)))
-      (if oldof
-	  (progn
-	    (setf (openfile-lastaccess oldof) (get-universal-time))
-	    (openfile-stream oldof))
-	(progn
-	  (setf (openfile-stream newof)
-	    (if (eq direction :input)
-		(open pathname :direction :input) ;; need error checking
-	      (open pathname :direction :output
-		    :if-exists :overwrite)))
-	  (setf (openfile-lastaccess newof) (get-universal-time))
-	  (push newof *nfs-openfilelist*)
-	  (openfile-stream newof))))))
+  (handler-case 
+      (mp:with-process-lock (*nfs-openfilelist-lock*)
+	(let* ((newof (make-openfile :pathname pathname
+				     :direction direction))
+	       (oldof (locate-open-file newof)))
+	  (if oldof
+	      (progn
+		(setf (openfile-lastaccess oldof) (get-universal-time))
+		(openfile-stream oldof))
+	    (progn
+	      (setf (openfile-stream newof)
+		(if (eq direction :input)
+		    (open pathname :direction :input) ;; need error checking
+		  (open pathname :direction :output
+			:if-exists :overwrite)))
+	      (setf (openfile-lastaccess newof) (get-universal-time))
+	      (push newof *nfs-openfilelist*)
+	      (openfile-stream newof)))))
+    (file-error (c)
+      (values nil (excl::file-error-errno c)))))
 
 
 (defun locate-open-file (of)
@@ -498,21 +544,23 @@ struct readargs {
 	 (p (fhandle-vec-to-pathname fhandle))
 	 (offset (xdr-unsigned-int readargs))
 	 (count (xdr-unsigned-int readargs))
-	 ;;(totalcount (xdr-unsigned-int readargs))
-	 (res (create-xdr :direction :build))
-	 bytesread
-	 ) ;; unused
-    ;;(format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count)
-    (let ((f (get-open-file p :input)))
-      (file-position f offset)
-      (setf bytesread (read-sequence *nfs-readbuf* f :end count)))
-    (xdr-int res NFS_OK) 
-    (xdr-xdr res (make-fattr-from-pathname p))
-    (xdr-opaque-variable res :vec *nfs-readbuf* :len bytesread)
-    (send-successful-reply 
-     peer xid 
-     (nfsd-null-verf) 
-     res)))
+	 ;;(totalcount (xdr-unsigned-int readargs))  ;; unused
+	 )
+    (with-successful-reply (res peer xid (nfsd-null-verf))
+      ;;(format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count)
+      (if (null p)
+	  (xdr-int res NFSERR_STALE)
+	(multiple-value-bind (f errno)
+	    (get-open-file p :input)
+	  (if (null f)
+	      (xdr-int res (map-errno-to-nfs-error-code errno))
+	    (progn
+	      (file-position f offset)
+	      (xdr-with-seek (res 72) (xdr-opaque-variable-from-stream res f count))
+	      (xdr-int res NFS_OK) 
+	      (xdr-xdr res (make-fattr-from-pathname p)))))))))
+
+  
 
 (defun createargs-xdr-to-pathname-and-sattr-struct (xdr)
   (values (diropargs-xdr-to-pathname xdr) 
@@ -622,7 +670,7 @@ struct readargs {
 	  (send-successful-reply 
 	   peer xid 
 	   (nfsd-null-verf) 
-	   (make-attrstat 0 (make-fattr-from-pathname p))))
+	   (make-attrstat NFS_OK (make-fattr-from-pathname p))))
       (progn
 	(format t "nfsd-write: permission denied~%")
 	(send-successful-reply 
