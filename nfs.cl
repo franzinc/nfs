@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.31 2001/09/05 17:39:56 dancy Exp $
+;; $Id: nfs.cl,v 1.32 2001/09/05 18:05:18 dancy Exp $
 
 ;; nfs
 
@@ -278,12 +278,13 @@
       (- (get-universal-time) *universal-time-to-unix-time*))
     sb))
 
-
-(defun update-stat-times-and-size (f p)
+(defun update-stat-times-and-size (f p &key trunc)
   (let ((sb (update-atime-and-mtime p))
-	(pos (file-position f)))
-    (if (> pos (sbslot 'st_size))
-	(setf (sbslot 'st_size) pos))))
+	(pos (if (not trunc) (file-position f))))
+    (if trunc
+	(setf (sbslot 'st_size) trunc)
+      (if (> pos (sbslot 'st_size))
+	  (setf (sbslot 'st_size) pos)))))
 
 #|
           enum ftype {
@@ -899,6 +900,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 		   ;; need error checking
 		  (truncate-file (namestring p) (sattr-size sattr)))
 	      (xdr-int *nfsdxdr* NFS_OK)
+	      (update-stat-times-and-size nil p :trunc (sattr-size sattr))
 	      (update-fattr-from-pathname p *nfsdxdr*))))))
 
 ;;; from:  fhandle dir, filename name
