@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.7 2001/06/07 17:14:05 dancy Exp $
+;; $Id: xdr.cl,v 1.8 2001/06/07 19:09:38 dancy Exp $
 
 (in-package :user)
 
@@ -162,16 +162,15 @@
 ;; returns a vector
 (defun xdr-opaque-fixed (xdr &key vec len)
   (let ((direction (xdr-direction xdr))
-        newvec
+	res
 	plen)
     (cond
      ((eq direction :extract)
       (unless len
         (error "xdr-opaque-fixed: 'len' parameter is required"))
-      (setf newvec
-	(subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len)))
+      (setf res (list xdr (xdr-pos xdr) len))
       (xdr-advance xdr (compute-padded-len len))
-      newvec)
+      res)
      ((eq direction :build)
       (unless vec
         (error "xdr-opaque-fixed: 'vec' parameter is required"))
@@ -184,13 +183,12 @@
       (xdr-update-pos xdr plen)))))
 
 
-      
+ ;;; extract:  returns (xdr offset length)
 (defun xdr-opaque-variable (xdr &key vec len)
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
-      (setf len (xdr-int xdr))
-      (xdr-opaque-fixed xdr :len len))
+      (xdr-opaque-fixed xdr :len (xdr-int xdr)))
      ((eq direction :build)
       (unless vec
         (error "xdr-opaque-variable: 'vec' parameter is required"))
@@ -310,11 +308,11 @@
 	(au (make-auth-unix))
 	(pos (opaque-auth-body-offset oa)))
     (xdr-with-seek (xdr pos :absolute t)
-		   (format t "seeked to position ~D within xdr~%" pos)
+		   ;;(format t "seeked to position ~D within xdr~%" pos)
 		   (setf (auth-unix-stamp au) (xdr-int xdr))
-		   (format t "stamp is ~D~%" (auth-unix-stamp au))
+		   ;;(format t "stamp is ~D~%" (auth-unix-stamp au))
 		   (setf (auth-unix-machinename au) (xdr-string xdr))
-		   (format t "machine name is ~A~%" (auth-unix-machinename au))
+		   ;;(format t "machine name is ~A~%" (auth-unix-machinename au))
 		   (setf (auth-unix-uid au) (xdr-int xdr))
 		   (setf (auth-unix-gid au) (xdr-int xdr))
 		   (setf (auth-unix-gids au) (xdr-array-variable xdr #'xdr-int)))

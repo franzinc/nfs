@@ -1,5 +1,20 @@
 2001-06-07    <dancy@SUCK>
 
+
+	* nfs.cl: Changed a zillion calls from ff:fslot-value to
+	ff:fslot-value-typed.  Added a function to update file mtime,
+	atime, and filesize in the statcache (used for nfsd-write).
+	Cleaned up nfsd-remove.  Cleaned up nfsd-write.  
+
+	* xdr.cl:  Changed the way xdr-opaque-fixed/variable return things
+	(during extraction).
+	
+	* mountd.cl (mountd-make-fhstatus): Specify the size of the xdr to
+	speed things up.
+
+	* loadem.cl (startem): Run (nfsd) as a separate process now.
+
+	* fhandle.cl (opaque-fhandle-to-pathname): New function.  
 	* Many many changes that hopefully will improve performance
 
 2001-05-23    <dancy@SUCK>
@@ -45,11 +60,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -60,15 +75,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.11 2001/06/07 19:09:37 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

@@ -1,4 +1,4 @@
-;; $Id: loadem.cl,v 1.2 2001/05/23 15:59:02 layer Exp $
+;; $Id: loadem.cl,v 1.3 2001/06/07 19:09:38 dancy Exp $
 
 (in-package :user)
 
@@ -12,5 +12,5 @@
 (defun startem ()
   (mp:process-run-function "portmapper" #'portmapper)
   (mp:process-run-function "mountd" #'mountd)
-  ;;(mp:process-run-function "nfsd" #'nfsd))
-  (nfsd))
+  (mp:process-run-function "nfsd" #'nfsd))
+

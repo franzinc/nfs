@@ -1,5 +1,5 @@
 ;; mountd
-;; $Id: mountd.cl,v 1.4 2001/06/07 17:14:05 dancy Exp $
+;; $Id: mountd.cl,v 1.5 2001/06/07 19:09:38 dancy Exp $
 
 (in-package :user)
 
@@ -102,7 +102,7 @@
   (send-successful-reply peer xid (mountd-null-verf) (mountd-make-fhstatus 2 nil)))
   
 (defun mountd-make-fhstatus (status fhandle)
-  (let ((xdr (create-xdr :direction :build)))
+  (let ((xdr (create-xdr :direction :build :size (+ 4 32))))
     (xdr-int xdr status)
     (when (= 0 status)
       (xdr-opaque-fixed xdr :vec fhandle))

@@ -1,6 +1,6 @@
 ;; file handle stuff
 
-;; $Id: fhandle.cl,v 1.5 2001/06/07 17:14:05 dancy Exp $
+;; $Id: fhandle.cl,v 1.6 2001/06/07 19:09:37 dancy Exp $
 
 (in-package :user)
 
@@ -77,4 +77,10 @@
   (let ((id (xdr-int xdr)))
     (xdr-advance xdr (- *fhsize* 4))
     (values (fhandle-id-to-pathname id) id)))
+
+(defun opaque-fhandle-to-pathname (of)
+  (let ((xdr (first of))
+	(offset (second of)))
+    (xdr-with-seek (xdr offset :absolute t)
+		   (xdr-fhandle-to-pathname xdr))))
 

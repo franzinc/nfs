@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.10 2001/06/07 17:14:05 dancy Exp $
+;;; $Id: nfs.cl,v 1.11 2001/06/07 19:09:38 dancy Exp $
 
 (in-package :user)
 
@@ -220,8 +220,15 @@
 
 (defun update-stat-atime (p)
   (let ((sb (lookup-statcache p)))
-    (setf (ff:fslot-value sb 'st_atime) (- (get-universal-time) *universal-time-to-unix-time*))))
+    (setf (ff:fslot-value-typed 'stat :foreign sb 'st_atime) (- (get-universal-time) *universal-time-to-unix-time*))
+    sb))
 
+(defun update-stat-times-and-size (f p)
+  (let ((sb (update-stat-atime p))
+	(pos (file-position f)))
+    (if (> pos (ff:fslot-value-typed 'stat :foreign sb 'st_size))
+	(setf (ff:fslot-value-typed 'stat :foreign sb 'st_size) pos))
+    (setf (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) (- (get-universal-time) *universal-time-to-unix-time*))))
 
 #|
           enum ftype {
@@ -243,22 +250,22 @@
 	 (sb (lookup-statcache p)))
     ;;(stat (namestring p) sb)
     (make-fattr-xdr 
-     (if (= 0 (logand (ff:fslot-value sb 'st_mode) #o40000))
+     (if (= 0 (logand (ff:fslot-value-typed 'stat :foreign sb 'st_mode) #o40000))
 	 *NFREG* 
        *NFDIR*) ;; type
-     (logand (ff:fslot-value sb 'st_mode) (lognot *nfslocalumask*))
-     (ff:fslot-value sb 'st_nlink)
-     *nfslocaluid* ;;(ff:fslot-value sb 'st_uid)
-     *nfslocalgid* ;;(ff:fslot-value sb 'st_gid)
-     (ff:fslot-value sb 'st_size)
+     (logand (ff:fslot-value-typed 'stat :foreign sb 'st_mode) (lognot *nfslocalumask*))
+     (ff:fslot-value-typed 'stat :foreign sb 'st_nlink)
+     *nfslocaluid* 
+     *nfslocalgid* 
+     (ff:fslot-value-typed 'stat :foreign sb 'st_size)
      *blocksize* ;; blocksize
-     (ff:fslot-value sb 'st_rdev) 
-     (howmany (ff:fslot-value sb 'st_size) *blocksize*) ;;blocks
-     (ff:fslot-value sb 'st_rdev) ;; fsid
+     (ff:fslot-value-typed 'stat :foreign sb 'st_rdev) 
+     (howmany (ff:fslot-value-typed 'stat :foreign sb 'st_size) *blocksize*) ;;blocks
+     (ff:fslot-value-typed 'stat :foreign sb 'st_rdev) ;; fsid
      id ;; fileid 
-     (list (ff:fslot-value sb 'st_atime) 0) ;; atime
-     (list (ff:fslot-value sb 'st_mtime) 0) ;; mtime
-     (list (ff:fslot-value sb 'st_mtime) 0)))) ; ctime
+     (list (ff:fslot-value-typed 'stat :foreign sb 'st_atime) 0) ;; atime
+     (list (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) 0) ;; mtime
+     (list (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) 0)))) ; ctime
 
 (defun update-fattr-from-pathname (p xdr)
   (let* ((id (second (multiple-value-list (pathname-to-fhandle p))))
@@ -269,22 +276,22 @@
 	(progn
 	  (update-fattr 
 	   xdr
-	   (if (= 0 (logand (ff:fslot-value sb 'st_mode) #o40000))
+	   (if (= 0 (logand (ff:fslot-value-typed 'stat :foreign sb 'st_mode) #o40000))
 	       *NFREG* 
 	     *NFDIR*) ;; type
-	   (logand (ff:fslot-value sb 'st_mode) (lognot *nfslocalumask*)) ;; mode
-	   (ff:fslot-value sb 'st_nlink) ;;nlink
+	   (logand (ff:fslot-value-typed 'stat :foreign sb 'st_mode) (lognot *nfslocalumask*)) ;; mode
+	   (ff:fslot-value-typed 'stat :foreign sb 'st_nlink) ;;nlink
 	   *nfslocaluid* ;; uid
 	   *nfslocalgid* ;; gid
-	   (ff:fslot-value sb 'st_size) ;;size 
+	   (ff:fslot-value-typed 'stat :foreign sb 'st_size) ;;size 
 	   *blocksize* ;; blocksize 
-	   (ff:fslot-value sb 'st_rdev)  ;; rdev
-	   (howmany (ff:fslot-value sb 'st_size) *blocksize*) ;;blocks
-	   (ff:fslot-value sb 'st_rdev) ;; fsid
+	   (ff:fslot-value-typed 'stat :foreign sb 'st_rdev)  ;; rdev
+	   (howmany (ff:fslot-value-typed 'stat :foreign sb 'st_size) *blocksize*) ;;blocks
+	   (ff:fslot-value-typed 'stat :foreign sb 'st_rdev) ;; fsid
 	   id ;; fileid 
-	   (list (ff:fslot-value sb 'st_atime) 0) ;; atime
-	   (list (ff:fslot-value sb 'st_mtime) 0) ;; mtime
-	   (list (ff:fslot-value sb 'st_mtime) 0) ; ctime
+	   (list (ff:fslot-value-typed 'stat :foreign sb 'st_atime) 0) ;; atime
+	   (list (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) 0) ;; mtime
+	   (list (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) 0) ; ctime
 	   )
 	  t)
       nil)))
@@ -481,12 +488,12 @@ struct entry {
 
 (defun xdr-to-diropargs (xdr)
   (make-diropargs
-   :fhandle (create-xdr :vec (xdr-opaque-fixed xdr :len *fhsize*))
+   :fhandle (xdr-opaque-fixed xdr :len *fhsize*)  ;; (xdr offset len)
    :filename (xdr-string xdr)))
 
 (defun diropargs-struct-to-pathname (doa)
   (add-filename-to-dirname
-   (fhandle-to-pathname (diropargs-fhandle doa))
+   (opaque-fhandle-to-pathname (diropargs-fhandle doa))
    (diropargs-filename doa)))
 
 (defun diropargs-xdr-to-pathname (xdr)
@@ -606,7 +613,7 @@ struct readargs {
 	 ;;(totalcount (xdr-unsigned-int readargs))  ;; unused
 	 )
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
-      ;;(format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count)
+      (if *nfsdebug* (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
       (if (null p)
 	  (xdr-int *nfsdxdr* NFSERR_STALE)
 	(multiple-value-bind (f errno)
@@ -676,66 +683,65 @@ struct readargs {
    :atime (xdr-timeval xdr)
    :mtime (xdr-timeval xdr)))
 
+;; args:
+;; fhandle dir
+;; filename name
+
+;; returns status
 (defun nfsd-remove (peer xid cbody)
-  (let* ((doa (with-xdr-xdr ((call-body-params cbody) :name tmp)
-		(xdr-to-diropargs tmp)))
-	 (fhandle (diropargs-fhandle doa))
-	 (dir (fhandle-to-pathname fhandle))
-	 (filename (diropargs-filename doa))
-	 (newpath (add-filename-to-dirname dir filename))
-	 (res (create-xdr :direction :build)))
-    (if *nfsdebug*
-	(format t "nfsd-remove(~A)~%" newpath))
-    (if (nfs-okay-to-write (call-body-cred cbody))
-	(progn
-	  (handler-case (delete-file newpath)
-	    (file-error (c)
-	      (if* (and (numberp (excl::file-error-errno c)) (= 13 (excl::file-error-errno c)))
-		 then ;; permission denied
-		      (xdr-int res NFSERR_ACCES)
-		      (send-successful-reply peer xid (nfsd-null-verf) res)
-		      (return-from nfsd-remove)
-		 else ;; unknown (as of now)
-		      (xdr-int res NFSERR_IO)
-		      (send-successful-reply peer xid (nfsd-null-verf) res)
-		      (return-from nfsd-remove))))
-	  (xdr-int res NFS_OK)
-	  (send-successful-reply peer xid (nfsd-null-verf) res))
-      (progn
-	(xdr-int res NFSERR_ACCES)
-	(send-successful-reply peer xid (nfsd-null-verf) res)))))
+  (with-xdr-xdr ((call-body-params cbody) :name params)
+    (let ((dir (xdr-fhandle-to-pathname params))
+	  (filename (xdr-string params))
+	  newpath)
+      (with-successful-reply (res peer xid (nfsd-null-verf))
+	(if (null dir)
+	    (xdr-int res NFSERR_STALE)
+	  (progn
+	    (setf newpath (add-filename-to-dirname dir filename))
+	    (if *nfsdebug* (format t "nfsd-remove(~A)~%" newpath))
+	    (if (nfs-okay-to-write (call-body-cred cbody))
+		(handler-case (delete-file newpath)
+		  (file-error (c)
+		    (if* (and (numberp (excl::file-error-errno c)) (= 13 (excl::file-error-errno c)))
+		       then ;; permission denied
+			    (xdr-int res NFSERR_ACCES)
+		       else ;; unknown (as of now)
+			    (xdr-int res NFSERR_IO)))
+		  (:no-error (c) (xdr-int res NFS_OK)))
+	      (xdr-int res NFSERR_ACCES))))))))
+
     
-    
+;;; returns:
+;;; status
+;;; attributes (if no error)
 (defun nfsd-write (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name xdr)
-  (let* ((p (let ((p (xdr-fhandle-to-pathname xdr)))
-	      (when (null p)
-		(send-successful-reply 
-		 peer xid 
-		 (nfsd-null-verf) 
-		 (make-attrstat NFSERR_STALE nil))
-		(return-from nfsd-write))
-	      p))
-	 (beginoffset (xdr-unsigned-int xdr)) ;; not used
-	 (offset (xdr-unsigned-int xdr))
-	 (totalcount (xdr-unsigned-int xdr)) ;; not used
-	 (data (xdr-opaque-variable xdr)))
-    (declare (ignore beginoffset totalcount))
-    ;;(format t "nfsd-write(~A offset=~D)~%" p offset)
-    (if (nfs-okay-to-write (call-body-cred cbody))
-	(let ((f (get-open-file p :output)))
-	  (file-position f offset)
-	  (write-sequence data f)
-	  (send-successful-reply 
-	   peer xid 
-	   (nfsd-null-verf) 
-	   (make-attrstat NFS_OK (make-fattr-from-pathname p))))
-      (progn
-	(format t "nfsd-write: permission denied~%")
-	(send-successful-reply 
-	 peer xid 
-	 (nfsd-null-verf) 
-	 (make-attrstat NFSERR_ACCES nil)))))))
+    (let ((p (xdr-fhandle-to-pathname xdr))
+	  (beginoffset (xdr-unsigned-int xdr)) ;; not used
+	  (offset (xdr-unsigned-int xdr))
+	  (totalcount (xdr-unsigned-int xdr)) ;; not used
+	  (data (xdr-opaque-variable xdr)))
+      (declare (ignore beginoffset totalcount))
+      (with-successful-reply (res peer xid (nfsd-null-verf))
+	(if (null p)
+	    (xdr-int res NFSERR_STALE)
+	  (progn 
+	    (if *nfsdebug* (format t "nfsd-write(~A,offset=~A) ~D bytes~%" p offset (third data)))
+	    (if (nfs-okay-to-write (call-body-cred cbody))
+		(let ((f (get-open-file p :output)))
+		  (file-position f offset)
+		  (write-sequence 
+		   (xdr-vec (first data))
+		   f
+		   :start (second data)
+		   :end (+ (third data) (second data)))
+		  (update-stat-times-and-size f p)
+		  (xdr-int res NFS_OK)
+		  (update-fattr-from-pathname p res))
+	      (progn
+		(format t "nfsd-write: permission denied~%")
+		(xdr-int res NFSERR_ACCES)))))))))
+
 
 
 ;;; this is often used to truncate files (if the size parameters is
