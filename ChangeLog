@@ -1,3 +1,17 @@
+2004-02-11    <dancy@CANDY2K>
+
+	* openfile.cl: Use excl::cl-internal-real-time instead of
+	get-universal-time to avoid bignums.
+
+	* Makefile: added 'configure' rule to forcibly rebuild the configure program..
+
+	* main.cl:  Call (console-control :close :hide) at the beginning of the mainloop.
+
+	* nfs.cfg.default:  Add built-in user list "root".
+
+	* configure/*: Project converted to 7.0.  Modifications and
+	bugfixes suggested by alita.
+	
 2004-02-10  Ahmon Dancy  <dancy@dancy>
 
 	* configure/configuration.txt: Updated according to alita's

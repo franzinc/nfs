@@ -141,7 +141,8 @@
   
 
 (defun special-user-list-p (name)
-  (string= name "everyone"))
+  (or (string= name "everyone")
+      (string= name "root")))
 
 (defun special-host-list-p (name)
   (string= name "all"))
@@ -262,7 +263,8 @@
     ;; highlight the new entry
     (setf (value multi) (list newid))
     ;; clear the edit box 
-    (setf (value new-user-id-edit) ""))
+    (setf (value new-user-id-edit) "")
+    (refresh-apply-button form))
   t) ; Accept the new value
 
 (defun configform-host-add-button-on-change (widget new-value old-value)
@@ -280,7 +282,8 @@
     ;; highlight the new entry
     (setf (value multi) (list new-address))
     ;; clear the edit box 
-    (setf (value new-address-edit) ""))
+    (setf (value new-address-edit) "")
+    (refresh-apply-button form))
   t) ; Accept the new value
 
 ;; Remove the items selected in user-list-multi.
@@ -297,7 +300,8 @@
     (setf list (remove-if #'(lambda (entry) (member entry selections)) list))
     (setf (gethash listname *user-lists*) list)
     (setf (value multi) nil)
-    (setf (range multi) list))
+    (setf (range multi) list)
+    (refresh-apply-button form))
   t) ; Accept the new value
 
 (defun configform-host-remove-button-on-change (widget
@@ -310,9 +314,10 @@
          (list (gethash listname *host-lists*))
          (selections (value multi)))
     (setf list (remove-if #'(lambda (entry) (member entry selections :test #'string=)) list))
-    (setf (gethash listname *user-lists*) list)
+    (setf (gethash listname *host-lists*) list)
     (setf (value multi) nil)
-    (setf (range multi) list))
+    (setf (range multi) list)
+    (refresh-apply-button form))
   
   t) ; Accept the new value
 
@@ -350,7 +355,8 @@
           (setf (range combo) (funcall list-func))
           (setf (value combo) listname)
           ;; update the list choices in the exports tab
-          (funcall update-func form))))))
+          (funcall update-func form)
+          (refresh-apply-button form))))))
     
 (defun configform-new-user-list-button-on-change (widget
                                                   new-value
@@ -475,7 +481,8 @@
     (when path
       (setf path (cleanup-dir (namestring path)))
       (setf (nfs-export-path exp) path)
-      (setf (value (my-find-component :export-path form)) path)))
+      (setf (value (my-find-component :export-path form)) path)
+      (refresh-apply-button form)))
   t) ; Accept the new value
 
 (defun numeric-on-change-common (form value type)
@@ -717,7 +724,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
       (remhash listname *host-lists*)
       (setf (range combo) (remove listname (range combo)))
       (setf (value combo) (first (range combo)))
-      (update-host-allowed-lists form)))
+      (update-host-allowed-lists form)
+      (refresh-apply-button form)))
   t) ; Accept the new value
 
 (defun configform-user-list-remove-button-on-change (widget
@@ -741,7 +749,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
       (remhash listname *user-lists*)
       (setf (range combo) (remove listname (range combo)))
       (setf (value combo) (first (range combo)))
-      (update-user-lists form)))
+      (update-user-lists form)
+      (refresh-apply-button form)))
   t) ; Accept the new value
 
 
@@ -754,7 +763,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
             (setf *configfile* (merge-pathnames "..\\nfs.cfg" *progpath*))
             ;; for testing during development
             (if (not (probe-file *configfile*))
-                (setf *configfile* "c:\\devel\\nfs.new\\nfs\\nfs.cfg"))
+                (setf *configfile* "c:\\devel\\nfs\\nfs.cfg"))
        else
             (setf *server-running* t))
     (process-config *configfile* window)
@@ -841,3 +850,4 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (declare (ignore-if-unused widget new-value old-value))
   (do-help widget)
   t) ; Accept the new value
+

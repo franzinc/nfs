@@ -16,9 +16,15 @@
 (defstruct openfile
   direction
   stream
-  (lastaccess (get-universal-time)))
+  (lastaccess (excl::cl-internal-real-time)))
 
 (defparameter *open-file-cache-lock* (mp:make-process-lock))
+
+(defmacro locate-open-file-input (fh)
+  `(gethash ,fh *open-file-cache-read*))
+
+(defmacro locate-open-file-output (fh)
+  `(gethash ,fh *open-file-cache-write*))
 
 (defmacro locate-open-file (fh direction)
   `(gethash ,fh (direction-to-cache-hash ,direction)))
@@ -26,8 +32,8 @@
 (defmacro locate-open-file-any (fh)
   (let ((fhvar (gensym)))
     `(let ((,fhvar ,fh))
-       (or (locate-open-file ,fhvar :input)
-	   (locate-open-file ,fhvar :output)))))
+       (or (locate-open-file-input ,fhvar)
+	   (locate-open-file-output ,fhvar)))))
 
 (defmacro put-open-file (fh of)
   (let ((fhvar (gensym))
@@ -37,7 +43,8 @@
        (setf (gethash ,fhvar 
 		      (direction-to-cache-hash (openfile-direction ,ofvar)))
 	 ,ofvar))))
-					       
+
+
 (defun get-open-file (fh direction)
   (mp:with-process-lock (*open-file-cache-lock*)
     (let ((of (locate-open-file fh direction)))
@@ -51,7 +58,7 @@
 		  :if-exists :overwrite)))
 	(put-open-file fh of))
       ;; common
-      (setf (openfile-lastaccess of) (get-universal-time))
+      (setf (openfile-lastaccess of) (excl::cl-internal-real-time))
       (openfile-stream of))))
 	
 (defun close-open-file (fh)
@@ -75,7 +82,7 @@
 
 (defun reap-open-files ()
   (mp:with-process-lock (*open-file-cache-lock*)
-    (let ((now (get-universal-time)))
+    (let ((now (excl::cl-internal-real-time)))
       (dolist (dir '(:input :output))
 	(let ((hash (direction-to-cache-hash dir)))
 	  (maphash

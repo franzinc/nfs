@@ -4,6 +4,7 @@
  ;; defaults. 
  (define-host-list "all" t)
  (define-user-list "everyone" t)
+ (define-user-list "root" 0)
 
 )
 

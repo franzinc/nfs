@@ -1,17 +1,14 @@
-;; -*- lisp-version: "6.2 [Windows] (Jan 27, 2004 11:41)"; common-graphics: "1.389.2.105.2.14"; -*-
+;; -*- lisp-version: "7.0.pre-beta.7 [Windows] (Feb 10, 2004 12:02)"; cg: "1.38"; -*-
 
-(in-package :common-graphics-user)
+(in-package :cg-user)
 
-(defpackage :common-graphics-user (:export))
+(defpackage :common-graphics-user (:export) (:use :cl :excl :cg))
 
 (define-project :name :configure
-  :application-type (intern "exe" (find-package :keyword))
-  :modules (list (make-instance 'module :name
-                                "..\\xdr")
+  :modules (list (make-instance 'module :name "c:\\devel\\nfs\\xdr")
+                 (make-instance 'module :name "c:\\devel\\nfs\\sunrpc")
                  (make-instance 'module :name
-                                "..\\sunrpc")
-                 (make-instance 'module :name
-                                "..\\portmap")
+                                "c:\\devel\\nfs\\portmap")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
                  (make-instance 'module :name "ipaddr")
@@ -29,23 +26,27 @@
   :main-form 'configform
   :compilation-unit t
   :verbose nil
-  :runtime-modules '(:carets :cg :choose-list :color-dialog
-                     :common-control :common-status-bar :directory-list
-                     :drag-and-drop :drawable :edit-in-place
-                     :find-dialog :font-dialog :grid :group-box
-                     :header-control :hotspots :lisp-widget
-                     :list-view-control :mci :menu-selection
-                     :multi-picture-button :outline
-                     :progress-indicator-control :rich-edit
-                     :string-dialog :tab-control :trackbar-control
-                     :up-down-control :www :yes-no-list-dialog)
+  :runtime-modules '(:cg-dde-utils :cg.base :cg.button :cg.caret
+                     :cg.check-box :cg.clipboard :cg.clipboard-stack
+                     :cg.clipboard.pixmap :cg.combo-box
+                     :cg.common-control :cg.comtab :cg.dialog-item
+                     :cg.directory-dialog-os :cg.editable-text :cg.icon
+                     :cg.item-list :cg.keyboard-shortcuts
+                     :cg.message-dialog :cg.multi-line-editable-text
+                     :cg.os-widget :cg.picture-widget :cg.pixmap
+                     :cg.pixmap-widget :cg.pixmap.file-io
+                     :cg.static-text :cg.string-dialog :cg.tab-control
+                     :cg.text-edit-pane :cg.text-or-combo
+                     :cg.text-widget :cg.toggling-widget
+                     :cg.utility-dialog)
   :splash-file-module (make-instance 'build-module :name "")
   :icon-file-module (make-instance 'build-module :name "")
-  :include-flags '(:local-name-info :top-level)
-  :build-flags '(:purify :allow-runtime-debug)
+  :include-flags '(:local-name-info)
+  :build-flags '(:purify)
   :autoload-warning t
   :full-recompile-for-runtime-conditionalizations nil
-  :default-command-line-arguments "+cx +t \"Initializing\""
+  :default-command-line-arguments "+R +t \"Initializing\""
+  :additional-build-lisp-image-arguments '(:read-init-files nil)
   :old-space-size 256000
   :new-space-size 6144
   :runtime-build-option :standard

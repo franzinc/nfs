@@ -1,4 +1,4 @@
-;; -*- lisp-version: "6.2 [Windows] (Jan 27, 2004 11:41)"; common-graphics: "1.389.2.105.2.14"; form: configform; -*-
+;; -*- lisp-version: "7.0.pre-beta.7 [Windows] (Feb 10, 2004 12:02)"; cg: "1.38"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -37,14 +37,10 @@
            :resizable t
            :scrollbars nil
            :state :normal
-           :status-bar nil
            :system-menu t
            :title title
            :title-bar t
-           :toolbar nil
            :dialog-items (make-configform-widgets)
-           :path #p"C:\\devel\\nfs.new\\configure\\configform.bil"
-           :help-string nil
            :form-p form-p
            :form-package-name nil)))
     owner))
@@ -61,7 +57,7 @@
                        127 :name :new-export-button :on-change
                        'configform-new-export-button-on-change
                        :tab-control '(:tab-control :exports) :title
-                       "New" :top 43)
+                       "~New" :top 43)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        212 :name :remove-export-button :on-change
@@ -72,43 +68,38 @@
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        27 :name :export-path :on-change
                        'configform-export-path-on-change :tab-control
-                       '(:tab-control :exports) :template-string nil
-                       :top 101 :up-down-control nil :value
+                       '(:tab-control :exports) :top 101 :value
                        "export path" :width 142)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        170 :name :directory-browse-button :on-change
                        'configform-directory-browse-button-on-change
                        :tab-control '(:tab-control :exports) :title
-                       "Browse" :top 96 :width 49)
+                       "~Browse" :top 96 :width 49)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        27 :name :export-uid :on-change
                        'configform-export-uid-on-change :tab-control
-                       '(:tab-control :exports) :template-string nil
-                       :top 145 :up-down-control nil :value "uid"
+                       '(:tab-control :exports) :top 145 :value "uid"
                        :width 49)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        112 :name :export-gid :on-change
                        'configform-export-gid-on-change :tab-control
-                       '(:tab-control :exports) :template-string nil
-                       :top 145 :up-down-control nil :value "gid"
+                       '(:tab-control :exports) :top 145 :value "gid"
                        :width 49)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        27 :name :export-umask :on-change
                        'configform-export-umask-on-change :tab-control
-                       '(:tab-control :exports) :template-string nil
-                       :top 187 :up-down-control nil :value "umask"
+                       '(:tab-control :exports) :top 187 :value "umask"
                        :width 49)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        112 :name :export-set-bits :on-change
                        'configform-export-set-bits-on-change
-                       :tab-control '(:tab-control :exports)
-                       :template-string nil :top 187 :up-down-control
-                       nil :value "set bits" :width 49)
+                       :tab-control '(:tab-control :exports) :top 187
+                       :value "set bits" :width 49)
         (make-instance 'multi-item-list :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
                        :height 150 :left 230 :name
@@ -137,30 +128,25 @@
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        257 :name :apply-button :on-change
                        'configform-apply-button-on-change :title
-                       "Apply" :top 304)
+                       "A~pply" :top 304)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        354 :name :okay-button :on-change
-                       'configform-okay-button-on-change :title "OK"
+                       'configform-okay-button-on-change :title "~OK"
                        :top 304)
-        (make-instance 'button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       444 :name :cancel-button :on-change
-                       'configform-cancel-button-on-change :title
-                       "Cancel" :top 304)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        27 :name :nfs-debug-checkbox :on-change
                        'configform-nfs-debug-checkbox-on-change
                        :tab-control '(:tab-control :global) :title
-                       "Turn on NFS protocol debugging" :top 46 :width
+                       "Turn on ~NFS protocol debugging" :top 46 :width
                        180)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        26 :name :mountd-debug-checkbox :on-change
                        'configform-mountd-debug-checkbox-on-change
                        :tab-control '(:tab-control :global) :title
-                       "Turn on Mount protocol debugging" :top 72
+                       "Turn on ~Mount protocol debugging" :top 72
                        :width 197)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
@@ -225,49 +211,43 @@
                        128 :name :new-user-list-button :on-change
                        'configform-new-user-list-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "New" :top 52)
+                       "~New" :top 52)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        212 :name :user-list-remove-button :on-change
                        'configform-user-list-remove-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
                        "Remove" :top 52)
-        (make-instance 'multi-item-list :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil)
-                       :height 137 :left 28 :name :user-list-multi
-                       :on-change 'configform-user-list-multi-on-change
-                       :range '(:one :two :three) :tab-control
-                       '(:tab-control :user-lists) :top 103 :value
-                       '(:one :two))
-        (make-instance 'button :available nil :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       121 :name :user-add-button :on-change
-                       'configform-user-add-button-on-change
-                       :tab-control '(:tab-control :user-lists) :title
-                       "<< Add" :top 103)
-        (make-instance 'button :available nil :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       121 :name :user-remove-button :on-change
-                       'configform-user-remove-button-on-change
-                       :tab-control '(:tab-control :user-lists) :title
-                       "Remove" :top 135)
         (make-instance 'editable-text :delayed nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       212 :name :new-user-id-edit :on-change
+                       28 :name :new-user-id-edit :on-change
                        'configform-new-user-id-edit-on-change
-                       :tab-control '(:tab-control :user-lists)
-                       :template-string nil :top 103 :up-down-control
-                       nil :value "" :width 56)
+                       :tab-control '(:tab-control :user-lists) :top
+                       137 :value "" :width 56)
+        (make-instance 'button :available nil :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
+                       93 :name :user-add-button :on-change
+                       'configform-user-add-button-on-change
+                       :tab-control '(:tab-control :user-lists) :title
+                       "Add >>" :top 132)
+        (make-instance 'button :available nil :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
+                       93 :name :user-remove-button :on-change
+                       'configform-user-remove-button-on-change
+                       :tab-control '(:tab-control :user-lists) :title
+                       "Remove" :top 167)
+        (make-instance 'multi-item-list :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil)
+                       :height 137 :left 177 :name :user-list-multi
+                       :on-change 'configform-user-list-multi-on-change
+                       :range '(:one :two :three) :tab-control
+                       '(:tab-control :user-lists) :top 106 :value
+                       '(:one :two))
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
-                       :height 16 :left 28 :name :static-text-6
-                       :tab-control '(:tab-control :user-lists) :top 87
-                       :value "User ids in this list" :width 91)
-        (make-instance 'static-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil)
-                       :height 16 :left 212 :name :static-text-13
-                       :tab-control '(:tab-control :user-lists) :top 90
-                       :value "New user id" :width 62)
+                       :height 16 :left 28 :name :static-text-13
+                       :tab-control '(:tab-control :user-lists) :top
+                       124 :value "New user id" :width 62)
         (make-instance 'combo-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        28 :name :host-list-combo :on-change
@@ -279,44 +259,43 @@
                        127 :name :new-host-list-button :on-change
                        'configform-new-host-list-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
-                       "New" :top 52)
+                       "~New" :top 52)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        211 :name :host-list-remove-button :on-change
                        'configform-host-list-remove-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
                        "Remove" :top 52)
-        (make-instance 'multi-item-list :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil)
-                       :height 137 :left 27 :name :host-list-multi
-                       :on-change 'configform-host-list-multi-on-change
-                       :range '("255.255.255.255/255.255.255.255")
-                       :tab-control '(:tab-control :host-lists) :top 94
-                       :value '(:one :two) :width 185)
-        (make-instance 'button :available nil :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       230 :name :host-add-button :on-change
-                       'configform-host-add-button-on-change
-                       :tab-control '(:tab-control :host-lists) :title
-                       "<< Add" :top 88)
-        (make-instance 'button :available nil :font
-                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       230 :name :host-remove-button :on-change
-                       'configform-host-remove-button-on-change
-                       :tab-control '(:tab-control :host-lists) :title
-                       "Remove" :top 120)
         (make-instance 'editable-text :delayed nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
-                       321 :name :new-address :on-change
+                       22 :name :new-address :on-change
                        'configform-new-address-on-change :tab-control
-                       '(:tab-control :host-lists) :template-string nil
-                       :top 88 :up-down-control nil :value "" :width
-                       185)
+                       '(:tab-control :host-lists) :top 152 :value ""
+                       :width 185)
+        (make-instance 'button :available nil :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
+                       219 :name :host-add-button :on-change
+                       'configform-host-add-button-on-change
+                       :tab-control '(:tab-control :host-lists) :title
+                       "Add >>" :top 148)
+        (make-instance 'button :available nil :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
+                       219 :name :host-remove-button :on-change
+                       'configform-host-remove-button-on-change
+                       :tab-control '(:tab-control :host-lists) :title
+                       "Remove" :top 180)
+        (make-instance 'multi-item-list :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil)
+                       :height 137 :left 310 :name :host-list-multi
+                       :on-change 'configform-host-list-multi-on-change
+                       :range '("255.255.255.255/255.255.255.255")
+                       :tab-control '(:tab-control :host-lists) :top
+                       106 :value '(:one :two) :width 185)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
-                       :height 12 :left 325 :name :static-text-14
-                       :tab-control '(:tab-control :host-lists) :top 75
-                       :value "New address" :width 68)
+                       :height 12 :left 26 :name :static-text-14
+                       :tab-control '(:tab-control :host-lists) :top
+                       139 :value "New address" :width 68)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
                        :height 287 :left 10 :name :tab-control :range
@@ -350,11 +329,10 @@
                                             '(:user-list-combo
                                               :new-user-list-button
                                               :user-list-remove-button
-                                              :user-list-multi
+                                              :new-user-id-edit
                                               :user-add-button
                                               :user-remove-button
-                                              :new-user-id-edit
-                                              :static-text-6
+                                              :user-list-multi
                                               :static-text-13))
                              (make-instance 'tab-info :id :host-lists
                                             :label "Host lists"
@@ -362,10 +340,10 @@
                                             '(:host-list-combo
                                               :new-host-list-button
                                               :host-list-remove-button
-                                              :host-list-multi
+                                              :new-address
                                               :host-add-button
                                               :host-remove-button
-                                              :new-address
+                                              :host-list-multi
                                               :static-text-14))
                              (make-instance 'tab-info :id :global
                                             :label "Global" :widgets
@@ -375,5 +353,9 @@
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        10 :name :help-button :on-change
-                       'configform-help-button-on-change :title "Help"
-                       :top 304)))
+                       'configform-help-button-on-change :title "~Help"
+                       :top 304)
+        (make-instance 'cancel-button :font
+                       (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
+                       444 :name :cancel-button-1 :on-change
+                       'configform-cancel-button-on-change :top 304)))
