@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.20 2003/08/07 16:31:19 dancy Exp $
+;; $Id: loadem.cl,v 1.21 2003/12/03 21:03:44 dancy Exp $
 
 (in-package :user)
 
@@ -80,12 +80,15 @@
   (let (filelist)
     (dolist (file (reverse (cons "loadem" *filelist*)))
       (push (concatenate 'string file ".fasl") filelist))
+    
     (generate-executable
      "nfs" 
      (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
 	     filelist)
      #+(version>= 6 2 :pre-beta 13) :icon-file
      #+(version>= 6 2 :pre-beta 13) "nfs.ico")
+
+    ;; Set the command line flags.a
     (run-shell-command
      (format nil "~a -o nfs/nfs.exe +t ~s ~a"
 	     (truename "sys:bin;setcmd.exe")
@@ -96,6 +99,7 @@
 	     #+(version>= 6 2 :pre-beta 13) "+cx"
 	     #-(version>= 6 2 :pre-beta 13) "+cm")
      :show-window :hide)))
+
 
 (defun create-service (path)
   (multiple-value-bind (success code)

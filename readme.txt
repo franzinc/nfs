@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.15 2003/11/06 23:25:37 dancy Exp $
+$Id: readme.txt,v 1.16 2003/12/03 21:03:44 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -71,9 +71,11 @@ Edit nfs.cfg and replace the values of the parameters to your liking.
  properly, you'll need to have the NFS server tell clients that all
  files and directories are writable by everyone.  You can do this by
  using the *nfs-set-mode-bits* option below.  You should probably use
- value #o666.  For example: (*nfs-set-mode-bits* #o666).  The NFS
- server will enforce proper security even though the permission bits
- may indicate otherwise.
+ value #o666.  For example: (*nfs-set-mode-bits* #o666) [as of version
+ 1.1.5, this is the default setting].  The NFS server will enforce
+ proper security even though the permission bits may indicate
+ otherwise.  If *nfs-rw-uids* is 't', then everyone is granted write
+ access, regardless of user id.
 
 Currently, group id is not used to determine read/write access.  
 

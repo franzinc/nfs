@@ -1,6 +1,15 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-12-01    <dancy@CANDY2K>
+
+	* nfs.cl:  Bumped version to 1.1.5.  Removed (safety 1) from
+	optimization declaration.  Changed default nfslocaluid and
+	nfslocalgid to 9999 and 9999.  Changed default nfslocalumask to
+	0.  Changed default nfs-set-mode-bits to #o666.  Updated access
+	checking code so that if *nfs-rw-uids* is 't', everyone is allowed
+	read/write access.  This feature has been requested twice.
+	
 2003-11-06  Ahmon Dancy  <dancy@dancy>
 
 	* Updated readme.txt to discuss proper use of *nfs-fw-uids*.

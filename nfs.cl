@@ -21,26 +21,26 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.49 2003/07/03 02:42:33 dancy Exp $
+;; $Id: nfs.cl,v 1.50 2003/12/03 21:03:44 dancy Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "1.1.4")
+(defvar *nfsd-version* "1.1.5")
 
 (eval-when (compile)
-  (declaim (optimize (speed 3) (safety 1))))
+  (declaim (optimize (speed 3))))
 
 ;;; these settings may be overridden by the config file
 (defparameter *nfsdebug* nil)
-(defparameter *nfslocaluid* 443)
-(defparameter *nfslocalgid* 50)
+(defparameter *nfslocaluid* 9999)
+(defparameter *nfslocalgid* 9999)
 (defparameter *nfs-rw-uids* nil)
 ;; bits to clear from mode before returning to client
-(defparameter *nfslocalumask* #o022)
+(defparameter *nfslocalumask* #o000) ;; was #o022
 ;; bits to set in mode before returning to client
-(defparameter *nfs-set-mode-bits* 0)
+(defparameter *nfs-set-mode-bits* #o666)
 
 (defparameter *openfilereaptime* 2) ;; seconds
 (defparameter *statcachereaptime* 5) ;; should always be larger than *openfilereaptime*
@@ -1134,11 +1134,10 @@ struct symlinkargs {
 			  (xdr-int *nfsdxdr* NFSERR_IO))))))))
 
 
-;; should also check the file permissions..
 (defun nfs-okay-to-write (cred)
-  (if (= 1 (opaque-auth-flavor cred))
-      (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
-	     (uid (auth-unix-uid au)))
-	(or (= uid *nfslocaluid*)  (member uid *nfs-rw-uids*)))
-    nil))
-
+  (when (= 1 (opaque-auth-flavor cred))
+    (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
+	   (uid (auth-unix-uid au)))
+      (or (= uid *nfslocaluid*) 
+	  (eq *nfs-rw-uids* t)
+	  (member uid *nfs-rw-uids*)))))
