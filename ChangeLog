@@ -1,5 +1,15 @@
 2005-04-04    <Ahmon Dancy@GOBY>
 
+	* fhandle.cl
+	 * Define new error condition 'illegal-filename-error'
+	 * (sanity-check-filename): Use new error condition for illegal
+	filenames.
+
+	* nfs.cl (xdr-sattr-to-struct-sattr): If any of mode, uid, gid, or
+	size are #xffffffff, treat them at nil (unspecified).
+
+	******
+
 	* First commit for NFSv3 support.  Only notable non-NFSv3 specific
 	changes noted here:
 

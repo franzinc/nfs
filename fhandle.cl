@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.12 2005/04/05 02:45:51 dancy Exp $
+;; $Id: fhandle.cl,v 1.13 2005/04/05 03:04:15 dancy Exp $
 
 ;; file handle stuff
 
@@ -95,15 +95,24 @@
 	    (setf (gethash (fh-id fh) *fhandles*) fh)
 	    (setf (gethash path *export-roots*) fh))))
 
-(defun sanity-check-filename (filename &key allow-dotnames)
-  (if (or (position #\\ filename)
-	  (position #\/ filename)
-	  (position #\: filename))
-      (error "Illegal filename: ~S~%" filename))
-  (if (and (or (string= filename ".") (string= filename ".."))
-	   (not allow-dotnames))
-      (error "Illegal filename: ~A" filename)))
+(define-condition illegal-filename-error () ())
 
+(error 'foo-condition
+		   :format-control "foo the bar: ~s."
+		   :format-arguments (list 10))
+
+(defun sanity-check-filename (filename &key allow-dotnames)
+  (if (or 
+       ;; check 1
+       (or (position #\\ filename)
+	   (position #\/ filename)
+	   (position #\: filename))
+       ;; check 2
+       (and (or (string= filename ".") (string= filename ".."))
+	    (not allow-dotnames)) )
+      (error 'illegal-filename-error 
+	     :format-control "Illegal filename: ~S" 
+	     :format-arguments (list filename))))
 
 ;; Put a fhandle into the hash.. and make sure the 
 ;; parent has a child entry.

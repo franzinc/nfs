@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.63 2005/04/05 02:45:51 dancy Exp $
+;; $Id: nfs.cl,v 1.64 2005/04/05 03:04:15 dancy Exp $
 
 ;; nfs
 
@@ -228,6 +228,12 @@
 	       (format t "Handling file error: ~A~%" c))
 	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
 			  (excl::syscall-error-errno c)))
+	   (if (= ,vers 3)
+	       (nfs-xdr-wcc-data ,xdr nil nil)))
+	 (illegal-filename-error (c)
+	   (declare (ignore c))
+	   (setf (xdr-pos ,xdr) ,savepossym)
+	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (error (c)
@@ -885,14 +891,19 @@ struct entry {
 (defun xdr-sattr-to-struct-sattr (xdr vers)
   (ecase vers
     (2 
-     (make-sattr
-      :mode (xdr-unsigned-int xdr)
-      :uid (xdr-unsigned-int xdr)
-      :gid (xdr-unsigned-int xdr)
-      :size (let ((size (xdr-unsigned-int xdr)))
-	      (if (= size #xffffffff) nil size))
-      :atime (nfstime-to-universal-time xdr 2)
-      :mtime (nfstime-to-universal-time xdr 2)))
+     (macrolet ((get-value (xdr)
+		  (let ((value (gensym)))
+		    `(let ((,value (xdr-unsigned-int ,xdr)))
+		       (if (= ,value #xffffffff) 
+			   nil
+			 ,value)))))
+       (make-sattr
+	:mode (get-value xdr)
+	:uid (get-value xdr)
+	:gid (get-value xdr)
+	:size (get-value xdr)
+	:atime (nfstime-to-universal-time xdr 2)
+	:mtime (nfstime-to-universal-time xdr 2))))
     (3
      (make-sattr
       :mode (if (xdr-bool xdr) (xdr-unsigned-int xdr))
