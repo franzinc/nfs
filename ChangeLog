@@ -1,3 +1,16 @@
+2004-02-03    <dancy@CANDY2K>
+
+	* configure/nfs-server-io.cl: Changed secret function numbers to
+	correspond with changes in nfs.cl
+	(should parameterize these into a common file).
+
+	* sunrpc.cl (read-record): Use new read-complete-vector function.
+	
+	* nfs.cl (nfsd-message-handler): Changed secret function numbers
+	from 10001234/t to 100/101.
+
+	* loadem.cl (buildit): Re-added 7.0 command line conditionalization.
+
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 

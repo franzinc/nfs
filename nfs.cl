@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.52 2004/02/03 20:58:12 dancy Exp $
+;; $Id: nfs.cl,v 1.53 2004/02/03 23:20:06 dancy Exp $
 
 ;; nfs
 
@@ -133,9 +133,8 @@
       (16 (nfsd-readdir peer xid cbody))
       (17 (nfsd-statfs peer xid cbody))
       ;; secret functions used by the configuration program
-      ;; XXX - ignoring until case compilation macro bug is fixed
-      #+ignore(10001234 (nfsd-get-config-file-path peer xid cbody))
-      #+ignore(10001235 (nfsd-reload-configuration peer xid cbody))
+      (100 (nfsd-get-config-file-path peer xid cbody))
+      (101 (nfsd-reload-configuration peer xid cbody))
 
       
       (t 

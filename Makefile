@@ -1,10 +1,11 @@
-# $Id: Makefile,v 1.19 2004/02/03 20:58:12 dancy Exp $
+# $Id: Makefile,v 1.20 2004/02/03 23:20:06 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 LISPEXE = "/c/Program Files/acl62/mlisp"
 #LISPEXE = "/c/Program Files/acl70pb/mlisp8"
 #LISPEXE = "/c/Program Files/acl70pb/mlisp"
+#LISPEXE="/c/temp/7.0/mlisp"
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
 version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
 

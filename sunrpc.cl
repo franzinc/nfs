@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.19 2004/02/03 20:58:13 dancy Exp $
+;; $Id: sunrpc.cl,v 1.20 2004/02/03 23:20:06 dancy Exp $
 
 (in-package :user)
 
@@ -168,13 +168,21 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	    (error "read-record: Record is too big for the buffer! (~D > ~D)"
 		   size (length buffer)))
 	;;(format t "Message is ~d bytes~%" size)
-	(let ((res (read-vector buffer stream :end size)))
-	  (unless (= res size)
-	    (error "read-record: read-vector only returned ~D bytes" res))
-	  buffer))
+	(read-complete-vector buffer stream size))
     (t (c)
       (format t "read-record got error ~A~%Returning nil~%" c)
       nil)))
+
+(defun read-complete-vector (vec stream end)
+  (declare
+   (optimize (speed 3))
+   (type fixnum end))
+  (let ((pos 0))
+    (declare (type fixnum pos))
+    (while (/= pos end)
+      (setf pos (read-vector vec stream :start pos :end end))))
+  vec)
+  
 
 (defstruct rpc-msg 
   xid
