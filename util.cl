@@ -1,4 +1,4 @@
-;; $Id: util.cl,v 1.6 2001/08/11 17:23:25 dancy Exp $
+;; $Id: util.cl,v 1.7 2001/08/11 22:20:41 dancy Exp $
 
 (in-package :user)
 
@@ -43,6 +43,14 @@
 
 (ff:def-foreign-call SetEndOfFile (hFile))
 
+(ff:def-foreign-type utimbuf 
+    (:struct
+     (actime :unsigned-int)
+     (modtime :unsigned-int)))
+
+(ff:def-foreign-call (utime "_utime") ((filename (* :char)) (times (* utimbuf)))
+  :strings-convert t)
+
 (defconstant FILE_BEGIN           0)
 (defconstant FILE_CURRENT         1)
 (defconstant FILE_END             2)
@@ -80,16 +88,20 @@
 ;;; given a particular blocksize
 (defun howmany (value blocksize)
   (/ (roundup value blocksize) blocksize))
-  
+
+(defun createfile (filename)
+  (setf filename (namestring filename))
+  (win:CreateFile 
+   filename 
+   win:GENERIC_WRITE 
+   0
+   0
+   win:OPEN_EXISTING
+   win:FILE_ATTRIBUTE_NORMAL
+   0))
+
 (defun truncate-file (filename size)
-  (let ((hFile (win:CreateFile 
-		filename 
-		win:GENERIC_WRITE 
-		0
-		0
-		win:OPEN_EXISTING
-		win:FILE_ATTRIBUTE_NORMAL
-		0))
+  (let ((hFile (createfile filename))
 	res)
     (if (= hFile win:INVALID_HANDLE_VALUE)
 	(return-from truncate-file (win:GetLastError)))
@@ -108,6 +120,10 @@
     
     (win:CloseHandle hFile)			
     0))
-    
-    
 
+(defun set-file-time (filename atime mtime)
+  (setf filename (namestring filename))
+  (let ((times (ff:allocate-fobject 'utimbuf)))
+    (setf (ff:fslot-value times 'actime) atime)
+    (setf (ff:fslot-value times 'modtime) mtime)
+    (utime filename times)))

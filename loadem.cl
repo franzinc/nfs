@@ -1,4 +1,4 @@
-;; $Id: loadem.cl,v 1.7 2001/08/11 00:27:42 layer Exp $
+;; $Id: loadem.cl,v 1.8 2001/08/11 22:20:40 dancy Exp $
 
 (in-package :user)
 
@@ -6,7 +6,7 @@
   (load "ntservice/ntservice.fasl"))
 
 (defparameter *filelist*
-    '("extra" "util" "fixes" "mpsocketfix" "xdr" "sunrpc" "portmap"
+    '("util" "fixes" "mpsocketfix" "xdr" "sunrpc" "portmap"
       "fhandle" "mountd" "nfs"))
 
 (defun loadem ()
