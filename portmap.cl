@@ -1,5 +1,5 @@
 ;; portmapper
-;; $Id: portmap.cl,v 1.6 2001/08/10 18:07:55 dancy Exp $
+;; $Id: portmap.cl,v 1.7 2001/08/11 00:27:42 layer Exp $
 
 (in-package :user)
 
@@ -116,6 +116,7 @@
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
 (defun portmap-callit (peer xid params)
+  (declare (ignore xid peer))
   (with-xdr-xdr (params)
     (let ((prog (xdr-unsigned-int params))
 	  (vers (xdr-unsigned-int params))

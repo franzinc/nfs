@@ -1,14 +1,13 @@
-;; $Id: loadem.cl,v 1.6 2001/08/10 18:07:54 dancy Exp $
+;; $Id: loadem.cl,v 1.7 2001/08/11 00:27:42 layer Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
-  (load "c:/devel/service/service.fasl"))
+  (load "ntservice/ntservice.fasl"))
 
 (defparameter *filelist*
-    '("extra" "util" "fixes" "mpsocketfix" "xdr" 
-		    "sunrpc" "portmap" "fhandle"
-		    "mountd" "nfs"))
+    '("extra" "util" "fixes" "mpsocketfix" "xdr" "sunrpc" "portmap"
+      "fhandle" "mountd" "nfs"))
 
 (defun loadem ()
   (dolist (file *filelist*)
