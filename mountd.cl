@@ -1,5 +1,5 @@
 ;; mountd
-;; $Id: mountd.cl,v 1.6 2001/06/20 16:01:21 dancy Exp $
+;; $Id: mountd.cl,v 1.7 2001/08/10 18:07:55 dancy Exp $
 
 (in-package :user)
 
@@ -47,7 +47,7 @@
   (let (msg cbody)
     (setf msg (create-rpc-msg xdr))
     (setf cbody (rpc-msg-cbody msg))
-    (pprint-cbody cbody)
+    ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
     (when (and (= (call-body-prog cbody) *mountprog*)
@@ -73,7 +73,7 @@
     xdr))
 
 (defun mountd-null (peer xid)
-  (format t "mountd-null called.~%")
+  (format t "mountd-null~%~%")
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (mountd-null-verf) xdr)))
 
@@ -95,7 +95,7 @@
       (return-from mountd-mount (rpc-send-auth-error-rejected-reply peer xid 2)))
     (setf au (xdr-opaque-auth-struct-to-auth-unix-struct oa))
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
-    (format t "mountd-mount ~A by ~A~%" dirpath (auth-unix-machinename au))
+    (format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au))
     (setf rootpathname (locate-export dirpath))
     (with-successful-reply (res peer xid (mountd-null-verf))
       (if rootpathname
@@ -105,9 +105,7 @@
 	(xdr-int res 2))))) ;; No such file or directory
 
     
-(defparameter *exports* 
-    '(("/c" "c:/")
-      ("/d" "d:/")))
+(defparameter *exports* nil)
   
 
 ;;; returns a pathname
@@ -117,7 +115,7 @@
       (pathname (second res)))))
 
 (defun mountd-export (peer xid)
-  (format t "mountd-export~%")
+  (format t "mountd-export~%~%")
   (let ((xdr (create-xdr :direction :build)))
     (dolist (export *exports*)
       (xdr-int xdr 1) ;; indicate that data follows

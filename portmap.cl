@@ -1,5 +1,5 @@
 ;; portmapper
-;; $Id: portmap.cl,v 1.5 2001/07/03 03:22:34 dancy Exp $
+;; $Id: portmap.cl,v 1.6 2001/08/10 18:07:55 dancy Exp $
 
 (in-package :user)
 
@@ -59,7 +59,7 @@
     (setf msg (create-rpc-msg xdr))
     (setf cbody (rpc-msg-cbody msg))
     (write-line "")
-    (pprint-cbody cbody)
+    ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
     (when (and (= (call-body-prog cbody) *pmapprog*)
@@ -82,13 +82,13 @@
     xdr))
 
 (defun portmap-null (peer xid)
-  (format t "portmap-null~%")
+  (format t "portmap-null~%~%")
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
 
 (defun portmap-dump (peer xid)
-  (format t "portmap-dump~%")
+  (format t "portmap-dump~%~%")
   (let ((xdr (create-xdr :direction :build)))
     (dolist (mapping *mappings*)
       (xdr-int xdr 1) ;; indicate that data follows
@@ -107,11 +107,11 @@
     (format t "portmap-getport: ~A~%" m)
     (if m2
         (progn
-          (format t "Program found. Returning port ~D~%" 
+          (format t "Program found. Returning port ~D~%~%" 
             (mapping-port m2))
           (xdr-unsigned-int xdr (mapping-port m2)))
       (progn
-        (format t "Program not found.  Returning 0~%")
+        (format t "Program not found.  Returning 0~%~%")
         (xdr-unsigned-int xdr 0)))
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
@@ -120,20 +120,18 @@
     (let ((prog (xdr-unsigned-int params))
 	  (vers (xdr-unsigned-int params))
 	  (proc (xdr-unsigned-int params)))
-      (format t "portmap-callit(~D, ~D, ~D, ...)~%" prog vers proc))))
+      (format t "portmap-callit(~D, ~D, ~D, ...)~%~%" prog vers proc))))
     
     
 (defun locate-matching-mapping (m)
   (dolist (m2 *mappings*)
     (when (and
            (= (mapping-prog m) (mapping-prog m2))
-           (= (mapping-vers m) (mapping-vers m2))
+           ;;(= (mapping-vers m) (mapping-vers m2)) ;; for amd
            (= (mapping-prot m) (mapping-prot m2)))
       (return-from locate-matching-mapping m2)))
   nil)
-      
-    
-  
+
 (defun make-mapping-from-xdr (xdr)
   (let ((m (make-mapping))) 
     (setf (mapping-prog m) (xdr-int xdr))

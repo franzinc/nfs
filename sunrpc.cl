@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.10 2001/07/03 22:11:45 dancy Exp $
+;; $Id: sunrpc.cl,v 1.11 2001/08/10 18:07:55 dancy Exp $
 
 (in-package :user)
 
@@ -268,4 +268,9 @@
   (let ((xdr (create-xdr :direction :build)))
     (send-accepted-reply peer xid verf 3 xdr)))
 
-
+(defun rpc-send-prog-mismatch (peer xid verf lowest highest)
+  (let ((xdr (create-xdr :direction :build)))
+    (xdr-unsigned-int xdr lowest)
+    (xdr-unsigned-int xdr highest)
+    (send-accepted-reply peer xid verf 2 xdr)))
+  

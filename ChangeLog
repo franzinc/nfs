@@ -1,3 +1,35 @@
+2001-08-10    <dancy@DANCY2K>
+
+	* sunrpc.cl:  Added new function rpc-send-prog-mismatch to send
+	PROG_MISMATCH RPC responses.
+
+	* loadem.cl:  Many changes.  Mostly to support the use of the nfs
+	server as an NT service.   Requires "service.fasl".
+
+	The new way to build the program:
+	:cl loadem
+	(loadem)
+	(main)  ;; changed from (startem)
+
+	Moved config file reading into this file (out of nfs.cl).
+
+	Added function (create-service) which will add the nfs server to
+	the list of services in Windows.  Make sure you call (buildit) to
+	build a standalone executable.   
+
+	* mountd.cl:  Changed the formatting of some debugging output.  
+
+	The default list of exports is now nil.
+
+	* nfs.cl:  Now check for incorrect NFS version request and send
+	back a PROG_MISMATCH RPC reply.
+
+	* portmap.cl:  Don't use the program version when matching.  This
+	is gross.. but it makes things work better with amd (but I'm
+	trying to convince the maintainer of am-utils that there is a bug
+	in amd).
+	
+
 2001-08-03    <dancy@DANCY2K>
 
 	* loadem.cl: Added a (buildit) function to build an nfs
@@ -184,11 +216,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -199,15 +231,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.21 2001/08/10 18:07:54 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.20 2001/08/03 21:53:29 dancy Exp $
+;;; $Id: nfs.cl,v 1.21 2001/08/10 18:07:55 dancy Exp $
 
 (in-package :user)
 
@@ -11,7 +11,6 @@
 (defparameter *nfslocaluid* 443)
 (defparameter *nfslocalgid* 50)
 (defparameter *nfslocalumask* #o022)
-(defparameter *nfsconfigfile* "nfs.cfg")
 
 (defparameter *openfilereaptime* 2) ;; seconds
 (defparameter *statcachereaptime* 5)
@@ -111,7 +110,6 @@
     (setf *nfsdxdr* (create-xdr :direction :build))))
 
 (defun nfsd ()
-  (read-nfs-cfg)
   (make-nfsdsockets)
   (ensure-nfsdxdr)
   (portmap-add-program *nfsprog* *nfsvers* *nfsport* IPPROTO_TCP)
@@ -131,29 +129,36 @@
     ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
-    (if (and (= (call-body-prog cbody) *nfsprog*)
-	     (= (call-body-vers cbody) *nfsvers*))
-	(case (call-body-proc cbody)
-	  (0 (nfsd-null peer (rpc-msg-xid msg)))
-	  (1 (nfsd-getattr peer (rpc-msg-xid msg) (call-body-params cbody)))
-	  (2 (nfsd-setattr peer (rpc-msg-xid msg) cbody))
-	  (4 (nfsd-lookup peer (rpc-msg-xid msg) (call-body-params cbody)))
-	  (6 (nfsd-read peer (rpc-msg-xid msg) (call-body-params cbody)))
-	  (8 (nfsd-write peer (rpc-msg-xid msg) cbody))
-	  (9 (nfsd-create peer (rpc-msg-xid msg) cbody))
-	  (10 (nfsd-remove peer (rpc-msg-xid msg) cbody))
-	  (11 (nfsd-rename peer (rpc-msg-xid msg) cbody))
-	  (14 (nfsd-mkdir peer (rpc-msg-xid msg) cbody))
-	  (15 (nfsd-rmdir peer (rpc-msg-xid msg) cbody))
-	  (16 (nfsd-readdir peer (rpc-msg-xid msg) (call-body-params cbody)))
-	  (17 (nfsd-statfs peer (rpc-msg-xid msg) (call-body-params cbody)))
-	  (t 
-	   (rpc-send-proc-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
-	   (format t "nfsd: unhandled procedure ~D~%" (call-body-proc cbody))))
-      ;; we don't know about this program that it's asking for
-      (progn
-	(format t "Sending program unavailable response for prog=~D, vers=~D.~%" (call-body-prog cbody) (call-body-vers cbody))
-	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))))))
+    
+    ;; sanity checks first
+    (if* (not (= (call-body-prog cbody) *nfsprog*))
+       then
+	    (format t "Sending program unavailable response for prog=~D~%" (call-body-prog cbody))
+	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
+	    (return-from nfsd-message-handler))
+    (if* (not (= (call-body-vers cbody) *nfsvers*))
+       then
+	    (write-line "Sending program version mismatch response")
+	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg) (nfsd-null-verf) *nfsvers* *nfsvers*)
+	    (return-from nfsd-message-handler))
+    (case (call-body-proc cbody)
+      (0 (nfsd-null peer (rpc-msg-xid msg)))
+      (1 (nfsd-getattr peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (2 (nfsd-setattr peer (rpc-msg-xid msg) cbody))
+      (4 (nfsd-lookup peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (6 (nfsd-read peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (8 (nfsd-write peer (rpc-msg-xid msg) cbody))
+      (9 (nfsd-create peer (rpc-msg-xid msg) cbody))
+      (10 (nfsd-remove peer (rpc-msg-xid msg) cbody))
+      (11 (nfsd-rename peer (rpc-msg-xid msg) cbody))
+      (14 (nfsd-mkdir peer (rpc-msg-xid msg) cbody))
+      (15 (nfsd-rmdir peer (rpc-msg-xid msg) cbody))
+      (16 (nfsd-readdir peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (17 (nfsd-statfs peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (t 
+       (rpc-send-proc-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
+       (format t "nfsd: unhandled procedure ~D~%" (call-body-proc cbody))))))
+    
 
 (defparameter *nfsdnullverf* nil)
 
@@ -166,7 +171,7 @@
 
 
 (defun nfsd-null (peer xid)
-  (if *nfsdebug*  (format t "nfsd-null~%"))
+  (if *nfsdebug*  (format t "nfsd-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (nfsd-null-verf) xdr)))
 
@@ -966,7 +971,3 @@ struct readargs {
 	(= (auth-unix-uid au) *nfslocaluid*))
     nil))
 	  
-(defun read-nfs-cfg ()
-  (with-open-file (s *nfsconfigfile*)
-    (dolist (pair (read s))
-      (set (first pair) (second pair)))))
