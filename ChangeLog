@@ -1,7 +1,11 @@
 2004-02-20    <layer@HOBART>
 
-	* Makefile: LISPDIR: check for ../acl62, the default to the
-	  Program Files location; -batch mode
+	* (NEW) nightly.bat
+	* Makefile:
+	- LISPDIR: check for ../acl62, the default to the Program Files
+	  location
+	- add -batch to lisp execution
+	- add `nightly' rule
 	* configure/Makefile: LISPDIR: default to ../../acl70pb
 	* configure/configure.lpr: make pathnames relative
 

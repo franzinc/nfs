@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.31 2004/02/20 23:14:28 layer Exp $
+# $Id: Makefile,v 1.32 2004/02/20 23:27:37 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -72,6 +72,15 @@ dist-demo: build-demo installer-demo
 # Alias
 demo-dist: dist-demo
 
+update_cobweb: FORCE
+	cp -p dists/setup-nfs-2.0.exe //cobweb/download/prod/downloadables
+
+update_demo_cobweb: FORCE
+	cp -p dists/setup-nfs-2.0-demo.exe //cobweb/download/prod/downloadables
+
+## the following rule is run nightly on hobart to produce a new demo
+## version that expires 30 days into the future.  See nightly.bat.
+nightly: dist-demo update_demo_cobweb
 
 nfs_bin_files = nfs.cfg.sample readme.txt binary-license.txt access-control.txt
 nfs_source_files = Makefile ChangeLog *.cl *.txt nfs.cfg.sample nfs.ico
