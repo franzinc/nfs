@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.13 2001/06/14 23:57:37 dancy Exp $
+;;; $Id: nfs.cl,v 1.14 2001/06/20 16:01:22 dancy Exp $
 
 (in-package :user)
 
@@ -175,7 +175,8 @@
 
 ;; sbcons..  (sb . lastaccesstime)
 (defun lookup-statcache (p)
-  (setf p (pathname p))
+  (unless (pathnamep p)
+    (error "lookup-statcache must be called with a pathname"))
   (mp:with-process-lock (*statcache-lock*)
     (let ((sbcons (gethash p *nfs-statcache*)))
       (if sbcons
@@ -246,7 +247,9 @@
 (defconstant *NFDIR* 2)
 
 (defun make-fattr-from-pathname (p)
-  (let* ((id (second (multiple-value-list (pathname-to-fhandle p))))
+  (declare
+   (type pathname p))
+  (let* ((id (pathname-to-fhandle-id p))
 	 ;;(sb (ff:allocate-fobject 'stat)))
 	 (sb (lookup-statcache p)))
     ;;(stat (namestring p) sb)
@@ -269,7 +272,9 @@
      (list (ff:fslot-value-typed 'stat :foreign sb 'st_mtime) 0)))) ; ctime
 
 (defun update-fattr-from-pathname (p xdr)
-  (let* ((id (second (multiple-value-list (pathname-to-fhandle p))))
+  (declare
+   (type pathname p))
+  (let* ((id (pathname-to-fhandle-id p))
 	 (sb (lookup-statcache p)))
     (update-fattr 
      xdr
@@ -521,7 +526,9 @@ struct entry {
 
 ;; returns number of bytes added to xdr
 (defun make-direntry-xdr (xdr p cookie)
-  (let ((fileid (second (multiple-value-list (pathname-to-fhandle p))))
+  (declare 
+   (type pathname p))
+  (let ((fileid (pathname-to-fhandle-id p))
 	(filename (basename p)))
     (when (eq *nfsdebug* :verbose) (format t "~D: ~A fileid=~A next=~A~%" (1- cookie) filename fileid cookie))
     (xdr-compute-bytes-added (xdr)
@@ -555,11 +562,12 @@ struct entry {
 (defun diropargs-xdr-to-pathname (xdr)
   (diropargs-struct-to-pathname (xdr-to-diropargs xdr)))
 
+;;; returns a pathname
 (defun add-filename-to-dirname (dir filename)
   (setf dir (namestring dir))
   (if (not (= (position #\\ dir :from-end t) (1- (length dir))))
       (setf dir (concatenate 'string dir "\\")))
-  (concatenate 'string dir filename))
+  (pathname (concatenate 'string dir filename)))
 
 ;;; returns:
 ;;; status
@@ -589,19 +597,6 @@ struct entry {
 		  (progn
 		    ;;(format t "lookup: doesn't exist~%")
 		    (xdr-int *nfsdxdr* NFSERR_NOENT)))))))))))
-
-(defun make-diropres-xdr (stat diropok)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-int xdr stat)
-    (if (= stat 0)
-        (xdr-xdr xdr diropok))
-    xdr))
-
-(defun make-diropok (fhandle attributes)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-xdr xdr fhandle)
-    (xdr-xdr xdr attributes)
-    xdr))
 
 #|
 struct readargs {
@@ -652,6 +647,21 @@ struct readargs {
 		  (and (equalp (openfile-pathname a) (openfile-pathname b))
 		       (eq (openfile-direction a) (openfile-direction b))))))
 
+(defun locate-open-file-any (p)
+  (find p *nfs-openfilelist*
+	:test #'(lambda (a b) (equalp a (openfile-pathname b)))))
+
+(defun close-open-file (p)
+  (setf p (pathname p))
+  ;;(format t "close-open-file ~S~%" p)
+  (mp:with-process-lock (*nfs-openfilelist-lock*)
+    (let (of)
+      (while (setf of (locate-open-file-any p))
+	     (setf (openfile-lastaccess of) 0)
+	     (format t "close-open-file: Calling reap-open-files to effect a close~%")
+	     (reap-open-files)))))
+	     
+
 (defparameter *openfilereaptime* 2) ;; seconds
 
 (defun reap-open-files ()
@@ -661,7 +671,9 @@ struct readargs {
       (dolist (of *nfs-openfilelist*)
 	(if (< (- now (openfile-lastaccess of)) *openfilereaptime*)
 	    (push of res)
-	  (close (openfile-stream of)))
+	  (progn
+	    ;;(format t "reap-open-files: Closing ~S~%" (openfile-pathname of))
+	    (close (openfile-stream of))))
 	(setf *nfs-openfilelist* res)))))
 
 (defun nfsd-open-file-reaper ()
@@ -690,11 +702,6 @@ struct readargs {
 	      (xdr-int *nfsdxdr* NFS_OK) 
 	      (update-stat-atime p)
 	      (update-fattr-from-pathname p *nfsdxdr*)))))))))
-
-(defun createargs-xdr-to-pathname-and-sattr-struct (xdr)
-  (values (diropargs-xdr-to-pathname xdr) 
-	  (xdr-sattr-to-struct-sattr xdr)))
-
 
 ;;; args:  fhandle dir, filename, sattr
 ;;; returns: status
@@ -783,21 +790,25 @@ struct readargs {
 	    (setf newpath (add-filename-to-dirname dir filename))
 	    (if *nfsdebug* (format t "nfsd-remove(~A)~%" newpath))
 	    (if (nfs-okay-to-write (call-body-cred cbody))
-		(handler-case (delete-file newpath)
-		  (file-error (c)
-		    (if* (and (numberp (excl::file-error-errno c)) (= 13 (excl::file-error-errno c)))
-		       then ;; permission denied
-			    (format t "delete: permission denied~%")
-			    (xdr-int *nfsdxdr* NFSERR_ACCES)
-		       else ;; unknown (as of now)
-			    (format t "delete: unknown error~%")
-			    (xdr-int *nfsdxdr* NFSERR_IO)))
-		  (:no-error (c)
-		    (declare (ignore c))
-		    ;;(format t "delete succeeded.~%")
-		    (update-atime-and-mtime dir)
-		    (nfs-remove-file-from-dircache newpath dir)
-		    (xdr-int *nfsdxdr* NFS_OK)))
+		(progn
+		  (close-open-file newpath)
+		  (handler-case (delete-file newpath)
+		    (file-error (c)
+		      (let ((errno (excl::file-error-errno c)))
+			(if (numberp errno)
+			    (cond
+			     ((= 13 errno)
+			      (format t "delete: permission denied~%")
+			      (xdr-int *nfsdxdr* NFSERR_ACCES))
+			     (t 
+			      (error c)))
+			  (error c))))
+		    (:no-error (c)
+		      (declare (ignore c))
+		      ;;(format t "delete succeeded.~%")
+		      (update-atime-and-mtime dir)
+		      (nfs-remove-file-from-dircache newpath dir)
+		      (xdr-int *nfsdxdr* NFS_OK))))
 	      (progn
 		(format t "delete: auth denied~%")
 		(xdr-int *nfsdxdr* NFSERR_ACCES)))))))))

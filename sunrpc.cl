@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.7 2001/06/07 17:14:05 dancy Exp $
+;; $Id: sunrpc.cl,v 1.8 2001/06/20 16:01:22 dancy Exp $
 
 (in-package :user)
 
@@ -185,8 +185,8 @@
 	(write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
         (write-sequence (xdr-get-vec xdr) (rpc-peer-socket peer))))
      ((eq type :datagram)
-      (mp:wait-for-input-available
-       (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))
+      #-(version>= 6 1)
+      (mp:wait-for-input-available (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))
       (socket:send-to (rpc-peer-socket peer) 
                       (xdr-get-complete-vec xdr) 
                       (xdr-size xdr) 

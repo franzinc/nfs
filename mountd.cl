@@ -1,5 +1,5 @@
 ;; mountd
-;; $Id: mountd.cl,v 1.5 2001/06/07 19:09:38 dancy Exp $
+;; $Id: mountd.cl,v 1.6 2001/06/20 16:01:21 dancy Exp $
 
 (in-package :user)
 
@@ -77,6 +77,12 @@
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (mountd-null-verf) xdr)))
 
+;; returns:
+;; error code
+;; or
+;; 0 followed by:
+;;  fhandle
+
 (defun mountd-mount (peer xid cbody)
   (format t "mountd-mount~%")
   (let ((oa (call-body-cred cbody))
@@ -91,28 +97,20 @@
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
     (format t "mountd-mount ~A by ~A~%" dirpath (auth-unix-machinename au))
     (setf rootpathname (locate-export dirpath))
-    (if rootpathname
-        (send-successful-reply peer xid 
-                               (mountd-null-verf) 
-                               (mountd-make-fhstatus 0 (pathname-to-fhandle rootpathname)))
-      (mountd-reply-enoent peer xid))))
+    (with-successful-reply (res peer xid (mountd-null-verf))
+      (if rootpathname
+	  (progn
+	    (xdr-int res 0)
+	    (pathname-to-fhandle-with-xdr res rootpathname))
+	(xdr-int res 2))))) ;; No such file or directory
+
     
-
-(defun mountd-reply-enoent (peer xid) ;; No such file or directory
-  (send-successful-reply peer xid (mountd-null-verf) (mountd-make-fhstatus 2 nil)))
-  
-(defun mountd-make-fhstatus (status fhandle)
-  (let ((xdr (create-xdr :direction :build :size (+ 4 32))))
-    (xdr-int xdr status)
-    (when (= 0 status)
-      (xdr-opaque-fixed xdr :vec fhandle))
-    xdr))
-
 (defparameter *exports* 
     '(("/c" "c:/")
       ("/d" "d:/")))
   
 
+;;; returns a pathname
 (defun locate-export (dirpath)
   (let ((res (find dirpath *exports* :test (lambda (x pair) (string= (car pair) x)))))
     (when res

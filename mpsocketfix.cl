@@ -1,10 +1,11 @@
 ;; mp socket fix
 ;; patch for bug10759
-;; $Id: mpsocketfix.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
+;; $Id: mpsocketfix.cl,v 1.4 2001/06/20 16:01:22 dancy Exp $
 
 (in-package :mp)
 
 ;; this was modified
+#-(version>= 6 1)
 (eval-when (compile)
   (defmacro stream-or-fd-fd (s)
     (unless (symbolp s)
@@ -28,6 +29,7 @@
 
 ; these are unmodified, but use the above:
 
+#-(version>= 6 1)
 (defun wait-for-input-available (streams
 				 &key (wait-function #'stream::stream-listen)
 				      (whostate "waiting for input")
@@ -52,6 +54,7 @@
     (cdr ret-list)))
 
 
+#-(version>= 6 1)
 (defun wait-for-input-available-one (fd stream wait-function)
   (declare (optimize (speed 3)))
   (let ((sys::*stack-group-watchfor-fds*

@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.9 2001/06/14 21:55:45 dancy Exp $
+;; $Id: xdr.cl,v 1.10 2001/06/20 16:01:22 dancy Exp $
 
 (in-package :user)
 
@@ -6,10 +6,10 @@
   (declaim (optimize (speed 3) (safety 1))))
 
 (defstruct xdr
-  (vec :type '(simple-array (unsigned-byte 8) (*)))
-  (size :type fixnum)			; build: maximum offset in vec (not necessarily the length of the vec)
+  (vec nil :type (simple-array (unsigned-byte 8) (*)))
+  (size 0 :type fixnum)			; build: maximum offset in vec (not necessarily the length of the vec)
   direction
-  (pos :type fixnum)) ;; current position in vec (extracting and building)
+  (pos 0 :type fixnum)) ;; current position in vec (extracting and building)
 
 (defparameter *xdrdefaultsize* 256)
 
@@ -95,16 +95,26 @@
     xdr))
 
 (defun xdr-flush (xdr)
+  (declare 
+   (type xdr xdr))
   (setf (xdr-size xdr) 0)
   (setf (xdr-pos xdr) 0))
 
 (defun xdr-get-vec (xdr)
+  (declare
+   (type xdr xdr))
   (subseq (xdr-vec xdr) 0 (xdr-size xdr)))
 
 (defun xdr-get-complete-vec (xdr)
+  (declare
+   (type xdr xdr))
   (xdr-vec xdr))
 
 (defun xdr-expand-check (xdr more)
+  (declare
+   ;;(:explain :calls :types)
+   (type xdr xdr)
+   (type fixnum more))
   (if (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
       (progn
 	;;(format t "expanding xdr~%")
@@ -133,7 +143,9 @@
   
 
 (defun xdr-unsigned-int (xdr &optional int)
-  (declare (type (unsigned-byte 32) int))
+  (declare 
+   (type xdr xdr)
+   (type (unsigned-byte 32) int))
   (let ((direction (xdr-direction xdr))
 	res)
     (cond
@@ -148,6 +160,8 @@
 
 
 (defun xdr-int (xdr &optional int)
+  (declare
+   (type xdr xdr))
   (let ((direction (xdr-direction xdr))
 	res)
     (cond
@@ -161,6 +175,8 @@
 
 ;; returns a vector
 (defun xdr-opaque-fixed (xdr &key vec len)
+  (declare
+   (type xdr xdr))
   (let ((direction (xdr-direction xdr))
 	res
 	plen)
@@ -185,6 +201,8 @@
 
  ;;; extract:  returns (xdr offset length)
 (defun xdr-opaque-variable (xdr &key vec len)
+  (declare 
+   (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
@@ -198,6 +216,10 @@
       (xdr-opaque-fixed xdr :vec vec :len len)))))
 
 (defun xdr-opaque-variable-from-stream (xdr stream count)
+  (declare
+   (type xdr xdr)
+   (type stream stream)
+   (type fixnum count))
   (unless (eq (xdr-direction xdr) :build)
     (error "xdr-opaque-variable-from-stream is only good for building"))
   ;;(format t "count is ~D~%" count)
@@ -214,6 +236,9 @@
     (xdr-update-pos xdr bytesread)))
 
 (defun xdr-array-fixed (xdr typefunc &key len things)
+  (declare
+   (type xdr xdr)
+   (type function typefunc))
   (let ((direction (xdr-direction xdr))
         res)
     (cond
@@ -230,6 +255,9 @@
         (funcall typefunc xdr thing))))))
 
 (defun xdr-array-variable (xdr typefunc &optional things)
+  (declare 
+   (type xdr xdr)
+   (type function typefunc))
   (let ((direction (xdr-direction xdr))
         len)
     (cond
@@ -251,6 +279,8 @@
   (body-offset :type fixnum))
 
 (defun xdr-opaque-auth (xdr &optional flavor body)
+  (declare
+   (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
@@ -268,6 +298,8 @@
       (xdr-opaque-variable xdr :vec body)))))
 
 (defun xdr-auth-null (xdr)
+  (declare 
+   (type xdr xdr))
   (unless (eq (xdr-direction xdr) :build)
     (error "xdr-auth-null: Not ready for extraction yet"))
   (xdr-opaque-auth xdr 0 #()))
@@ -281,6 +313,8 @@
   ) 
 
 (defun xdr-auth-unix (xdr &optional au)
+  (declare 
+   (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond 
      ((eq direction :extract)
@@ -307,6 +341,10 @@
   (let ((xdr (opaque-auth-body-xdr oa))
 	(au (make-auth-unix))
 	(pos (opaque-auth-body-offset oa)))
+    (declare
+     (type xdr xdr)
+     (type auth-unix au)
+     (type fixnum pos))
     (xdr-with-seek (xdr pos :absolute t)
 		   ;;(format t "seeked to position ~D within xdr~%" pos)
 		   (setf (auth-unix-stamp au) (xdr-int xdr))
@@ -327,10 +365,16 @@
     (make-array (list size) :element-type '(unsigned-byte 8))))
 
 (defun compute-padded-len (len)
+  (declare
+   ;;(:explain :calls :types)
+   (type fixnum len))
   (let ((remainder (mod len 4)))
+    (declare 
+     (type (integer 0 3) remainder))
     (+ len (if (> remainder 0) (- 4 remainder) 0))))
 
 (defun compute-variable-bytes-used (xdr)
+  (declare (type xdr xdr))
   (let ((res))
     ;;(format t "cvbu: before seek: ~D/~D~%" (xdr-pos xdr) (xdr-size xdr))
     (setf res (xdr-with-seek (xdr 0)
@@ -341,6 +385,7 @@
     res))
     
 (defun xdr-string (xdr &optional string)
+  (declare (type xdr xdr))
   (let ((direction (xdr-direction xdr))
         len
 	plen
@@ -364,6 +409,7 @@
       (xdr-update-pos xdr plen)))))
 
 (defun xdr-xdr (xdr &optional xdr2)
+  (declare (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :build)
@@ -384,6 +430,7 @@
       
 
 (defun xdr-timeval (xdr &optional timeval)
+  (declare (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
@@ -393,5 +440,3 @@
         (error "xdr-timeval: 'timeval' parameter required"))
       (xdr-unsigned-int xdr (first timeval))
       (xdr-unsigned-int xdr (second timeval))))))
-
-
