@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.21 2001/08/10 18:07:55 dancy Exp $
+;;; $Id: nfs.cl,v 1.22 2001/08/11 00:26:24 layer Exp $
 
 (in-package :user)
 
@@ -14,7 +14,7 @@
 
 (defparameter *openfilereaptime* 2) ;; seconds
 (defparameter *statcachereaptime* 5)
-(defparameter *nfs-dircachereaptime* 30)
+(defparameter *nfs-dircachereaptime* 5)
 
 (defconstant *nfsprog* 100003)
 (defconstant *nfsvers* 2)
@@ -485,8 +485,14 @@
       (if (not (member file dirlist :test #'equalp))
 	  (let ((pos (position nil dirlist)))
 	    (if (null pos)
-		(rplacd (last dirlist) (list file))
+		(if (null dirlist)
+		    (set-nfs-dircache file dir)
+		  (rplacd (last dirlist) (list file)))
 	      (setf (nth pos dirlist) file)))))))
+
+(defun set-nfs-dircache (file dir)
+  (let ((dc (cons (list file) (get-universal-time))))
+    (setf (gethash dir *nfs-dircache*) dc)))
 
 (defun nfs-remove-file-from-dircache (file dir)
   (mp:with-process-lock (*nfs-dircachelock*)
@@ -643,6 +649,7 @@ struct readargs {
 	      ;;(format t "open file list has ~d entries now~%" (length *nfs-openfilelist*))
 	      (openfile-stream newof)))))
     (file-error (c)
+      (format t "get-open-file: condition: ~a" c) 
       (values nil (excl::file-error-errno c)))))
 
 
@@ -838,16 +845,20 @@ struct readargs {
 	  (progn 
 	    (if (eq *nfsdebug* :verbose) (format t "nfsd-write(~A,offset=~A) ~D bytes~%" p offset (third data)))
 	    (if (nfs-okay-to-write (call-body-cred cbody))
-		(let ((f (get-open-file p :output)))
-		  (file-position f offset)
-		  (write-sequence 
-		   (xdr-vec (first data))
-		   f
-		   :start (second data)
-		   :end (+ (third data) (second data)))
-		  (update-stat-times-and-size f p)
-		  (xdr-int *nfsdxdr* NFS_OK)
-		  (update-fattr-from-pathname p *nfsdxdr*))
+		(multiple-value-bind (f #+ignore errno)
+		    (get-open-file p :output)
+		  (if* (null f)
+		     then (format t "nfsd-write: IO error~%")
+			  (xdr-int *nfsdxdr* NFSERR_IO)
+		     else (file-position f offset)
+			  (write-sequence 
+			   (xdr-vec (first data))
+			   f
+			   :start (second data)
+			   :end (+ (third data) (second data)))
+			  (update-stat-times-and-size f p)
+			  (xdr-int *nfsdxdr* NFS_OK)
+			  (update-fattr-from-pathname p *nfsdxdr*)))
 	      (progn
 		(format t "nfsd-write: permission denied~%")
 		(xdr-int *nfsdxdr* NFSERR_ACCES)))))))))
