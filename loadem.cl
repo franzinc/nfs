@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.22 2003/12/03 21:33:20 dancy Exp $
+;; $Id: loadem.cl,v 1.23 2003/12/12 23:53:09 dancy Exp $
 
 (in-package :user)
 
@@ -53,13 +53,23 @@
 	 (configfile (merge-pathnames "nfs.cfg" exepath))
 	 (*global-gc-behavior* nil))
     (pop args)
-    (if (and args (string= (first args) "/install"))
-	(create-service exepath))
-    (if (and args (string= (first args) "/remove"))
-	(delete-service))
+    (when (and args (string= (first args) "/install"))
+      (pop args)
+      (create-service exepath :quiet (equalp (pop args) "/quiet")))
+    (when (and args (string= (first args) "/remove"))
+      (pop args)
+      (delete-service :quiet (equalp (pop args) "/quiet")))
+    (when (and args (string= (first args) "/start"))
+      (pop args)
+      (start-service :quiet (equalp (pop args) "/quiet")))
+    (when (and args (string= (first args) "/stop"))
+      (pop args)
+      (stop-service :quiet (equalp (pop args) "/quiet")))
+
+    
     (read-nfs-cfg configfile)
     (if* (and args (string= (first args) "/service"))
-       then (ntservice:start-service #'mainloop :init #'startem)
+       then (ntservice:execute-service #'mainloop :init #'startem)
        else (startem)
 	    (mainloop))))
 
@@ -102,7 +112,7 @@
      :show-window :hide)))
 
 
-(defun create-service (path)
+(defun create-service (path &key quiet)
   (multiple-value-bind (success code)
       (ntservice:create-service 
        "nfs" 
@@ -115,11 +125,11 @@
        else
 	    (format t "NFS service installation failed: ~A"
 		    (ntservice:winstrerror code))))
-  (exit 1)) ;; so the user will see the message
+  (exit (if quiet 0 1)))
 
     
 
-(defun delete-service ()
+(defun delete-service (&key quiet)
   (multiple-value-bind (success err place)
       (ntservice:delete-service "nfs")
     (if* success
@@ -128,5 +138,31 @@
        else
 	    (format t "NFS service deinstallation failed.~%(~A) ~A"
 		    place (ntservice:winstrerror err))))
-  (exit 1)) ;; so the user will see the message
+  (exit (if quiet 0 1)))
 
+
+(defun start-service (&key quiet)
+  (multiple-value-bind (success err place)
+      (ntservice:start-service "nfs")
+    (if* success
+       then
+	    (format t "NFS service started.~%")
+       else
+	    (format t "NFS service start failed.~%(~A) ~A"
+		    place (ntservice:winstrerror err))))
+  (exit (if quiet 0 1)))
+
+(defun stop-service (&key quiet)
+  (handler-bind
+      ((error (lambda (c)
+		(format t "error: ~A~%" c)
+		(tpl::zoom-command :from-read-eval-print-loop nil))))
+    (multiple-value-bind (success err place)
+	(ntservice:stop-service "nfs")
+      (if* success
+	 then
+	      (format t "NFS service stopped.~%")
+	 else
+	      (format t "NFS service stop failed.~%(~A) ~A"
+		      place (ntservice:winstrerror err)))))
+  (exit (if quiet 0 1)))

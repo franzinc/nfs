@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.15 2003/12/03 22:23:20 layer Exp $
+# $Id: Makefile,v 1.16 2003/12/12 23:53:09 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 LISPEXE = "/c/Program Files/acl62/mlisp"
+MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
 
 default: build
 
@@ -30,6 +31,9 @@ build-epilogue:
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 
+installer:
+	rm -f nfs/nfs.cfg
+	$(MAKENSIS) nfs.nsi
 
 
 version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
