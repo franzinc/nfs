@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.8 2001/08/15 23:35:14 dancy Exp $
+;; $Id: mountd.cl,v 1.9 2001/08/16 16:27:19 layer Exp $
 
 (in-package :user)
 
@@ -58,9 +58,12 @@
 
 (defun mountd ()
   (make-mountdsockets)
-  (portmap-add-program *mountprog* *mountvers* (socket:local-port *mountd-tcp-socket*) IPPROTO_TCP)
-  (portmap-add-program *mountprog* *mountvers* (socket:local-port *mountd-udp-socket*) IPPROTO_UDP)
-  (let ((server (make-rpc-server :tcpsock *mountd-tcp-socket* :udpsock *mountd-udp-socket*)))
+  (portmap-add-program *mountprog* *mountvers*
+		       (socket:local-port *mountd-tcp-socket*) IPPROTO_TCP)
+  (portmap-add-program *mountprog* *mountvers*
+		       (socket:local-port *mountd-udp-socket*) IPPROTO_UDP)
+  (let ((server (make-rpc-server :tcpsock *mountd-tcp-socket*
+				 :udpsock *mountd-udp-socket*)))
     (loop
       (multiple-value-bind (xdr peer)
           (rpc-get-message server)
@@ -88,8 +91,10 @@
         (mountd-null peer (rpc-msg-xid msg)))
        ((= (call-body-proc cbody) 5)
         (mountd-export peer (rpc-msg-xid msg)))
-       (t 
-        (format t "mountd: unhandled procedure ~D~%" (call-body-proc cbody))))))) ;; should send a negative response
+       (t
+	;; should send a negative response
+        (format t "mountd: unhandled procedure ~D~%"
+		(call-body-proc cbody)))))))
 
 (defun mountd-null-verf ()
   (let ((xdr (create-xdr :direction :build)))
@@ -116,7 +121,8 @@
         rootpathname
         )
     (unless (= (opaque-auth-flavor oa) 1)
-      (return-from mountd-mount (rpc-send-auth-error-rejected-reply peer xid 2)))
+      (return-from mountd-mount
+	(rpc-send-auth-error-rejected-reply peer xid 2)))
     (setf au (xdr-opaque-auth-struct-to-auth-unix-struct oa))
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
     (format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au))
@@ -134,7 +140,8 @@
 
 ;;; returns a pathname
 (defun locate-export (dirpath)
-  (let ((res (find dirpath *exports* :test (lambda (x pair) (string= (car pair) x)))))
+  (let ((res (find dirpath *exports*
+		   :test (lambda (x pair) (string= (car pair) x)))))
     (when res
       (pathname (second res)))))
 

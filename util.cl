@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: util.cl,v 1.8 2001/08/15 23:35:15 dancy Exp $
+;; $Id: util.cl,v 1.9 2001/08/16 16:27:20 layer Exp $
 
 (in-package :user)
 
@@ -62,7 +62,9 @@
 					  (totalbytes :foreign-address)
 					  (realfreebytes :foreign-address)))
 
-(ff:def-foreign-call SetFilePointer (hFile lDistanceToMove lpDistanceToMoveHigh dwMoveMethod))
+(ff:def-foreign-call SetFilePointer (hFile lDistanceToMove
+					   lpDistanceToMoveHigh
+					   dwMoveMethod))
 
 (ff:def-foreign-call SetEndOfFile (hFile))
 
@@ -71,7 +73,8 @@
      (actime :unsigned-int)
      (modtime :unsigned-int)))
 
-(ff:def-foreign-call (utime "_utime") ((filename (* :char)) (times (* utimbuf)))
+(ff:def-foreign-call (utime "_utime") ((filename (* :char))
+				       (times (* utimbuf)))
   :strings-convert t)
 
 (defconstant FILE_BEGIN           0)
@@ -129,15 +132,14 @@
     (if (= hFile win:INVALID_HANDLE_VALUE)
 	(return-from truncate-file (win:GetLastError)))
     
-    (if* (= (SetFilePointer hFile size 0 FILE_BEGIN) INVALID_SET_FILE_POINTER -1)
-	    then
-	    (setf res (win:GetLastError))
+    (if* (= (SetFilePointer hFile size 0 FILE_BEGIN)
+	    INVALID_SET_FILE_POINTER -1)
+       then (setf res (win:GetLastError))
 	    (win:CloseHandle hFile)
 	    (return-from truncate-file res))
 
     (if* (= 0 (SetEndOfFile hFile))
-       then
-	    (setf res (win:GetLastError))
+       then (setf res (win:GetLastError))
 	    (win:CloseHandle hFile)
 	    (return-from truncate-file res))
     

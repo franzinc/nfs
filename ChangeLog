@@ -1,3 +1,7 @@
+2001-08-16  Kevin Layer  <layer@crikey>
+
+	* pretty things up
+
 2001-08-15    <layer@HOBART>
 
 	* nfs.html: update doc
@@ -14,7 +18,6 @@
 
 	* nfs.html: Added link to source code zip.
 
-=======
 2001-08-14    <dancy@DANCY2K>
 
 	* nfs.cl: Added fixes to allow *nfs-dircachereaptime* to be 0 (for
@@ -302,11 +305,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -317,15 +320,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.32 2001/08/16 00:01:58 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.33 2001/08/16 16:27:19 layer Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

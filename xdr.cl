@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.12 2001/08/15 23:35:15 dancy Exp $
+;; $Id: xdr.cl,v 1.13 2001/08/16 16:27:20 layer Exp $
 
 (in-package :user)
 
@@ -30,7 +30,8 @@
 
 (defstruct xdr
   (vec nil :type (simple-array (unsigned-byte 8) (*)))
-  (size 0 :type fixnum)			; build: maximum offset in vec (not necessarily the length of the vec)
+  ;; build: maximum offset in vec (not necessarily the length of the vec)
+  (size 0 :type fixnum)
   direction
   (pos 0 :type fixnum)) ;; current position in vec (extracting and building)
 
@@ -47,8 +48,7 @@
 	   (incf (xdr-pos ,xdr) ,pos))
 	 (setf ,res (multiple-value-list (progn ,@body)))
 	 (setf (xdr-pos ,xdr) ,oldpos)
-	 (values-list ,res)
-	 ))))
+	 (values-list ,res)))))
 
 (eval-when (compile eval load)
   (defmacro xdr-compute-bytes-added ((xdr) &body body)
@@ -69,9 +69,10 @@
 	      (,offset (cdr ,pairval))
 	      (,name ,thexdr))
 	 ;;(format t "seeking to offset ~D~%" ,offset)
-	 (xdr-with-seek (,thexdr ,offset :absolute t)
-			;;(format t "offset is currently ~D~%" (xdr-pos ,thexdr))
-			 ,@body)))))
+	 (xdr-with-seek
+	  (,thexdr ,offset :absolute t)
+	  ;;(format t "offset is currently ~D~%" (xdr-pos ,thexdr))
+	  ,@body)))))
 
 ;; used during extraction
 (defmacro xdr-advance (xdr size)
@@ -100,7 +101,8 @@
     (cond 
      ((eq direction :extract) 
       (unless (vectorp vec)
-        (error "create-xdr: 'vec' parameter must be specified and must be a vector"))
+        (error "~
+create-xdr: 'vec' parameter must be specified and must be a vector"))
       (setf (xdr-pos xdr) 0)
       (setf (xdr-vec xdr) vec)
       (unless size
@@ -111,10 +113,8 @@
 	(setf size *xdrdefaultsize*))
       (setf (xdr-vec xdr) (make-vec size 0))
       (setf (xdr-size xdr) 0)
-      (setf (xdr-pos xdr) 0)
-      )
-     (t 
-      (error "create-xdr: Unknown direction: ~A~%" direction)))
+      (setf (xdr-pos xdr) 0))
+     (t (error "create-xdr: Unknown direction: ~A~%" direction)))
     xdr))
 
 (defun xdr-flush (xdr)
@@ -142,7 +142,10 @@
   (if (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
       (progn
 	;;(format t "expanding xdr~%")
-	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec (max *xdrdefaultsize* more)))))))
+	(setf (xdr-vec xdr)
+	  (concatenate '(vector (unsigned-byte 8))
+	    (xdr-vec xdr)
+	    (make-vec (max *xdrdefaultsize* more)))))))
 
 
 
@@ -374,7 +377,8 @@
 		   ;;(format t "machine name is ~A~%" (auth-unix-machinename au))
 		   (setf (auth-unix-uid au) (xdr-int xdr))
 		   (setf (auth-unix-gid au) (xdr-int xdr))
-		   (setf (auth-unix-gids au) (xdr-array-variable xdr #'xdr-int)))
+		   (setf (auth-unix-gids au)
+		     (xdr-array-variable xdr #'xdr-int)))
     au))
 
 
@@ -417,7 +421,8 @@
       ;;(format t "xdr-string: len is ~D~%" len)
       (setf newstring (make-string len))
       (dotimes (i len)
-        (setf (schar newstring i) (code-char (aref (xdr-vec xdr) (+ i (xdr-pos xdr))))))
+        (setf (schar newstring i)
+	  (code-char (aref (xdr-vec xdr) (+ i (xdr-pos xdr))))))
       (xdr-advance xdr (compute-padded-len len))
       newstring)
      ((eq direction :build)
@@ -426,7 +431,8 @@
       (xdr-int xdr len)
       (xdr-expand-check xdr plen)
       (dotimes (i len)
-        (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i)) (char-code (schar string i))))
+        (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i))
+	  (char-code (schar string i))))
       (xdr-update-pos xdr plen)))))
 
 (defun xdr-xdr (xdr &optional xdr2)

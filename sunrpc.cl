@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.13 2001/08/15 23:35:15 dancy Exp $
+;; $Id: sunrpc.cl,v 1.14 2001/08/16 16:27:20 layer Exp $
 
 (in-package :user)
 
@@ -40,7 +40,8 @@
   udpsock
   tcpclientlist)
 
-(defparameter *rpcgetmessagebuf* (make-array 65536 :element-type '(unsigned-byte 8)))
+(defparameter *rpcgetmessagebuf*
+    (make-array 65536 :element-type '(unsigned-byte 8)))
 
 ;; returns an xdr
 (defun rpc-get-message (server)
@@ -73,13 +74,15 @@
 	;;(format t "readylist is ~A~%" readylist)
 	
 	(when (member tcpsock readylist)
-	  (format t "Accepting new tcp connection and adding it to the client list.~%")
+	  (format t "~
+Accepting new tcp connection and adding it to the client list.~%")
 	  (push (socket:accept-connection tcpsock) clientlist)
 	  (setf readylist (remove tcpsock readylist)))
 	
 	(when (member udpsock readylist)
 	  (multiple-value-bind (vec count addr port)
-	      (handler-case (socket:receive-from udpsock 65536 :buffer *rpcgetmessagebuf*)
+	      (handler-case (socket:receive-from udpsock 65536
+						 :buffer *rpcgetmessagebuf*)
 		(socket-error (c) 
 		  (format t "Ignoring error condition ~S~%" c)
 		  nil))
@@ -170,7 +173,8 @@
   (let ((cbody (make-call-body)))
     (setf (call-body-rpcvers cbody) (xdr-int xdr))
     (unless (= 2 (call-body-rpcvers cbody))
-      (error "create-call-body: Unsupported RPC Version requested: ~D~%" (call-body-rpcvers cbody)))
+      (error "create-call-body: Unsupported RPC Version requested: ~D~%"
+	     (call-body-rpcvers cbody)))
     (setf (call-body-prog cbody) (xdr-int xdr))
     (setf (call-body-vers cbody) (xdr-int xdr))
     (setf (call-body-proc cbody) (xdr-int xdr))
@@ -198,8 +202,10 @@
   )
 
 (defstruct accepted-reply
-  verf 
-  stat ;; SUCCESS = 0, PROG_UNAVAIL = 1, PROG_MISMATCH = 2, PROC_UNAVAIL = 3, GARBAGE_ARGS = 4
+  verf
+  ;; SUCCESS = 0, PROG_UNAVAIL = 1, PROG_MISMATCH = 2, PROC_UNAVAIL = 3,
+  ;; GARBAGE_ARGS = 4
+  stat
   results ;; (for SUCCESS)
   mismatch-info ;; (for PROG_MISMATCH)
   )
@@ -222,18 +228,23 @@
      ((eq type :stream)
       (if *gather*
 	  (progn
-	    (let ((newxdr (create-xdr :direction :build :size (+ 4 (xdr-size xdr)))))
+	    (let ((newxdr (create-xdr :direction :build
+				      :size (+ 4 (xdr-size xdr)))))
 	      (xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
 	      (xdr-xdr newxdr xdr) ;; slow
-	      (ignore-errors (write-sequence (xdr-get-complete-vec newxdr) (rpc-peer-socket peer) :end (xdr-size newxdr)))))
+	      (ignore-errors (write-sequence (xdr-get-complete-vec newxdr)
+					     (rpc-peer-socket peer)
+					     :end (xdr-size newxdr)))))
       (let ((sizexdr (create-xdr :direction :build :size 4)))
         (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
 	(ignore-errors
 	 (write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
-	 (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer) :end (xdr-size xdr))))))
+	 (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
+			 :end (xdr-size xdr))))))
      ((eq type :datagram)
       #-(version>= 6 1)
-      (mp:wait-for-input-available (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))
+      (mp:wait-for-input-available (- 0 (socket::socket-fd
+					 (rpc-peer-socket peer)) 1))
       (ignore-errors (socket:send-to (rpc-peer-socket peer) 
 				     (xdr-get-complete-vec xdr) 
 				     (xdr-size xdr) 
@@ -260,7 +271,8 @@
 (defun send-successful-reply (peer xid verf results)
   (send-accepted-reply peer xid verf 0 results))
 
-(defmacro with-successful-reply ((xdr-name peer xid verf &key (create t)) &body body)
+(defmacro with-successful-reply ((xdr-name peer xid verf &key (create t))
+				 &body body)
   `(let ((,xdr-name (if ,create (create-xdr :direction :build)  
 		      (progn
 			(xdr-flush ,xdr-name)

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.27 2001/08/15 23:35:14 dancy Exp $
+;; $Id: nfs.cl,v 1.28 2001/08/16 16:27:19 layer Exp $
 
 ;; nfs
 
@@ -110,14 +110,18 @@
                           :local-port *nfsport*
                           :reuse-address t))
     #+(version>= 6 1)
-    (socket:set-socket-options *nfsd-tcp-socket* :receive-buffer-size *socketbuffersize* :send-buffer-size *socketbuffersize*))
+    (socket:set-socket-options *nfsd-tcp-socket*
+			       :receive-buffer-size *socketbuffersize*
+			       :send-buffer-size *socketbuffersize*))
   (unless *nfsd-udp-socket*
     (setf *nfsd-udp-socket*
       (socket:make-socket :type :datagram
 			  :local-port *nfsport*
 			  :reuse-address t))
     #+(version>= 6 1)
-    (socket:set-socket-options *nfsd-udp-socket* :receive-buffer-size *socketbuffersize* :send-buffer-size *socketbuffersize*)))
+    (socket:set-socket-options *nfsd-udp-socket*
+			       :receive-buffer-size *socketbuffersize*
+			       :send-buffer-size *socketbuffersize*)))
 
   
 
@@ -141,7 +145,8 @@
   (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
   (mp:process-run-function "stat cache reaper" #'statcache-reaper)
   (mp:process-run-function "dir cache reaper" #'dircache-reaper)
-  (let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket* :udpsock *nfsd-udp-socket*)))
+  (let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket*
+				 :udpsock *nfsd-udp-socket*)))
     (loop
       (multiple-value-bind (xdr peer)
           (rpc-get-message server)
@@ -157,13 +162,15 @@
     ;; sanity checks first
     (if* (not (= (call-body-prog cbody) *nfsprog*))
        then
-	    (format t "Sending program unavailable response for prog=~D~%" (call-body-prog cbody))
+	    (format t "Sending program unavailable response for prog=~D~%"
+		    (call-body-prog cbody))
 	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
 	    (return-from nfsd-message-handler))
     (if* (not (= (call-body-vers cbody) *nfsvers*))
        then
 	    (write-line "Sending program version mismatch response")
-	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg) (nfsd-null-verf) *nfsvers* *nfsvers*)
+	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
+				    (nfsd-null-verf) *nfsvers* *nfsvers*)
 	    (return-from nfsd-message-handler))
     (case (call-body-proc cbody)
       (0 (nfsd-null peer (rpc-msg-xid msg)))
@@ -261,12 +268,14 @@
 
 (defun update-stat-atime (p)
   (let ((sb (lookup-statcache p)))
-    (setf (sbslot 'st_atime) (- (get-universal-time) *universal-time-to-unix-time*))
+    (setf (sbslot 'st_atime)
+      (- (get-universal-time) *universal-time-to-unix-time*))
     sb))
 
 (defun update-atime-and-mtime (p)
   (let ((sb (update-stat-atime p)))
-    (setf (sbslot 'st_mtime) (- (get-universal-time) *universal-time-to-unix-time*))
+    (setf (sbslot 'st_mtime)
+      (- (get-universal-time) *universal-time-to-unix-time*))
     sb))
 
 
@@ -318,7 +327,8 @@
     ))
 
 ;; 68 bytes
-(defun update-fattr (xdr type mode nlink uid gid size blocksize rdev blocks fsid fileid atime mtime ctime)
+(defun update-fattr (xdr type mode nlink uid gid size blocksize rdev blocks
+		     fsid fileid atime mtime ctime)
   ;;(format t "update-fattr: mtime is ~D~%" mtime)
   (xdr-int xdr type)
   (xdr-int xdr mode)
@@ -394,7 +404,9 @@
 	(if (null p)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)	  
 	  (progn
-	    (if *nfsdebug* (format t "nfsd-readdir(~A, count ~D, cookie ~S)~%" p count cookie))
+	    (if *nfsdebug*
+		(format t "nfsd-readdir(~A, count ~D, cookie ~S)~%"
+			p count cookie))
 	    (add-direntries *nfsdxdr* p count cookie)))))))
 
 
@@ -403,7 +415,9 @@
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
 (defun dump-nfsdircache ()
-  (maphash #'(lambda (key value) (format t "~S -> ~S~%" key value)) *nfs-dircache*))
+  (maphash #'(lambda (key value)
+	       (format t "~S -> ~S~%" key value))
+	   *nfs-dircache*))
 
 (defun dircache-reaper ()
   (if (not (= 0 *nfs-dircachereaptime*))
@@ -475,57 +489,62 @@
     
 (defun add-direntries (xdr dir max startindex)
   (block nil
-    (let ((dirlist (handler-case (nfs-lookup-dir dir)
-		     (file-error (c)
-		       (case (excl::file-error-errno c)
-			 (5 
-			  (format t "add-direntries: Handling I/O error while reading directory ~A~%" dir)
-			  (xdr-int xdr NFSERR_IO)
-			  (return :err))
-			 (t
-			  (error c))))))
-	  (totalbytesadded 8) ;; starts at 8 because in the minimal case, we need to be able to add the final 0 discriminant.. and the eof indicator
+    (let ((dirlist
+	   (handler-case (nfs-lookup-dir dir)
+	     (file-error (c)
+	       (case (excl::file-error-errno c)
+		 (5 
+		  (format t "~
+add-direntries: Handling I/O error while reading directory ~A~%" 
+			  dir)
+		  (xdr-int xdr NFSERR_IO)
+		  (return :err))
+		 (t
+		  (error c))))))
+	  ;; starts at 8 because in the minimal case, we need to be able to
+	  ;; add the final 0 discriminant.. and the eof indicator
+	  (totalbytesadded 8)
 	  bytesadded)
       
-    (xdr-int xdr NFS_OK)
+      (xdr-int xdr NFS_OK)
 
-    (let ((index startindex)
-	  (endindex (length dirlist))
-	  p)
-      (declare 
-       (type fixnum index)
-       (type fixnum endindex)
-       (type pathname p))
+      (let ((index startindex)
+	    (endindex (length dirlist))
+	    p)
+	(declare 
+	 (type fixnum index)
+	 (type fixnum endindex)
+	 (type pathname p))
 
-      ;;(format t "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
+	;;(format t "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
       
-      (loop
-	(if (>= index endindex) ;; end of directory
-	    (progn
-	      (xdr-int xdr 0) ;; no more entries
-	      (xdr-int xdr 1) ;; EOF
-	      (if *nfsdebug* (format t "Reached end of entries~%~%"))
-	      (return)))
+	(loop
+	  (if (>= index endindex) ;; end of directory
+	      (progn
+		(xdr-int xdr 0) ;; no more entries
+		(xdr-int xdr 1) ;; EOF
+		(if *nfsdebug* (format t "Reached end of entries~%~%"))
+		(return)))
 
-	(setf p (nth index dirlist))
+	  (setf p (nth index dirlist))
 
-	(if p
-	    (progn
-	      (setf bytesadded (make-direntry-xdr xdr p (1+ index)))
-	      (incf totalbytesadded bytesadded)
-	      ;;(if (eq *nfsdebug* :verbose) (format t "totalbytesadded: ~D~%" totalbytesadded))
-	      (if (> totalbytesadded max)
-		  (progn
-		    (if (eq *nfsdebug* :verbose) 
-			(format t " [not added due to size overflow]~%"))
-		    (if *nfsdebug* (format t "add-direntries: stopping at entry for ~A due to size reasons.~%" p))
-		    (xdr-backspace xdr bytesadded)
-		    (xdr-int xdr 0) ;; no more entries
-		    (xdr-int xdr 0) ;; not EOF
-		    (return)))))
-	(if (eq *nfsdebug* :verbose) (format t " [added]~%"))
+	  (if p
+	      (progn
+		(setf bytesadded (make-direntry-xdr xdr p (1+ index)))
+		(incf totalbytesadded bytesadded)
+		;;(if (eq *nfsdebug* :verbose) (format t "totalbytesadded: ~D~%" totalbytesadded))
+		(if (> totalbytesadded max)
+		    (progn
+		      (if (eq *nfsdebug* :verbose) 
+			  (format t " [not added due to size overflow]~%"))
+		      (if *nfsdebug* (format t "add-direntries: stopping at entry for ~A due to size reasons.~%" p))
+		      (xdr-backspace xdr bytesadded)
+		      (xdr-int xdr 0) ;; no more entries
+		      (xdr-int xdr 0) ;; not EOF
+		      (return)))))
+	  (if (eq *nfsdebug* :verbose) (format t " [added]~%"))
 
-	(incf index))))))
+	  (incf index))))))
 
 #|
 struct entry {
@@ -542,7 +561,8 @@ struct entry {
    (type pathname p))
   (let ((fileid (pathname-to-fhandle-id p))
 	(filename (basename p)))
-    (when (eq *nfsdebug* :verbose) (format t "~D: ~A fileid=~A next=~A" (1- cookie) filename fileid cookie))
+    (when (eq *nfsdebug* :verbose)
+      (format t "~D: ~A fileid=~A next=~A" (1- cookie) filename fileid cookie))
     (xdr-compute-bytes-added (xdr)
 			     (xdr-int xdr 1) ;; indicate that data follows
 			     (xdr-unsigned-int xdr fileid)
@@ -642,7 +662,8 @@ struct readargs {
     (let (of)
       (while (setf of (locate-open-file-any p))
 	     (setf (openfile-lastaccess of) 0)
-	     (format t "close-open-file: Calling reap-open-files to effect a close~%")
+	     (format t "~
+close-open-file: Calling reap-open-files to effect a close~%")
 	     (reap-open-files)))))
 	     
 
@@ -659,7 +680,9 @@ struct readargs {
 		  ;;(format t "Closing ~S~%" (openfile-pathname of))
 		  (close (openfile-stream of))
 		  (if (eq (openfile-direction of) :output)
-		      (set-file-time pathname (sbslot 'st_atime) (sbslot 'st_mtime))))))
+		      (set-file-time pathname
+				     (sbslot 'st_atime)
+				     (sbslot 'st_mtime))))))
       (setf *nfs-openfilelist* res))))
 
 (defun nfsd-open-file-reaper ()
@@ -675,7 +698,8 @@ struct readargs {
 	 ;;(totalcount (xdr-unsigned-int readargs))  ;; unused
 	 )
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
-      (if (eq *nfsdebug* :verbose) (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
+      (if (eq *nfsdebug* :verbose)
+	  (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
       (if (null p)
 	  (progn
 	    (xdr-int *nfsdxdr* NFSERR_STALE))
@@ -687,11 +711,12 @@ struct readargs {
 		)
 	    (progn
 	      (file-position f offset)
-	      (xdr-with-seek (*nfsdxdr* 72) (xdr-opaque-variable-from-stream *nfsdxdr* f count))
+	      (xdr-with-seek
+	       (*nfsdxdr* 72)
+	       (xdr-opaque-variable-from-stream *nfsdxdr* f count))
 	      (xdr-int *nfsdxdr* NFS_OK) 
 	      (update-stat-atime p)
-	      (update-fattr-from-pathname p *nfsdxdr*)
-	      ))))))))
+	      (update-fattr-from-pathname p *nfsdxdr*)))))))))
 
 ;;; args:  fhandle dir, filename, sattr
 ;;; returns: status
@@ -705,8 +730,11 @@ struct readargs {
 	(if (null dir)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)
 	  (let ((newpath (add-filename-to-dirname dir filename)))
-	    (if *nfsdebug* (format t "nfsd-create( ~A with attributes ~A~%" newpath sattr))
-	    (if (or (null newpath) (not (nfs-okay-to-write (call-body-cred cbody))))
+	    (if *nfsdebug*
+		(format t "nfsd-create( ~A with attributes ~A~%"
+			newpath sattr))
+	    (if (or (null newpath)
+		    (not (nfs-okay-to-write (call-body-cred cbody))))
 		(progn
 		  (format t "permission denied~%") 
 		  (xdr-int *nfsdxdr* NFSERR_ACCES))
@@ -727,7 +755,8 @@ struct readargs {
 			(nfs-add-file-to-dircache newpath dir)
 			(xdr-int *nfsdxdr* NFS_OK)
 			(pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
-			(update-fattr-from-pathname newpath *nfsdxdr*))))))))))))
+			(update-fattr-from-pathname
+			 newpath *nfsdxdr*))))))))))))
 
   
 #|
@@ -779,13 +808,15 @@ struct readargs {
 	      (if (nfs-okay-to-write (call-body-cred cbody))
 		  (progn
 		    (close-open-file newpath)
-		    (handler-case (excl::filesys-delete-file (namestring newpath))
+		    (handler-case (excl::filesys-delete-file
+				   (namestring newpath))
 		      (file-error (c)
 			(let ((errno (excl::file-error-errno c)))
 			  (if (numberp errno)
 			      (cond
 			       ((= 2 errno)
-				(format t "delete: no such file or directory~%")
+				(format t
+					"delete: no such file or directory~%")
 				(xdr-int *nfsdxdr* NFSERR_NOENT))
 			       ((= 13 errno)
 				(format t "delete: permission denied~%")
@@ -819,7 +850,9 @@ struct readargs {
 	(if (null p)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)
 	  (progn 
-	    (if (eq *nfsdebug* :verbose) (format t "nfsd-write(~A,offset=~A) ~D bytes~%" p offset (third data)))
+	    (if (eq *nfsdebug* :verbose)
+		(format t "nfsd-write(~A,offset=~A) ~D bytes~%"
+			p offset (third data)))
 	    (if (nfs-okay-to-write (call-body-cred cbody))
 		(multiple-value-bind (f #+ignore errno)
 		    (get-open-file p :output)
@@ -856,7 +889,8 @@ struct readargs {
 	      (xdr-int *nfsdxdr* NFSERR_ACCES)
 	 else
 	      (if (not (= (sattr-size sattr) #xffffffff))
-		  (truncate-file (namestring p) (sattr-size sattr))) ;; need error checking
+		   ;; need error checking
+		  (truncate-file (namestring p) (sattr-size sattr)))
 	      (xdr-int *nfsdxdr* NFS_OK)
 	      (update-fattr-from-pathname p *nfsdxdr*))))))
 
@@ -880,7 +914,9 @@ struct readargs {
 	     ((or (null to) (not (nfs-okay-to-write (call-body-cred cbody))))
 	      (xdr-int *nfsdxdr* NFSERR_ACCES))
 	     (t 
-	      (rename-file from (merge-pathnames to (make-pathname :type :unspecific))) ;; need error checking
+	      ;; need error checking
+	      (rename-file
+	       from (merge-pathnames to (make-pathname :type :unspecific)))
 	      (swap-fhandles from to)
 	      (nfs-remove-file-from-dircache from fromdir)
 	      (nfs-add-file-to-dircache to todir)
@@ -898,8 +934,10 @@ struct readargs {
 	(if (null dir)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)
 	  (let ((newpath (add-filename-to-dirname dir filename)))
-	    (if *nfsdebug* (format t "nfsd-mkdir( ~A with attributes ~A~%" newpath sattr))
-	    (if (or (null newpath) (not (nfs-okay-to-write (call-body-cred cbody))))
+	    (if *nfsdebug*
+		(format t "nfsd-mkdir( ~A with attributes ~A~%" newpath sattr))
+	    (if (or (null newpath)
+		    (not (nfs-okay-to-write (call-body-cred cbody))))
 		(progn
 		  (format t "permission denied~%")
 		  (xdr-int *nfsdxdr* NFSERR_ACCES))
@@ -972,16 +1010,15 @@ struct symlinkargs {
 		(xdr-int *nfsdxdr* NFSERR_STALE)
 	   else 
 		(let ((newpath (add-filename-to-dirname dir filename)))
-		  (format t "nfsd-symlink( ~A to ~A with attributes ~A~%" newpath to sattr)
-		  (if* (or (null newpath) (not (nfs-okay-to-write (call-body-cred cbody))))
+		  (format t "nfsd-symlink( ~A to ~A with attributes ~A~%"
+			  newpath to sattr)
+		  (if* (or (null newpath)
+			   (not (nfs-okay-to-write (call-body-cred cbody))))
 		     then
 			  (format t "permission denied~%") 
 			  (xdr-int *nfsdxdr* NFSERR_ACCES)
 		     else
 			  (xdr-int *nfsdxdr* NFSERR_IO))))))))
-		    
-		  
-	  
 
 
 ;; should also check the file permissions..

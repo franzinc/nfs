@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.8 2001/08/15 23:35:14 dancy Exp $
+;; $Id: portmap.cl,v 1.9 2001/08/16 16:27:20 layer Exp $
 
 ;; portmapper
 
@@ -37,8 +37,7 @@
   prog
   vers
   prot
-  port
-  )
+  port)
 
 (defconstant IPPROTO_TCP 6)
 (defconstant IPPROTO_UDP 17)
@@ -73,7 +72,8 @@
   (make-pmap-sockets)
   (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_TCP)
   (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_UDP)
-  (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket* :udpsock *pmap-udp-socket*)))
+  (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket*
+				 :udpsock *pmap-udp-socket*)))
     (loop
       (multiple-value-bind (xdr peer)
           (rpc-get-message server)
@@ -99,7 +99,9 @@
 	(5 
 	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
 	(t 
-	 (format t "portmap: unhandled procedure ~D~%" (call-body-proc cbody))))))) ;; should send a negative response
+	 ;; should send a negative response
+	 (format t "portmap: unhandled procedure ~D~%"
+		 (call-body-proc cbody)))))))
 
 (defun portmap-verf ()
   (let ((xdr (create-xdr :direction :build)))
