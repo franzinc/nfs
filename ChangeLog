@@ -1,5 +1,7 @@
 2004-02-19    <Ahmon Dancy@GOBY>
 
+	* Makefile (dists): added FORCE 
+
 	* configure/ipaddr.cl:	Require :sock, not :socket.
 
 2004-02-19    <dancy@DANCYSOFT>

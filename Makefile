@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.29 2004/02/19 22:33:10 dancy Exp $
+# $Id: Makefile,v 1.30 2004/02/19 23:16:31 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -59,7 +59,7 @@ installer-demo: installer-common
 # Each build runs in a separate make because there are some
 # shared dependencies.. and make will merge them .. and we don't
 # want that.
-dists: 
+dists: FORCE
 	$(MAKE) dist
 	$(MAKE) dist-demo
 
