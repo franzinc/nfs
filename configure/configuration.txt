@@ -134,7 +134,7 @@ IP addresses can be specified in several ways:
   * NFS/Mount protocol debugging: You can turn these options on if
     you want to see what's going on at the protocol level.  Debugging
     output will be generated in the console window.  Be careful!
-    Turning on NFS protocol debugging can generate lots of output
+    Turning on NFS protocol debugging can generate lots of output.
 
 ----------------------------------------------------------------------------
 
