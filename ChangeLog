@@ -1,3 +1,8 @@
+2005-01-31    <layer@HOBART>
+2.2
+
+	* nfs.cl: change version to 2.2
+
 2005-01-26    <layer@HOBART>
 
 	* nfs.nsi: don't use nfs.exe to stop/remove service
@@ -24,7 +29,7 @@
 	* Makefile: use 7.0 final
 	* nfs-common.cl: add *nfs-gc-debug*
 	* nfs.cl: move startup announcement and gc-debug stuff here
-	* nfs.nsi: bug14783: remove service with NSIS not with nfs.exe
+>>>	* nfs.nsi: bug14783: remove service with NSIS not with nfs.exe
 	* configure/Makefile: use 7.0 final
 >>>	* configure/configform.bil: "use system portmapper" option
 >>>	* configure/configform.cl: gc debugging

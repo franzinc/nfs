@@ -1,0 +1,6 @@
+Changes from 2.0 to 2.2
+
+  - UNC shares are now supported as NFS mount points
+  - improved performance
+  - demo version can uninstall even when expired
+  - configuration app now has a "use system portmapper" option
