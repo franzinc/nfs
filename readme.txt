@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.9 2003/01/20 23:47:26 dancy Exp $
+$Id: readme.txt,v 1.10 2003/01/23 05:08:20 layer Exp $
 
 *******************************************************************************
 1. Installation
@@ -98,7 +98,3 @@ why.
 Run nfs.exe with the /remove switch to uninstall it as a service.  For
 best results, stop the service (using the Services control panel
 applet) before uninstalling it.
-
-
-
-

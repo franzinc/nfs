@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 2002/09/20 22:23:55 layer Exp $
+# $Id: Makefile,v 1.10 2003/01/23 05:08:20 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -9,6 +9,7 @@ default: compile
 ### used on Windows:
 compile: FORCE
 	rm -fr nfs
+	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp
 	@echo '(compile-file-if-needed "ntservice/ntservice.cl")' >> b.tmp
 	@echo '(load "loadem.cl")' >> b.tmp
 	@echo '(buildit)' >> b.tmp

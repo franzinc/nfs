@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.42 2003/01/20 23:47:26 dancy Exp $
+;; $Id: nfs.cl,v 1.43 2003/01/23 05:08:20 layer Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "1.1.0")
+(defvar *nfsd-version* "1.1.1")
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
@@ -519,7 +519,7 @@
     (let ((dirlist
 	   (handler-case (nfs-lookup-dir dir)
 	     (file-error (c)
-	       (case (excl::file-error-errno c)
+	       (case (excl::syscall-error-errno c)
 		 (5 
 		  (format t "~
 add-direntries: Handling I/O error while reading directory ~A~%" 
@@ -670,7 +670,7 @@ struct readargs {
 	      (openfile-stream newof)))))
     (file-error (c)
       (format t "get-open-file: condition: ~a" c) 
-      (values nil (excl::file-error-errno c)))))
+      (values nil (excl::syscall-error-errno c)))))
 
 
 (defun locate-open-file (of)
@@ -777,7 +777,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 		(let ((f (handler-case (open newpath :direction :output)
 			   (file-error (c)
 			     (cond 
-			      ((= (excl::file-error-errno c) 22)
+			      ((= (excl::syscall-error-errno c) 22)
 			       (xdr-int *nfsdxdr* NFSERR_ACCES)
 			       :err)
 			      (t (error c)))))))
@@ -844,7 +844,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 		    (handler-case (excl::filesys-delete-file
 				   (namestring newpath))
 		      (file-error (c)
-			(let ((errno (excl::file-error-errno c)))
+			(let ((errno (excl::syscall-error-errno c)))
 			  (if (numberp errno)
 			      (cond
 			       ((= 2 errno)
@@ -1060,9 +1060,9 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 			(handler-case (excl::rmdir newpath)
 			  (file-error (c)
 			    (cond
-			     ((= 13 (excl::file-error-errno c))
+			     ((= 13 (excl::syscall-error-errno c))
 			      (xdr-int *nfsdxdr* NFSERR_ACCES))
-			     ((= 41 (excl::file-error-errno c))
+			     ((= 41 (excl::syscall-error-errno c))
 			      (xdr-int *nfsdxdr* NFSERR_NOTEMPTY))
 			     (t
 			      (error c))))

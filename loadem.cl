@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.17 2003/01/23 00:09:16 dancy Exp $
+;; $Id: loadem.cl,v 1.18 2003/01/23 05:08:20 layer Exp $
 
 (in-package :user)
 
@@ -63,7 +63,8 @@
 
 (defun read-nfs-cfg (configfile)
   (declare (special *hosts-allow* *hosts-allow-parsed* 
-		    *hosts-deny* *hosts-deny-parsed*))
+		    *hosts-deny* *hosts-deny-parsed*)
+	   (:fbound parse-addr))
   (with-open-file (s configfile)
     (dolist (pair (read s))
       (set (first pair) (second pair))))
