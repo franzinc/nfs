@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.12 2003/01/20 23:47:25 dancy Exp $
+;; $Id: mountd.cl,v 1.13 2003/06/09 16:53:25 dancy Exp $
 
 (in-package :user)
 
@@ -190,10 +190,6 @@
     (dolist (export *exports*)
       (xdr-int xdr 1) ;; indicate that data follows
       (xdr-string xdr (first export))
-      (xdr-int xdr 1) ;; group follows
-      (xdr-string xdr "*") ;; group name
-      (xdr-int xdr 0) ;; no more groups
-      )
-    (xdr-int xdr 0) ;; no more data
+      (xdr-int xdr 0)) ;; no group information
+    (xdr-int xdr 0) ;; no more exports
     (send-successful-reply peer xid (mountd-null-verf) xdr)))
- 

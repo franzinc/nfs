@@ -22,6 +22,13 @@
 
 	* notes.txt: Clarifications
 
+2003-05-10    <dancy@DANCYSOFT>
+
+	* mountd.cl: mountd-export: Return no group information for
+	exported filesystems.  This means that the export is for
+	"everyone".  This enhances interoperability with more picky
+	clients.
+
 2003-03-19    <dancy@DANCYSOFT>
 
 	* nfs.cl: Bumped version to 1.1.3.
