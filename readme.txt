@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.8 2002/09/23 18:27:10 layer Exp $
+$Id: readme.txt,v 1.9 2003/01/20 23:47:26 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -50,20 +50,6 @@ ii. If you have GNU make (via cygwin) installed, then type "make" at a
 iii. We recommend moving this newly created directory to somewhere
    like c:\nfs, the example used here.
 
-iv. Start ACL and evaluate:
-
-	:ld loadem.cl
-	(loadem)
-	(create-service "c:\\nfs\\nfs.exe")
-	(exit)
-
-   If create-service returns 1, you've successfully registered the
-   program as a service.  To test it, make sure that no other NFS
-   servers are running (including one running in Lisp.  You may want
-   to exit the Lisp to be sure).  Now open the Services control panel.
-   Locate the "nfs" service and start it up.  Everything should work
-   the same as it did as a standalone application.
-
 *******************************************************************************
 2. Configuration
 
@@ -87,3 +73,32 @@ Edit nfs.cfg and replace the values of the parameters to your liking.
  first element in an entry is the filesystem name that the client will
  use.  The second element in an entry is the local directory that the
  name maps to.
+
+*hosts-allow* and *hosts-deny* are explained in access-control.txt
+
+*******************************************************************************
+3. Execution
+
+The NFS server can be started manually just by running the nfs.exe
+that came with the prebuilt binaries or the nfs.exe that you created
+using the sources.
+
+The NFS server can also be installed as a Window service.  This will
+make it start up automatically at boot time.  To install the NFS
+server as a service, run nfs.exe with the /install switch.  For
+example:
+
+c:\nfs\nfs.exe /install
+
+A window will be displayed to show you the results of the service
+installation.  Under normal circumstances, it will say "NFS service
+successfully installed."  If it doesn't work, it will try to tell you
+why.
+
+Run nfs.exe with the /remove switch to uninstall it as a service.  For
+best results, stop the service (using the Services control panel
+applet) before uninstalling it.
+
+
+
+

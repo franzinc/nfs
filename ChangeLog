@@ -1,6 +1,36 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-01-20    <dancy@CANDY2K>
+
+	* Version 1.1.0.
+
+	* ipaddr.cl/access.cl:  New files for use w/ new access control stuff.
+
+	* access-control.txt:  New documentation.
+
+	* loadem.cl: Added ipaddr.cl and access.cl to list of source files.
+	Updates read-nfs-cfg to handle the new *hosts-allow* and
+	*hosts-deny* parameters.  Added command line switches for added
+	and removing the nfs service.  Added better error handling to the
+	service add/remove stuff.
+
+	* mountd.cl:  Do access checking on mount requests.
+
+	* nfs.cfg.sample:  Added new *hosts-allow* and *hosts-deny*
+	parameters.  Both default to 'nil' which allows open access.
+
+	* nfs.cl:  Set version number to 1.1.0 since some features were
+	added.  Removed a big chunk of useless comments.  Added access
+	checking.  
+
+	* readme.txt: Made a new section for 'Execution' which explains
+	how to install the NFS server as a service.  Added mention of
+	*hosts-allow* and *hosts-deny* (the docs for these are in
+	access-control.txt).
+
+	* sunrpc.cl: Cosmetic changes.
+	
 *******************************************************************************
 1.0.36 public release
 *******************************************************************************

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.15 2002/09/20 22:22:12 layer Exp $
+;; $Id: loadem.cl,v 1.16 2003/01/20 23:47:25 dancy Exp $
 
 (in-package :user)
 
@@ -31,8 +31,8 @@
   (load *ntservice.fasl*))
 
 (defparameter *filelist*
-    '("util" "fixes" "mpsocketfix" "xdr" "sunrpc" "portmap"
-      "fhandle" "mountd" "nfs"))
+    '("util" "fixes" "mpsocketfix" "xdr" "sunrpc" 
+      "ipaddr" "access" "portmap" "fhandle" "mountd" "nfs"))
 
 (defun loadem ()
   (dolist (file *filelist*)
@@ -49,7 +49,12 @@
   (loop (sleep most-positive-fixnum)))      
 
 (defun main (&rest args)
-  (let ((configfile (merge-pathnames "nfs.cfg" (pop args))))
+  (let* ((exepath (pop args))
+	 (configfile (merge-pathnames "nfs.cfg" exepath)))
+    (if (and args (string= (first args) "/install"))
+	(create-service exepath))
+    (if (and args (string= (first args) "/remove"))
+	(delete-service))
     (read-nfs-cfg configfile)
     (if* (and args (string= (first args) "/service"))
        then (ntservice:start-service #'mainloop :init #'startem)
@@ -57,9 +62,14 @@
 	    (mainloop))))
 
 (defun read-nfs-cfg (configfile)
+  (declare (special *hosts-allow* *hosts-allow-parsed* 
+		    *hosts-deny* *hosts-deny-parsed*))
   (with-open-file (s configfile)
     (dolist (pair (read s))
-      (set (first pair) (second pair)))))
+      (set (first pair) (second pair))))
+  (setf *hosts-allow-parsed* (mapcar #'parse-addr *hosts-allow*))
+  (setf *hosts-deny-parsed* (mapcar #'parse-addr *hosts-deny*)))
+  
 
 (defun buildit ()
   (compile-file "loadem.cl")
@@ -85,10 +95,29 @@
      :show-window :hide)))
 
 (defun create-service (path)
-  (ntservice:create-service 
-   "nfs" 
-   "NFS Server" 
-   (format nil "~A /service" path)))
+  (multiple-value-bind (success code)
+      (ntservice:create-service 
+       "nfs" 
+       "NFS Server" 
+       (format nil "~A /service" path))
+    (if* success
+       then
+	    (format t "NFS service successfully installed.~%")
+       else
+	    (format t "NFS service installation failed: ~A"
+		    (ntservice:winstrerror code))))
+  (exit 1)) ;; so the user will see the message
+
+    
 
 (defun delete-service ()
-  (ntservice:delete-service "nfs"))
+  (multiple-value-bind (success err place)
+      (ntservice:delete-service "nfs")
+    (if* success
+       then
+	    (format t "NFS service successfully uninstalled.~%")
+       else
+	    (format t "NFS service deinstallation failed.~%(~A) ~A"
+		    place (ntservice:winstrerror err))))
+  (exit 1)) ;; so the user will see the message
+

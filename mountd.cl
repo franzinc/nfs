@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
+;; $Id: mountd.cl,v 1.12 2003/01/20 23:47:25 dancy Exp $
 
 (in-package :user)
 
@@ -134,22 +134,27 @@
         au
         rootpathname
         )
-    (unless (= (opaque-auth-flavor oa) 1)
-      (return-from mountd-mount
-	(rpc-send-auth-error-rejected-reply peer xid 2)))
+    (if (/= (opaque-auth-flavor oa) 1)
+	(return-from mountd-mount
+	  (rpc-send-auth-error-rejected-reply peer xid 2)))
     (setf au (xdr-opaque-auth-struct-to-auth-unix-struct oa))
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
     (if *mountd-debug* 
 	(format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au)))
     (setf rootpathname (locate-export dirpath))
     (with-successful-reply (res peer xid (mountd-null-verf))
-      (if* rootpathname
-	 then
-	      (push (list (rpc-peer-addr peer) dirpath) *mounts*)
-	      (xdr-int res 0)
-	      (pathname-to-fhandle-with-xdr res rootpathname)
-	 else
-	      (xdr-int res 2))))) ;; No such file or directory
+      (cond 
+       ((not (access-allowed-p (rpc-peer-addr peer)))
+	(if *mountd-debug* 
+	    (format t "mountd denied mount request from ~a~%"
+		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+	(xdr-int res 13)) ;; access denied
+       (rootpathname
+	(push (list (rpc-peer-addr peer) dirpath) *mounts*)
+	(xdr-int res 0)
+	(pathname-to-fhandle-with-xdr res rootpathname))
+       (t
+	(xdr-int res 2)))))) ;; No such file or directory
 
 (defun mountd-umount (peer xid cbody)
   (let ((dirpath (with-xdr-xdr ((call-body-params cbody) :name x)

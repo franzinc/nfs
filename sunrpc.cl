@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.16 2002/09/19 20:21:32 dancy Exp $
+;; $Id: sunrpc.cl,v 1.17 2003/01/20 23:47:26 dancy Exp $
 
 (in-package :user)
 
@@ -55,9 +55,9 @@
 	  record)
       (loop
 	(setf waitlist clientlist)
-	(when tcpsock
+	(if tcpsock
 	  (push tcpsock waitlist))
-	(when udpsock
+	(if udpsock
 	  (push udpsock waitlist))
 	;;(format t "waiting for input.~%")
 	;;(format t "waitlist is ~S~%" waitlist)
@@ -90,14 +90,14 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		  (if *debugrpc* 
 		      (format t "Ignoring error condition ~S~%" c))
 		  nil))
-	    (unless (null vec)
-	      (return-from rpc-get-message
-		(values (create-xdr :vec vec :size count)
-			(make-rpc-peer :type :datagram :socket udpsock
-				       :addr addr :port port))))
+	    (if vec
+		(return-from rpc-get-message
+		  (values (create-xdr :vec vec :size count) 
+			  (make-rpc-peer :type :datagram :socket udpsock
+					 :addr addr :port port))))
 	    (setf readylist (remove udpsock readylist))))
 	
-                  ;;; all remaining entries on readylist will be tcp clients
+	;; all remaining entries on readylist will be tcp clients
 	(dolist (s readylist)
 	  (setf record (read-record s))
 	  (if (null record)

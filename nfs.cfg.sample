@@ -7,4 +7,6 @@
  (*nfslocalumask* #o022)
  (*exports* (("/c" "c:/")
              ("/d" "d:/")))
+ (*hosts-allow* nil)
+ (*hosts-deny* nil)
 )

@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.41 2002/09/20 21:03:31 dancy Exp $
+;; $Id: nfs.cl,v 1.42 2003/01/20 23:47:26 dancy Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "1.0.36")
+(defvar *nfsd-version* "1.1.0")
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
@@ -56,28 +56,6 @@
 (defparameter *socketbuffersize* (* 128 1024))
 
 (defparameter *nfsdxdr* nil)
-
-#|
-           NFS_OK = 0,
-           NFSERR_PERM=1,
-           NFSERR_NOENT=2,
-           NFSERR_IO=5,
-           NFSERR_NXIO=6,
-           NFSERR_ACCES=13,
-           NFSERR_EXIST=17,
-           NFSERR_NODEV=19,
-           NFSERR_NOTDIR=20,
-           NFSERR_ISDIR=21,
-           NFSERR_FBIG=27,
-           NFSERR_NOSPC=28,
-           NFSERR_ROFS=30,
-           NFSERR_NAMETOOLONG=63,
-           NFSERR_NOTEMPTY=66,
-           NFSERR_DQUOT=69,
-           NFSERR_STALE=70,
-	   NFSERR_WFLUSH=99
-	   |#
-
 
 (defconstant NFS_OK 0)
 (defconstant NFSERR_PERM 1)
@@ -156,7 +134,8 @@
 
 (defun nfsd-message-handler (xdr peer)
   (let* ((msg (create-rpc-msg xdr))
-	 (cbody (rpc-msg-cbody msg)))
+	 (cbody (rpc-msg-cbody msg))
+	 (xid (rpc-msg-xid msg)))
     ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
@@ -167,32 +146,38 @@
 	    (if *nfsdebug*
 		(format t "Sending program unavailable response for prog=~D~%"
 		    (call-body-prog cbody)))
-	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
+	    (rpc-send-prog-unavail peer xid (nfsd-null-verf))
 	    (return-from nfsd-message-handler))
     (if* (not (= (call-body-vers cbody) *nfsvers*))
        then
 	    (if *nfsdebug*
 		(write-line "Sending program version mismatch response"))
-	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
+	    (rpc-send-prog-mismatch peer xid
 				    (nfsd-null-verf) *nfsvers* *nfsvers*)
 	    (return-from nfsd-message-handler))
+    (if* (not (access-allowed-p (rpc-peer-addr peer)))
+       then
+	    (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) 
+					      :create nil)
+	      (xdr-int *nfsdxdr* NFSERR_ACCES)
+	      (return-from nfsd-message-handler)))
     (case (call-body-proc cbody)
-      (0 (nfsd-null peer (rpc-msg-xid msg)))
-      (1 (nfsd-getattr peer (rpc-msg-xid msg) (call-body-params cbody)))
-      (2 (nfsd-setattr peer (rpc-msg-xid msg) cbody))
-      (4 (nfsd-lookup peer (rpc-msg-xid msg) (call-body-params cbody)))
-      (6 (nfsd-read peer (rpc-msg-xid msg) (call-body-params cbody)))
-      (8 (nfsd-write peer (rpc-msg-xid msg) cbody))
-      (9 (nfsd-create peer (rpc-msg-xid msg) cbody))
-      (10 (nfsd-remove peer (rpc-msg-xid msg) cbody))
-      (11 (nfsd-rename peer (rpc-msg-xid msg) cbody))
-      (13 (nfsd-symlink peer (rpc-msg-xid msg) cbody))
-      (14 (nfsd-mkdir peer (rpc-msg-xid msg) cbody))
-      (15 (nfsd-rmdir peer (rpc-msg-xid msg) cbody))
-      (16 (nfsd-readdir peer (rpc-msg-xid msg) (call-body-params cbody)))
-      (17 (nfsd-statfs peer (rpc-msg-xid msg) (call-body-params cbody)))
+      (0 (nfsd-null peer xid))
+      (1 (nfsd-getattr peer xid (call-body-params cbody)))
+      (2 (nfsd-setattr peer xid cbody))
+      (4 (nfsd-lookup peer xid (call-body-params cbody)))
+      (6 (nfsd-read peer xid (call-body-params cbody)))
+      (8 (nfsd-write peer xid cbody))
+      (9 (nfsd-create peer xid cbody))
+      (10 (nfsd-remove peer xid cbody))
+      (11 (nfsd-rename peer xid cbody))
+      (13 (nfsd-symlink peer xid cbody))
+      (14 (nfsd-mkdir peer xid cbody))
+      (15 (nfsd-rmdir peer xid cbody))
+      (16 (nfsd-readdir peer xid (call-body-params cbody)))
+      (17 (nfsd-statfs peer xid (call-body-params cbody)))
       (t 
-       (rpc-send-proc-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
+       (rpc-send-proc-unavail peer xid (nfsd-null-verf))
        (format t "nfsd: unhandled procedure ~D~%" (call-body-proc cbody))))))
     
 
@@ -216,11 +201,12 @@
 	     (xdr-fhandle-to-pathname params))))
     (if *nfsdebug* (format t "nfsd-getattr(~A)~%" p))
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
-      (if (null p)
-	  (xdr-int *nfsdxdr* NFSERR_STALE)
-	(progn
-	  (xdr-int *nfsdxdr* NFS_OK)
-	  (update-fattr-from-pathname p *nfsdxdr*))))))
+      (if* (null p)
+	 then
+	      (xdr-int *nfsdxdr* NFSERR_STALE)
+	 else
+	      (xdr-int *nfsdxdr* NFS_OK)
+	      (update-fattr-from-pathname p *nfsdxdr*)))))
 
 (defparameter *nfs-statcache* (make-hash-table :test #'equalp))
 (defparameter *statcache-lock* (mp:make-process-lock))
