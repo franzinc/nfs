@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.15 2001/06/22 23:39:36 dancy Exp $
+;;; $Id: nfs.cl,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
 (in-package :user)
 
@@ -139,7 +139,7 @@
 	   (format t "nfsd: unhandled procedure ~D~%" (call-body-proc cbody))))
       ;; we don't know about this program that it's asking for
       (progn
-	(format t "Sending program unavailable response.~%")
+	(format t "Sending program unavailable response for prog=~D, vers=~D.~%" (call-body-prog cbody) (call-body-vers cbody))
 	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))))))
 
 (defparameter *nfsdnullverf* nil)
@@ -153,8 +153,7 @@
 
 
 (defun nfsd-null (peer xid)
-  (if *nfsdebug*
-      (format t "nfsd-null called.~%"))
+  (if *nfsdebug*  (format t "nfsd-null~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (nfsd-null-verf) xdr)))
 
@@ -170,7 +169,7 @@
 	  (update-fattr-from-pathname p *nfsdxdr*))))))
 
 (defparameter *nfs-statcache* (make-hash-table :test #'equalp))
-(defparameter *statcachereaptime* 50000)
+(defparameter *statcachereaptime* 5)
 (defparameter *statcache-lock* (mp:make-process-lock))
 
 ;; sbcons..  (sb . lastaccesstime)
@@ -691,17 +690,21 @@ struct readargs {
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
       (if *nfsdebug* (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
       (if (null p)
-	  (xdr-int *nfsdxdr* NFSERR_STALE)
+	  (progn
+	    (xdr-int *nfsdxdr* NFSERR_STALE))
 	(multiple-value-bind (f errno)
 	    (get-open-file p :input)
 	  (if (null f)
-	      (xdr-int *nfsdxdr* (map-errno-to-nfs-error-code errno))
+	      (progn
+		(xdr-int *nfsdxdr* (map-errno-to-nfs-error-code errno))
+		)
 	    (progn
 	      (file-position f offset)
 	      (xdr-with-seek (*nfsdxdr* 72) (xdr-opaque-variable-from-stream *nfsdxdr* f count))
 	      (xdr-int *nfsdxdr* NFS_OK) 
 	      (update-stat-atime p)
-	      (update-fattr-from-pathname p *nfsdxdr*)))))))))
+	      (update-fattr-from-pathname p *nfsdxdr*)
+	      ))))))))
 
 ;;; args:  fhandle dir, filename, sattr
 ;;; returns: status

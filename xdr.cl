@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.10 2001/06/20 16:01:22 dancy Exp $
+;; $Id: xdr.cl,v 1.11 2001/07/03 03:22:34 dancy Exp $
 
 (in-package :user)
 
@@ -100,6 +100,7 @@
   (setf (xdr-size xdr) 0)
   (setf (xdr-pos xdr) 0))
 
+;;; avoid!
 (defun xdr-get-vec (xdr)
   (declare
    (type xdr xdr))
@@ -222,18 +223,15 @@
    (type fixnum count))
   (unless (eq (xdr-direction xdr) :build)
     (error "xdr-opaque-variable-from-stream is only good for building"))
-  ;;(format t "count is ~D~%" count)
-  (let (bytesread)
+  (let (bytesread newpos)
     (xdr-with-seek (xdr 4)
 		   (xdr-expand-check xdr (compute-padded-len count))
-		   (setf bytesread 
-		     (- (read-sequence (xdr-vec xdr) stream 
-				       :start (xdr-pos xdr)
-				       :end (+ (xdr-pos xdr) count))
-			(xdr-pos xdr))))
-    ;;(format t "bytes read is ~D~%" bytesread)
+		   (setf newpos (read-sequence (xdr-vec xdr) stream 
+					       :start (xdr-pos xdr)
+					       :end (+ (xdr-pos xdr) count)))
+		   (setf bytesread (- newpos (xdr-pos xdr))))
     (xdr-int xdr bytesread)
-    (xdr-update-pos xdr bytesread)))
+    (xdr-update-pos xdr (compute-padded-len bytesread))))
 
 (defun xdr-array-fixed (xdr typefunc &key len things)
   (declare

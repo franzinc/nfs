@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.8 2001/06/20 16:01:22 dancy Exp $
+;; $Id: sunrpc.cl,v 1.9 2001/07/03 03:22:34 dancy Exp $
 
 (in-package :user)
 
@@ -176,14 +176,22 @@
   auth-stat ;; (for AUTH_ERROR)
   )
 
+(defparameter *gather* t) ;; easier to use network analyzers w/ this on.
+
 (defun rpc-send (xdr peer)
   (let ((type (rpc-peer-type peer)))
     (cond
      ((eq type :stream)
+      (if *gather*
+	  (progn
+	    (let ((newxdr (create-xdr :direction :build :size (+ 4 (xdr-size xdr)))))
+	      (xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
+	      (xdr-xdr newxdr xdr) ;; slow
+	      (write-sequence (xdr-get-complete-vec newxdr) (rpc-peer-socket peer) :end (xdr-size newxdr))))
       (let ((sizexdr (create-xdr :direction :build :size 4)))
         (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
 	(write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
-        (write-sequence (xdr-get-vec xdr) (rpc-peer-socket peer))))
+        (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer) :end (xdr-size xdr)))))
      ((eq type :datagram)
       #-(version>= 6 1)
       (mp:wait-for-input-available (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))

@@ -1,5 +1,5 @@
 ;; portmapper
-;; $Id: portmap.cl,v 1.4 2001/06/07 17:14:05 dancy Exp $
+;; $Id: portmap.cl,v 1.5 2001/07/03 03:22:34 dancy Exp $
 
 (in-package :user)
 
@@ -58,23 +58,34 @@
   (let (msg cbody)
     (setf msg (create-rpc-msg xdr))
     (setf cbody (rpc-msg-cbody msg))
+    (write-line "")
     (pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
     (when (and (= (call-body-prog cbody) *pmapprog*)
                (= (call-body-vers cbody) *pmapvers*))
-      (cond
-       ((= (call-body-proc cbody) 4)
-        (portmap-dump peer (rpc-msg-xid msg)))
-       ((= (call-body-proc cbody) 3)
-        (portmap-getport peer (rpc-msg-xid msg) (call-body-params cbody)))
-       (t 
-        (format t "portmap: unhandled procedure ~D~%" (call-body-proc cbody))))))) ;; should send a negative response
+      (case (call-body-proc cbody)
+	(0
+	 (portmap-null peer (rpc-msg-xid msg)))
+	(4
+	 (portmap-dump peer (rpc-msg-xid msg)))
+	(3
+	 (portmap-getport peer (rpc-msg-xid msg) (call-body-params cbody)))
+	(5 
+	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
+	(t 
+	 (format t "portmap: unhandled procedure ~D~%" (call-body-proc cbody))))))) ;; should send a negative response
 
 (defun portmap-verf ()
   (let ((xdr (create-xdr :direction :build)))
     (xdr-auth-null xdr)
     xdr))
+
+(defun portmap-null (peer xid)
+  (format t "portmap-null~%")
+  (let ((xdr (create-xdr :direction :build)))
+    (send-successful-reply peer xid (portmap-verf) xdr)))
+
 
 (defun portmap-dump (peer xid)
   (format t "portmap-dump~%")
@@ -98,12 +109,18 @@
         (progn
           (format t "Program found. Returning port ~D~%" 
             (mapping-port m2))
-          (xdr-int xdr (mapping-port m2)))
+          (xdr-unsigned-int xdr (mapping-port m2)))
       (progn
         (format t "Program not found.  Returning 0~%")
-        (xdr-int xdr 0)))
+        (xdr-unsigned-int xdr 0)))
     (send-successful-reply peer xid (portmap-verf) xdr)))
-          
+
+(defun portmap-callit (peer xid params)
+  (with-xdr-xdr (params)
+    (let ((prog (xdr-unsigned-int params))
+	  (vers (xdr-unsigned-int params))
+	  (proc (xdr-unsigned-int params)))
+      (format t "portmap-callit(~D, ~D, ~D, ...)~%" prog vers proc))))
     
     
 (defun locate-matching-mapping (m)

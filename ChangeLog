@@ -1,3 +1,28 @@
+2001-07-02    <dancy@SUCK>
+
+	* nfs.cl: Lowered *statcachereaptime* from 50000 to 5.  The 50000
+	was for testing.   
+
+	* portmap.cl:  Changed the main 'cond' into a 'case'.  Implemented
+	portmpap-null.  Added portmap-callit.  It doesn't do
+	anything... just prints out the parameters.   As far as I can
+	tell, there is no reason to implement this right now.
+
+	* sunrpc.cl:  Added a parameter *gather* that chooses between two
+	behaviors when it comes to TCP traffic.  If *gather* is t, the
+	packet size plus the packet data will be combined into a single
+	buffer and sent all at once.  This requires copying the the packet
+	data into a new buffer which may prove to be slow.  A potential
+	advantage of this is that network overhead will be reduced since
+	one packet will be sent instead of one small packet (4 bytes)
+	followed by a larger one.  One definite advantage of this is that
+	it allows packet analyzers (like tcpdump) to read the packet
+	properly. 
+
+	* xdr.cl:  Important bug fix in xdr-opaque-variable-from-stream.
+	Opaque data is supposed to be blocked to a 4-byte boundary.  I
+	wasn't doing that.  Non-linux clients got very upset by this.
+
 2001-06-22    <dancy@SUCK>
 
 	* nfs.cl: Use excl::filesys-delete-file instead of delete-file so
@@ -103,11 +128,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -118,15 +143,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.15 2001/06/22 23:39:35 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
