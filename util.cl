@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: util.cl,v 1.12 2003/03/13 17:35:43 dancy Exp $
+;; $Id: util.cl,v 1.13 2003/06/06 16:56:46 dancy Exp $
 
 (in-package :user)
 
@@ -48,14 +48,10 @@
   :strings-convert t
   )
 
-(ff:def-foreign-type intholder
-    (:struct
-     (value :int)))
-
 (ff:def-foreign-type large-integer 
     (:struct
-     (lowpart :int)
-     (highpart :int)))
+     (lowpart :unsigned-int)
+     (highpart :unsigned-int)))
 
 (ff:def-foreign-call (GetDiskFreeSpaceExA "GetDiskFreeSpaceExA")
     ((filename :foreign-address)
@@ -85,8 +81,8 @@
 
 (defun diskfree (root)
   (with-native-string (nativestring (namestring root))
-    (let ((freebytes (ff:allocate-fobject 'large-integer))
-	  (totalbytes (ff:allocate-fobject 'large-integer))
+    (let ((freebytes (ff:allocate-fobject 'large-integer :foreign-static-gc))
+	  (totalbytes (ff:allocate-fobject 'large-integer :foreign-static-gc))
 	  res)
       (setf res (GetDiskFreeSpaceExA nativestring freebytes totalbytes 0))
       (when (= 0 res)
@@ -162,7 +158,7 @@
 
 (defun set-file-time (filename atime mtime)
   (setf filename (namestring filename))
-  (let ((times (ff:allocate-fobject 'utimbuf)))
+  (let ((times (ff:allocate-fobject 'utimbuf :foreign-static-gc)))
     (setf (ff:fslot-value times 'actime) atime)
     (setf (ff:fslot-value times 'modtime) mtime)
     (utime filename times)))

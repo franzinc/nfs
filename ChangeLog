@@ -1,6 +1,15 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-06-06    <dancy@CANDY2K>
+
+	* nfs.cl: Bumped version to 1.1.4
+
+	* util.cl: Fixed stupid signed/unsigned bug in the ULARGE_INTEGER
+	foreign struct definition.  It was screwing up the results of the
+	diskfree function.  Also added :foreign-static-gc allocation type
+	to ff:allocate-fobject calls.
+
 2003-03-19    <dancy@DANCYSOFT>
 
 	* nfs.cl: Bumped version to 1.1.3.
