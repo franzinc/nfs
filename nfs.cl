@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.28 2001/08/16 16:27:19 layer Exp $
+;; $Id: nfs.cl,v 1.29 2001/08/16 18:53:56 layer Exp $
 
 ;; nfs
 
@@ -945,7 +945,7 @@ close-open-file: Calling reap-open-files to effect a close~%")
 	      (if* (probe-file newpath)
 		 then 
 		      (xdr-int *nfsdxdr* NFSERR_EXIST)
-	       elseif (null (ignore-errors ((make-directory newpath)))) ;; this could use some work
+	       elseif (null (ignore-errors (make-directory newpath))) ;; this could use some work
 		 then
 		      (xdr-int *nfsdxdr* NFSERR_ACCES)
 		 else

@@ -1,4 +1,5 @@
 *.fasl
 nfs.cfg
 nfs.zip
-
+nfs
+autoloads.out
