@@ -120,7 +120,7 @@
 	  (16 (nfsd-readdir peer (rpc-msg-xid msg) cbody))
 	  (17 (nfsd-statfs peer (rpc-msg-xid msg) cbody))
 	  (t 
-	   ;; should send a negative response
+	   (rpc-send-proc-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
 	   (format t "nfsd: unhandled procedure ~D~%" (call-body-proc cbody))))
       ;; we don't know about this program that it's asking for
       (progn

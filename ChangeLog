@@ -1,5 +1,11 @@
 2001-05-22    <dancy@DANCYSOFT>
 
+	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
+	handle.  This will prevent nfs clients from wedging.
+
+	* sunrpc.cl: Added rpc-send-proc-unavail function to send
+	PROC_UNAVAIL responses.
+
 	* Added .cvsignore
 
 	* added nfs.txt which is the NFS V2 RFC.

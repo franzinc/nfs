@@ -216,3 +216,9 @@
 (defun rpc-send-prog-unavail (peer xid verf)
   (let ((xdr (create-xdr :direction :build)))
     (send-accepted-reply peer xid verf 1 xdr)))
+
+(defun rpc-send-proc-unavail (peer xid verf)
+  (let ((xdr (create-xdr :direction :build)))
+    (send-accepted-reply peer xid verf 3 xdr)))
+
+
