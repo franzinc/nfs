@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.33 2001/09/05 22:02:31 dancy Exp $
+;; $Id: nfs.cl,v 1.34 2001/09/06 18:43:10 dancy Exp $
 
 ;; nfs
 
@@ -266,25 +266,51 @@
 (defmacro sbslot (slotname) 
   `(ff:fslot-value-typed 'stat :foreign sb ,slotname))
 
+;; used when reading from a file or directory
 (defun update-stat-atime (p)
   (let ((sb (lookup-statcache p)))
     (setf (sbslot 'st_atime)
       (- (get-universal-time) *universal-time-to-unix-time*))
     sb))
 
-(defun update-atime-and-mtime (p)
-  (let ((sb (update-stat-atime p)))
-    (setf (sbslot 'st_mtime)
+;; used by things that update inode information.
+(defun update-stat-ctime (p)
+  (let ((sb (lookup-statcache p)))
+    (setf (sbslot 'st_ctime)
       (- (get-universal-time) *universal-time-to-unix-time*))
     sb))
 
-(defun update-stat-times-and-size (f p &key trunc)
+;; updates ctime as well.
+;; used by directory modifying functions which don't care about size.
+(defun update-atime-and-mtime (p) 
+  (let ((sb (update-stat-atime p))
+	(now (get-universal-time)))
+    (setf (sbslot 'st_mtime)
+      (- now *universal-time-to-unix-time*))
+    (update-stat-ctime p)
+    sb))
+
+;; used by file modification functions.
+(defun update-stat-times-and-size (f p)
   (let ((sb (update-atime-and-mtime p))
-	(pos (if (not trunc) (file-position f))))
-    (if trunc
-	(setf (sbslot 'st_size) trunc)
-      (if (> pos (sbslot 'st_size))
-	  (setf (sbslot 'st_size) pos)))))
+	(pos (file-position f)))
+    (if (> pos (sbslot 'st_size))
+	(setf (sbslot 'st_size) pos))))
+
+(defun set-cached-file-size (p size)
+  (let ((sb (lookup-statcache p)))
+    (setf (sbslot 'st_size) size)
+    (update-stat-ctime p)))
+
+(defun set-cached-file-atime (p atime)
+  (let ((sb (lookup-statcache p)))
+    (setf (sbslot 'st_atime) atime)
+    (update-stat-ctime p)))
+
+(defun set-cached-file-mtime (p mtime)
+  (let ((sb (lookup-statcache p)))
+    (setf (sbslot 'st_mtime) mtime)
+    (update-stat-ctime p)))
 
 #|
           enum ftype {
@@ -402,8 +428,6 @@
     (pathname (subseq dir 0 (1- (length dir))))))
 
 ;;; readdirargs:  fhandle dir, cookie, count
-
-;; perhaps directory listings should be cached?
 (defun nfsd-readdir (peer xid params)
   (with-xdr-xdr (params)
     (let ((p (xdr-fhandle-to-pathname params))
@@ -416,7 +440,8 @@
 	    (if *nfsdebug*
 		(format t "nfsd-readdir(~A, count ~D, cookie ~S)~%"
 			p count cookie))
-	    (add-direntries *nfsdxdr* p count cookie)))))))
+	    (add-direntries *nfsdxdr* p count cookie)
+	    (update-stat-atime p)))))))
 
 
 ;; entries look like (dirlist . atime)
@@ -641,8 +666,6 @@ struct readargs {
 	  (if oldof
 	      (progn
 		(setf (openfile-lastaccess oldof) (get-universal-time))
-		(if (eq *nfsdebug* :verbose)
-		    (format t "returning cached open file ~S~%" oldof))
 		(openfile-stream oldof))
 	    (progn
 	      (setf (openfile-stream newof)
@@ -652,8 +675,6 @@ struct readargs {
 			:if-exists :overwrite)))
 	      (setf (openfile-lastaccess newof) (get-universal-time))
 	      (push newof *nfs-openfilelist*)
-	      (if (eq *nfsdebug* :verbose)
-		  (format t "cache miss.  opened file: ~S~%" newof))
 	      (openfile-stream newof)))))
     (file-error (c)
       (format t "get-open-file: condition: ~a" c) 
@@ -891,10 +912,6 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 		(format t "nfsd-write: permission denied~%")
 		(xdr-int *nfsdxdr* NFSERR_ACCES)))))))))
 
-
-
-;;; this is often used to truncate files (if the size parameters is
-;;; not 0xffffffff)
 (defun nfsd-setattr (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name xdr)
   (let* ((p (xdr-fhandle-to-pathname xdr))
@@ -907,11 +924,23 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 	      (format t "permission denied~%") 
 	      (xdr-int *nfsdxdr* NFSERR_ACCES)
 	 else
+	      (close-open-file p)
 	      (if (not (= (sattr-size sattr) #xffffffff))
-		   ;; need error checking
-		  (truncate-file (namestring p) (sattr-size sattr)))
+		  (progn
+		    (truncate-file (namestring p) (sattr-size sattr))
+		    (set-file-size p (sattr-size sattr))
+		    (update-atime-and-mtime p)))
+	      ;;; atime and mtime mods should always come together.  We'll
+	      ;;; presume that here to simplify the code.
+	      (if (not (= (first (sattr-atime sattr)) #xffffffff))
+		  (progn
+		    (set-file-time p 
+				    (first (sattr-atime sattr))
+				    (first (sattr-mtime sattr)))
+		    (set-cached-file-atime p (first (sattr-atime sattr)))
+		    (set-cached-file-mtime p (first (sattr-mtime sattr)))))
+	      ;;; uid/gid/mode updates are ignored for now
 	      (xdr-int *nfsdxdr* NFS_OK)
-	      (update-stat-times-and-size nil p :trunc (sattr-size sattr))
 	      (update-fattr-from-pathname p *nfsdxdr*))))))
 
 ;;; from:  fhandle dir, filename name

@@ -1,3 +1,8 @@
+2001-09-06    <dancy@DANCY2K>
+
+	* nfs.cl (nfsd-setattr): Changes and new functions to make sure
+	file attributes are properly handled.
+
 2001-09-05    <dancy@DANCY2K>
 
 	* nfs.cl (update-stat-times-and-size): Added a keyword arg 'trunc'
@@ -338,11 +343,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -353,15 +358,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.38 2001/09/05 22:02:30 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
