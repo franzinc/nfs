@@ -1,3 +1,7 @@
+(in-package :user)
+
+;; $Id: util.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+
 (defun directoryp (p)
   (excl::probe-directory p))
 
@@ -16,7 +20,8 @@
      (st_ctime :int)))     
 
 (ff:def-foreign-call (stat "_stat") ((filename (* :char) string)
-                                     (statbuf (* stat))))
+                                     (statbuf (* stat)))
+  :strings-convert nil)
 
 (ff:def-foreign-type intholder
     (:struct
@@ -26,7 +31,8 @@
                                        (spc (* :int) intholder)
                                        (bps (* :int) intholder)
                                        (fc (* :int) intholder)
-                                       (tc (* :int) intholder)))
+                                       (tc (* :int) intholder))
+  :strings-convert nil)
 
 (defun diskfree (root)
   (let ((spc (ff:allocate-fobject 'intholder))

@@ -1,6 +1,10 @@
 ;;; nfs
 
-;;; these settings need to be moved into a config file
+(in-package :user)
+
+;;; $Id: nfs.cl,v 1.3 2001/05/23 05:53:13 dancy Exp $
+
+;;; these settings may be overridden by the config file
 (defparameter *nfsdebug* nil)
 (defparameter *nfslocaluid* 443)
 (defparameter *nfslocalgid* 50)
@@ -264,53 +268,31 @@
      :cookie (create-xdr :vec cookie)
      :count count)))
 
+
+(defun canonicalize-dir (dir)
+  (setf dir (namestring dir))
+  (if (not (= (position #\\ dir :from-end t) (1- (length dir))))
+      (setf dir (concatenate 'string dir "\\")))
+  dir)
+
 (defun nfsd-readdir (peer xid cbody)
   (let* ((rda (xdr-to-readdirargs (call-body-params cbody)))
          (p (fhandle-to-pathname (readdirargs-fhandle rda)))
-         (dir (lookup-dir p) ))
+         (dir (directory (canonicalize-dir p)) ))
     (if *nfsdebug*
-	(format t "nfsd-readdir(~A)~%" p))
+	(format t "nfsd-readdir(~A, count ~D, cookie ~S)~%" p (readdirargs-count rda) (readdirargs-cookie rda)))
     (if p
         (multiple-value-bind (xdr eof)
             (add-direntries dir
                             (readdirargs-count rda) 
                             (xdr-int (readdirargs-cookie rda)))
-          (if eof
-              (uncache-dir p))
           (send-successful-reply peer xid 
                                  (nfsd-null-verf) 
-                                 (make-readdirres-xdr 0 (make-readdirok-xdr xdr eof))))
+                                 (make-readdirres-xdr NFS_OK (make-readdirok-xdr xdr eof))))
       (send-successful-reply peer xid (nfsd-null-verf) 
-                            (make-readdirres-xdr 5 nil))))) ;; NFSERR_IO
+                            (make-readdirres-xdr NFSERR_STALE nil))))) 
 
           
-;; this will _definitely_ seed some work.
-
-(defparameter *dircache* nil)
-
-(defun ensure-dircache ()
-  (unless *dircache*
-    (setf *dircache* (make-hash-table))))
-
-(defun cache-dir (dir)
-  (setf dir (namestring dir))
-  (if (not (= (position #\\ dir :from-end t) (1- (length dir))))
-      (setf dir (concatenate 'string dir "\\")))
-  (let ((res (handler-case (directory dir)
-               (file-error () nil))))
-    (if res
-        (setf (gethash dir *dircache*) (directory dir)))))
-    
-(defun uncache-dir (dir)
-  (setf dir (namestring dir))
-  (remhash dir *dircache*))
-
-(defun lookup-dir (dir)
-  (ensure-dircache)
-  (let ((res (gethash dir *dircache*)))
-    (if res
-        res
-      (cache-dir dir))))
 
 #|
 struct entry {
@@ -325,6 +307,8 @@ struct entry {
   (let ((fileid (second (multiple-value-list (pathname-to-fhandle p))))
         (filename (basename p))
         (xdr (create-xdr :direction :build)))
+    (when *nfsdebug*
+      (format t "~A ~A ~A~%" filename fileid cookie))
     (xdr-int xdr 1) ;; indicate that data follows
     (xdr-unsigned-int xdr fileid)
     (xdr-string xdr filename)
@@ -335,18 +319,28 @@ struct entry {
   (let ((xdr (create-xdr :direction :build))
         (nextindex (1+ startindex))
         entry)
+    (if (and (> startindex 0 )(>= startindex (length dirlist)))
+	(progn
+	  (format t "add-direntries: Doing bogus startindex hack.~%")
+	  (setf startindex 0)
+	  (setf nextindex 1)
+	  ))
     (setf dirlist (subseq dirlist startindex))
     (dolist (p dirlist)
+      ;;(format t "max is ~D~%" max)
       (setf entry (make-direntry-xdr p nextindex))
       (if (> (xdr-size entry) max)
           (progn
+	    (format t "add-direntries: stopping at entry for ~A due to size reasons.~%"
+		    p)
             (xdr-int xdr 0) ;; no more entries
-            (return-from add-direntries (values xdr nil nextindex))))
+            (return-from add-direntries (values xdr nil))))
       (xdr-xdr xdr entry)
       (decf max (xdr-size entry))
       (incf nextindex))
     (xdr-int xdr 0) ;; no more entries
-    (values xdr t nextindex)))
+    (format t "Reached end of entries~%")
+    (values xdr t)))
 
 (defun make-readdirres-xdr (stat readdirok)
   (let ((xdr (create-xdr :direction :build)))
@@ -358,7 +352,7 @@ struct entry {
 (defun make-readdirok-xdr (entries eof)
   (let ((xdr (create-xdr :direction :build)))
     (xdr-xdr xdr entries)
-    (xdr-int xdr (if (eq t eof) 1 0))
+    (xdr-int xdr (if eof 1 0))
     xdr))
 
 #|
@@ -669,24 +663,20 @@ struct readargs {
 (defun nfsd-rmdir (peer xid cbody)
   (let* ((newpath (diropargs-xdr-to-pathname (call-body-params cbody)))
 	 (res (create-xdr :direction :build))
-	 resval)
+	 (resval NFS_OK))
     (if *nfsdebug*
 	(format t "nfds-rmdir(~A)~%" newpath))
     (if (nfs-okay-to-write (call-body-cred cbody))
-	(progn
-	  (if (probe-file newpath) 
-	      (progn
+	(if (probe-file newpath) 
+	    (handler-case 
 		(delete-directory newpath)
-		(setf resval NFS_OK))
-	    (setf resval NFSERR_NOENT))
-	  (xdr-int res resval)
-	  (send-successful-reply
-	   peer xid (nfsd-null-verf)
-	   res))
-      (progn
-	(xdr-int res NFSERR_ACCES)
-	(send-successful-reply peer xid (nfsd-null-verf) res)))))
+	      (file-error () (setf resval NFSERR_IO)))
+	  (setf resval NFSERR_NOENT))
+      (setf resval NFSERR_ACCES))
+    (xdr-int res resval)
+    (send-successful-reply peer xid (nfsd-null-verf) res)))
 
+    
 
 ;; should also check the file permissions..
 (defun nfs-okay-to-write (cred)

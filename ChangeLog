@@ -1,5 +1,34 @@
 2001-05-22    <dancy@DANCYSOFT>
 
+	* fhandle.cl:  Make sure pathnames are always canonicalized before
+	hashing.  Also, added a function for dumping the file handle hash
+	table.
+
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+	Added a function to make sure directory names end w/ a backslash.
+
+	Increased debugging info for nfs-readdir.
+
+	Removed readdir caching code.
+
+	Increased debugging info for add-direntries and also attempted to
+	add a workaround for what I believe is a bug in the Linux NFS v2
+	client implementation w/ regard to readdir.
+
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+	added :strings-convert nil  to calls to def-foreign-call to remove
+	warnings. 
+
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.4 2001/05/23 05:53:12 dancy Exp $
+
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
 

@@ -1,6 +1,6 @@
 ;; file handle stuff
 
-;; $Id: fhandle.cl,v 1.2 2001/05/22 21:15:17 dancy Exp $
+;; $Id: fhandle.cl,v 1.3 2001/05/23 05:53:12 dancy Exp $
 
 (defconstant *fhsize* 32)
 
@@ -27,6 +27,7 @@
     id))
 
 (defun pathname-to-fhandle-id (p)
+  (setf p (pathname p))
   (let ((res (get-existing-fhandle-id p)))
     (if res
         res
@@ -44,6 +45,7 @@
 
 
 (defun fhandle-id-to-pathname (id)
+  (ensure-fhandles)
   (gethash id *fhandles*))
 
 (defun fhandle-vec-to-pathname (fh)
@@ -54,4 +56,7 @@
 (defun fhandle-to-pathname (fh) ;; xdr
   (fhandle-vec-to-pathname (xdr-get-vec fh)))
 
+(defun dump-fhandles ()
+  (maphash #'(lambda (x y) (format t "~S -> ~S~%" x y))
+	   *fhandles*))
 

@@ -2,6 +2,8 @@
 
 ;; patch for bug10759
 
+;; $Id: mpsocketfix.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+
 (in-package :mp)
 
 ;; this was modified

@@ -1,3 +1,7 @@
+(in-package :user)
+
+;; $Id: xdr.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+
 (declaim (optimize (speed 3)))
 
 (defstruct xdr

@@ -1,5 +1,9 @@
 ;; portmapper
 
+(in-package :user)
+
+;; $Id: portmap.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+
 (defconstant *pmapport* 111)
 (defconstant *pmapprog* 100000)
 (defconstant *pmapvers* 2)
