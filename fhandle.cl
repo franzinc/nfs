@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.9 2001/08/15 23:35:14 dancy Exp $
+;; $Id: fhandle.cl,v 1.10 2002/09/20 21:03:31 dancy Exp $
 
 ;; file handle stuff
 
@@ -84,6 +84,15 @@
     (xdr-with-seek (xdr offset :absolute t)
 		   (xdr-fhandle-to-pathname xdr))))
 
+;; To be used with file deletion (or deletion as a side effect
+;; of renaming onto an existing file).
+(defun remove-fhandle-by-pathname (p)
+  (let ((id (pathname-to-fhandle-id p)))
+    (remhash p *pathnames*)
+    (remhash id *fhandles*)))
+  
+  
+
 ;;; from and to are pathnames.
 ;;; need to update *fhandles* and *pathnames*
 (defun swap-fhandles (from to)
@@ -93,7 +102,8 @@
     (setf (gethash from *pathnames*) toid)
     (setf (gethash fromid *fhandles*) to)
     (setf (gethash toid *fhandles*) from)))
-    
+
+
 
 ;;; for debugging
 (defun dump-fhandles ()

@@ -1,6 +1,20 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2002-09-20    <dancy@CANDY2K>
+
+	* inc'd vrsion.
+
+	* fhandle.cl:  Added func remove-fhandle-by-pathname to remove
+	file handles for deleted files.
+
+	* nfs.cl:  Reformatted code in a few places and replaced some if's
+	with if*'s.
+
+	Added func remove-statcache to uncached information that becomes
+	invalid during a remove or rename.  This fixes a bug that existed
+	in the rename operation.
+
 2002-09-19    <dancy@CANDY2K>
         * inc'd version.
 	
