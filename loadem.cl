@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.19 2003/06/06 17:55:09 dancy Exp $
+;; $Id: loadem.cl,v 1.20 2003/08/07 16:31:19 dancy Exp $
 
 (in-package :user)
 
@@ -50,7 +50,8 @@
 
 (defun main (&rest args)
   (let* ((exepath (if (first args) (first args) "nfs.exe"))
-	 (configfile (merge-pathnames "nfs.cfg" exepath)))
+	 (configfile (merge-pathnames "nfs.cfg" exepath))
+	 (*global-gc-behavior* nil))
     (pop args)
     (if (and args (string= (first args) "/install"))
 	(create-service exepath))
