@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.16 2003/01/20 23:47:25 dancy Exp $
+;; $Id: loadem.cl,v 1.17 2003/01/23 00:09:16 dancy Exp $
 
 (in-package :user)
 
@@ -99,7 +99,8 @@
       (ntservice:create-service 
        "nfs" 
        "NFS Server" 
-       (format nil "~A /service" path))
+       (format nil "~A /service" path)
+       :start :auto)
     (if* success
        then
 	    (format t "NFS service successfully installed.~%")

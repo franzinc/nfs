@@ -1,6 +1,11 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-01-22    <dancy@DANCYSOFT>
+
+	* loadem.cl: Use the new :start keyword argument to
+	ntservice:create-service.  
+	
 2003-01-20    <dancy@CANDY2K>
 
 	* Version 1.1.0.
