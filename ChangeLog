@@ -1,6 +1,13 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-12-15    <dancy@CANDY2K>
+
+	* nfs.nsi: If "install as service" option is used.. and there is
+	an existing nfs.cfg file, start the service after installing.  
+
+	If installing as a service, remove any existing service first.
+
 2003-12-12    <dancy@CANDY2K>
 
 	* nfs.nsi: New installer script.

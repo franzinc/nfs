@@ -40,6 +40,9 @@ UninstPage instfiles
 
 ;--------------------------------
 
+var nfs_cfg_existed
+
+
 ; The stuff to install
 Section "${VERBOSE_PROD}"
 
@@ -60,13 +63,15 @@ Section "${VERBOSE_PROD}"
 
 ; if nfs.cfg already exists, keep it (copy in nfs.cfg.sample instead)
   IfFileExists  "$INSTDIR\nfs.cfg" 0 make_fresh_nfs_cfg
+   strcpy $nfs_cfg_existed "yes"
    File "nfs.cfg.sample"
    Goto nfs_cfg_done
   make_fresh_nfs_cfg:
+   strcpy $nfs_cfg_existed "no"
    File /oname=nfs.cfg nfs.cfg.sample
   
   nfs_cfg_done:
-  
+
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
 
@@ -90,11 +95,22 @@ Section "Start Menu Shortcuts"
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "" ""
   CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe" "" "" ""
-  
+  CreateShortCut "${SMDIR}\Start NFS Service.lnk" "$INSTDIR\nfs.exe" \
+                                                   "/start" "" ""
+  CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "$INSTDIR\nfs.exe" \
+                                                   "/stop" "" ""
+  CreateShortCut "${SMDIR}\Edit nfs.cfg.lnk" "notepad" "$INSTDIR\nfs.cfg" "" ""
 SectionEnd
 
 Section "Install as a service"
+  ;; just in case
+  ExecWait '"$INSTDIR\nfs.exe" /stop /quiet'
+  ExecWait '"$INSTDIR\nfs.exe" /remove /quiet'
   ExecWait '"$INSTDIR\nfs.exe" /install /quiet'
+  strcmp $nfs_cfg_existed "yes" 0 do_not_start_service
+      ExecWait '"$INSTDIR\nfs.exe" /start /quiet'
+
+  do_not_start_service:
 SectionEnd
 
 ;--------------------------------
