@@ -1,5 +1,11 @@
 2001-05-22    <dancy@DANCYSOFT>
 
+	* Added .cvsignore
+
+	* added nfs.txt which is the NFS V2 RFC.
+
+	* Updated the readme to show how to edit the export list
+
 	* Updated extra.c to only defined INVALID_SET_FILE_POINTER if it
 	isn't already defined.
 

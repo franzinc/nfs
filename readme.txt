@@ -1,9 +1,12 @@
 Create a file called nfs.cfg that looks like:
 
-((*nfslocaluid* 1000)
+(
+ (*nfslocaluid* 1000)
  (*nfslocalgid* 50)
  (*nfsdebug* t)
- (*nfslocalumask* #o022))
+ (*nfslocalumask* #o022)
+ (*exports* (("/c" "c:/") ("/d" "d:/")))
+)
 
 Replace the values of the parameters to your liking.
 
