@@ -1,0 +1,4 @@
+*.fasl
+autoloads.out
+*.build-dribble
+configure
