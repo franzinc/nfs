@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.8 2001/06/07 19:09:38 dancy Exp $
+;; $Id: xdr.cl,v 1.9 2001/06/14 21:55:45 dancy Exp $
 
 (in-package :user)
 
@@ -107,7 +107,7 @@
 (defun xdr-expand-check (xdr more)
   (if (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
       (progn
-	(format t "expanding xdr~%")
+	;;(format t "expanding xdr~%")
 	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec (max *xdrdefaultsize* more)))))))
 
 
@@ -363,21 +363,21 @@
         (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i)) (char-code (schar string i))))
       (xdr-update-pos xdr plen)))))
 
-      
-      
-
 (defun xdr-xdr (xdr &optional xdr2)
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :build)
       (unless xdr2
         (error "xdr-xdr: 'xdr2' parameter is required"))
-      (let ((size (xdr-size xdr2)))
+      (let ((size (xdr-size xdr2))
+	    (destvec (the (simple-array (unsigned-byte 8) (*)) (xdr-vec xdr)))
+	    (srcvec (the (simple-array (unsigned-byte 8) (*)) (xdr-vec xdr2)))
+	    (pos (the fixnum (xdr-pos xdr))))
 	(xdr-expand-check xdr size)
 	;; do the copy....
 	(dotimes (i size)
-	  (setf (aref (xdr-vec xdr) (+ i (xdr-pos xdr)))
-	    (aref (xdr-vec xdr2) i)))
+	  (setf (aref destvec (+ i pos))
+	    (aref srcvec i)))
 	(xdr-update-pos xdr size)))
      ((eq direction :extract)
       (cons xdr (xdr-pos xdr))))))
