@@ -1,9 +1,7 @@
 ;; mountd
-
+;; $Id: mountd.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
 
 (in-package :user)
-
-;; $Id: mountd.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
 
 (defconstant MNTPATHLEN 1024) ;; max number of bytes in a pathname argument
 (defconstant MNTNAMLEN 255) ;; max number of bytes in a name argument

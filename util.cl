@@ -1,6 +1,6 @@
-(in-package :user)
+;; $Id: util.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
 
-;; $Id: util.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+(in-package :user)
 
 (defun directoryp (p)
   (excl::probe-directory p))

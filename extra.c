@@ -1,3 +1,5 @@
+/* $Id: extra.c,v 1.3 2001/05/23 15:59:02 layer Exp $ */
+
 #include <windows.h>
 
 #ifndef INVALID_SET_FILE_POINTER

@@ -1,6 +1,6 @@
-(in-package :user)
+;; $Id: xdr.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
 
-;; $Id: xdr.cl,v 1.2 2001/05/23 05:53:13 dancy Exp $
+(in-package :user)
 
 (declaim (optimize (speed 3)))
 

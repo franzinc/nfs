@@ -1,6 +1,8 @@
 ;; file handle stuff
 
-;; $Id: fhandle.cl,v 1.3 2001/05/23 05:53:12 dancy Exp $
+;; $Id: fhandle.cl,v 1.4 2001/05/23 15:59:02 layer Exp $
+
+(in-package :user)
 
 (defconstant *fhsize* 32)
 
