@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.27 2004/02/19 16:59:16 dancy Exp $
+# $Id: Makefile,v 1.28 2004/02/19 17:00:37 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -22,7 +22,7 @@ build-prologue:
 	# Hack.. since the configure program shares some fasls
 	# with the nfs server.. but they're using incompatible
 	# lisps.
-	rm *.fasl
+	rm -f *.fasl
 	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp
 	@echo '(load "loadem.cl")' >> b.tmp
 
