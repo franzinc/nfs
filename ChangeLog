@@ -3,6 +3,12 @@
 
 2004-02-03    <dancy@CANDY2K>
 
+	* loadem.cl (buildit): Removed a 7.0 conditionalization.
+	Hopefully the required command line args will be available by the
+	time the next 7.0 testing occurs.
+	
+2004-02-03    <dancy@CANDY2K>
+
 	* Version 2.0 Changelog begins here.  There have been many
 	changes.  Too numerous to lay out here.
 

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.25 2004/02/03 20:58:12 dancy Exp $
+;; $Id: loadem.cl,v 1.26 2004/02/03 21:09:34 dancy Exp $
 
 (in-package :user)
 
@@ -54,6 +54,7 @@
       (load file))))
 
 (defun buildit (&key demo)
+  ;; This will be fixed before 7.0 is released.  Remove then.
   #+(version>= 7)(progn
 		   (require :winapi)
 		   (require :res))
@@ -73,13 +74,11 @@
      ;; +Ti remove "interrupt lisp" from system tray menu
      ;; +Cx disable console window exit.
      ;; +N sets program name used in system tray menu     
-     (format nil "~a -o nfs/nfs.exe +t ~s +cx ~s"
+     (format nil "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS\""
 	     (truename "sys:bin;setcmd.exe")
 	     (if demo
 		 "Allegro NFS Server demo"
-	       "Allegro NFS Server")
-	     #-(version>= 7)"+Ti +Cx +N \"Allegro NFS\""
-	     #+(version>= 7)"")
+	       "Allegro NFS Server"))
 	     
      :show-window :hide)))
 
