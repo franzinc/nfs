@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.9 2001/08/16 16:27:20 layer Exp $
+;; $Id: portmap.cl,v 1.10 2001/08/16 21:44:22 dancy Exp $
 
 ;; portmapper
 
@@ -142,6 +142,7 @@
         (xdr-unsigned-int xdr 0)))
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
+#|
 (defun portmap-callit (peer xid params)
   (declare (ignore xid peer))
   (with-xdr-xdr (params)
@@ -149,7 +150,13 @@
 	  (vers (xdr-unsigned-int params))
 	  (proc (xdr-unsigned-int params)))
       (format t "portmap-callit(~D, ~D, ~D, ...)~%~%" prog vers proc))))
-    
+|#
+
+(defun portmap-callit (peer xid params)
+  (declare (ignore xid peer params))
+  )
+
+
     
 (defun locate-matching-mapping (m)
   (dolist (m2 *mappings*)

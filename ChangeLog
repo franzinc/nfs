@@ -1,3 +1,11 @@
+2001-08-16    <dancy@DANCY2K>
+
+	* nfs.cl (nfsd-rename):  Close the from file before trying to
+	rename it.    Also, added a general error handler around
+	rename-file.  Rename errors will return NFSERR_IO.
+
+	* portmap.cl:  Don't print information for the callit function.  
+
 2001-08-16    <layer@HOBART>
 
 	* nfs.cl: fix syntax error
@@ -309,11 +317,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -324,15 +332,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.34 2001/08/16 18:53:56 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

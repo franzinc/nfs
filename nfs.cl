@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.29 2001/08/16 18:53:56 layer Exp $
+;; $Id: nfs.cl,v 1.30 2001/08/16 21:44:22 dancy Exp $
 
 ;; nfs
 
@@ -914,13 +914,20 @@ close-open-file: Calling reap-open-files to effect a close~%")
 	     ((or (null to) (not (nfs-okay-to-write (call-body-cred cbody))))
 	      (xdr-int *nfsdxdr* NFSERR_ACCES))
 	     (t 
-	      ;; need error checking
-	      (rename-file
-	       from (merge-pathnames to (make-pathname :type :unspecific)))
-	      (swap-fhandles from to)
-	      (nfs-remove-file-from-dircache from fromdir)
-	      (nfs-add-file-to-dircache to todir)
-	      (xdr-int *nfsdxdr* NFS_OK)))))))))
+	      (close-open-file from)
+	      (if* (not (eq :err 
+			   (handler-case 
+			       (rename-file
+				from (merge-pathnames to (make-pathname :type :unspecific)))
+			     (t (c) 
+			       (format t "rename-file got error ~A.  Returning IO error to client~%" c)
+			       (xdr-int *nfsdxdr* NFSERR_IO)
+			       :err))))
+		 then
+		      (swap-fhandles from to)
+		      (nfs-remove-file-from-dircache from fromdir)
+		      (nfs-add-file-to-dircache to todir)
+		      (xdr-int *nfsdxdr* NFS_OK))))))))))
 
 ;;; args:  fhandle dir, filename, sattr
 ;;; returns: status
