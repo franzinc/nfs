@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: util.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
+;; $Id: util.cl,v 1.12 2003/03/13 17:35:43 dancy Exp $
 
 (in-package :user)
 
@@ -57,16 +57,16 @@
      (lowpart :int)
      (highpart :int)))
 
-(ff:def-foreign-call GetDiskFreeSpaceExA ((filename :foreign-address)
-					  (freebytes :foreign-address)
-					  (totalbytes :foreign-address)
-					  (realfreebytes :foreign-address)))
+(ff:def-foreign-call (GetDiskFreeSpaceExA "GetDiskFreeSpaceExA")
+    ((filename :foreign-address)
+     (freebytes :foreign-address)
+     (totalbytes :foreign-address)
+     (realfreebytes :foreign-address)))
 
-(ff:def-foreign-call SetFilePointer (hFile lDistanceToMove
-					   lpDistanceToMoveHigh
-					   dwMoveMethod))
+(ff:def-foreign-call (SetFilePointer "SetFilePointer")
+    (hFile lDistanceToMove lpDistanceToMoveHigh dwMoveMethod))
 
-(ff:def-foreign-call SetEndOfFile (hFile))
+(ff:def-foreign-call (SetEndOfFile "SetEndOfFile") (hFile))
 
 (ff:def-foreign-type utimbuf 
     (:struct

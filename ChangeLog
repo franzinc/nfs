@@ -1,6 +1,13 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-03-13  Ahmon Dancy  <dancy@dancy>
+
+	* util.cl: Fixed up the remaining foreign calls for case mode
+	issues.
+
+	* nfs.cl: Bumped version to 1.1.2.
+	
 *******************************************************************************
 1.1.1 public release
 *******************************************************************************
