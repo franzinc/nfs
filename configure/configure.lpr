@@ -1,8 +1,8 @@
-;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 24, 2004 14:28)"; cg: "1.42"; -*-
+;; -*- lisp-version: "7.0 [Windows] (Oct 26, 2004 13:48)"; cg: "1.54.2.17"; -*-
 
 (in-package :cg-user)
 
-(defpackage :common-graphics-user (:export) (:use :cl :excl :cg))
+(defpackage :common-graphics-user)
 
 (define-project :name :configure
   :modules (list (make-instance 'module :name "..\\xdr")
@@ -21,6 +21,7 @@
   :projects nil
   :libraries nil
   :distributed-files '("configuration.txt")
+  :internally-loaded-files nil
   :project-package-name :common-graphics-user
   :main-form 'configform
   :compilation-unit t

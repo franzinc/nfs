@@ -21,7 +21,7 @@
       (ignore-errors (mp:process-kill *pmap-process*))))
 
 (defun mainloop ()
-  #+(version>= 7)(console-control :close :hide)
+  #+(version>= 7) (console-control :close :hide)
   (loop (sleep most-positive-fixnum)))      
 
 (defun main (&rest args)

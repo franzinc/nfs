@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.57 2004/09/16 17:40:17 dancy Exp $
+;; $Id: nfs.cl,v 1.58 2004/11/02 23:17:19 layer Exp $
 
 ;; nfs
 
@@ -78,6 +78,14 @@
 
 
 (defun nfsd ()
+  (format t "Allegro NFS v~A started.~%" *nfsd-version*)
+  (if* *nfs-gc-debug*
+     then (format t "~&Turning on memory management debugging.~%")
+	  (setf (sys:gsgc-switch :print) t)
+	  (setf (sys:gsgc-switch :stats) t)
+	  (setq excl:*global-gc-behavior* nil)
+     else (setf (sys:gsgc-switch :print) nil))	  
+
   (with-nfsdsockets ()
     (with-portmapper-mapping (*nfsprog* *nfsvers* *nfsport* IPPROTO_TCP)
       (with-portmapper-mapping (*nfsprog* *nfsvers* *nfsport* IPPROTO_UDP)
@@ -89,7 +97,6 @@
 					:udpsock *nfsd-udp-socket*
 					:buffer buffer)))
 	  (declare (dynamic-extent buffer server))
-	  (format t "Allegro NFS v~A started.~%" *nfsd-version*)
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)

@@ -22,6 +22,7 @@
 (defconstant *blocksize* 8192)
 
 (defparameter *nfs-debug* nil)
+(defparameter *nfs-gc-debug* nil)
 
 (defun map-errno-to-nfs-error-code (errno)
   (case errno

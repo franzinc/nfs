@@ -7,6 +7,7 @@
 (in-package :common-graphics-user)
 
 (defparameter *nfs-debug* nil)
+(defparameter *nfs-gc-debug* nil)
 (defparameter *mountd-debug* nil)
 
 (defparameter *host-lists* nil)
@@ -81,7 +82,10 @@
     
     ;; parameters
     (push `(*nfs-debug* ,*nfs-debug*) config)
+    (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
     (push `(*mountd-debug* ,*mountd-debug*) config)
+    (push `(user::*use-system-portmapper* ,user::*use-system-portmapper*)
+	  config)
     
     config))
 
@@ -108,6 +112,8 @@
 (defun populate-form (form)
   (setf (value (my-find-component :nfs-debug-checkbox form))
     *nfs-debug*)
+  (setf (value (my-find-component :gc-debug-checkbox form))
+    *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     *mountd-debug*)
   
@@ -821,30 +827,49 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (delete-file filename)
     (rename-file tmpname filename)))
 
-  
-
 (defun configform-nfs-debug-checkbox-on-change (widget
                                                 new-value
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-debug* new-value)
+  (format t "~&NFS debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
-(defun configform-mountd-debug-checkbox-on-change (widget
-                                                   new-value
-                                                   old-value)
+(defun configform-mountd-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *mountd-debug* new-value)
+  (format t "~&Mountd debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
+
+(defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *nfs-gc-debug* new-value)
+  (format t "~&Memory management debugging: ~a.~%" new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-combo-box-port-mapper-on-change (widget new-value old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setq user::*use-system-portmapper*
+    (if* (eq :auto new-value)
+       then :auto
+     elseif (eq :yes new-value)
+       then t
+       else nil))
+  (format t "~&Use system portmapper: ~s~%." user::*use-system-portmapper*)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
 
 
 (defun root-has-read-access-p (exp)
   (block nil
     (if (= (nfs-export-uid exp) 0)
         (return t))
-    (dolist (ulist-name (append (nfs-export-rw-users exp) (nfs-export-ro-users exp)))
+    (dolist (ulist-name (append (nfs-export-rw-users exp)
+				(nfs-export-ro-users exp)))
       (let ((list (gethash ulist-name *user-lists*)))
         (if (or (member t list) (member 0 list))
             (return t))))))
@@ -857,4 +882,3 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (declare (ignore-if-unused widget new-value old-value))
   (do-help widget)
   t) ; Accept the new value
-
