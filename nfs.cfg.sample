@@ -10,4 +10,5 @@
              ("/d" "d:/")))
  (*hosts-allow* nil)
  (*hosts-deny* nil)
+ (*use-system-portmapper* nil)
 )

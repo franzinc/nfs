@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.13 2003/07/02 22:18:52 dancy Exp $
+$Id: readme.txt,v 1.14 2003/07/03 21:57:45 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -86,6 +86,12 @@ Currently, group id is not used to determine read/write access.
  name maps to.
 
 *hosts-allow* and *hosts-deny* are explained in access-control.txt
+
+*use-system-portmapper* may be required if you have Microsoft's
+ Services for Unix (SFU) software installed and Allegro NFSd is not
+ starting up.  Setting this option to 't' should make things work (as
+ long as you don't have Microsoft's NFS server enabled).
+
 
 *******************************************************************************
 3. Execution
