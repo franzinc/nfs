@@ -1,4 +1,4 @@
-$Id: access-control.txt,v 1.1 2003/01/20 23:47:25 dancy Exp $
+$Id: access-control.txt,v 1.2 2003/07/02 22:19:41 dancy Exp $
 
 *hosts-allow* and *hosts-deny* control which hosts are allowed to
  access the NFS server.  When an NFS or mount request comes in, the IP
@@ -6,7 +6,7 @@ $Id: access-control.txt,v 1.1 2003/01/20 23:47:25 dancy Exp $
  in *hosts-allow* first, then the entries in *hosts-deny*, until a
  match is found.  The first match found is used.  If no match is
  found, access is allowed.  Therefore, if both *hosts-allow* and
- *hosts-deny* are empty lists, allow clients will be allowed access.
+ *hosts-deny* are empty lists, all clients will be allowed access.
 
  *hosts-allow* and *hosts-deny* should be list of IP addresses and
  optional masks.  An IP address/mask is a string like so:
