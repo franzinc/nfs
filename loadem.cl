@@ -1,9 +1,10 @@
-;; $Id: loadem.cl,v 1.9 2001/08/13 17:09:55 dancy Exp $
+;; $Id: loadem.cl,v 1.10 2001/08/13 17:49:00 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
-  (load "ntservice/ntservice.fasl"))
+  (defparameter *ntservice.fasl* "ntservice/ntservice.fasl")
+  (load *ntservice.fasl*))
 
 (defparameter *filelist*
     '("util" "fixes" "mpsocketfix" "xdr" "sunrpc" "portmap"
@@ -45,7 +46,9 @@
     (dolist (file (reverse (cons "loadem" *filelist*)))
       (push (concatenate 'string file ".fasl") filelist))
     (generate-executable "nfs" 
-			 (append '(:sock :acldns :seq2 "service.fasl") 
+			 (append '(:sock :acldns 
+				   :seq2 :foreign
+				   #.*ntservice.fasl*) 
 				 filelist)
 			 :application-files '("nfs.cfg"))))
 
@@ -53,7 +56,7 @@
   (ntservice:create-service 
    "nfs" 
    "NFS Server" 
-   (format nil "~A /service")))
+   (format nil "~A /service" path)))
 
 (defun delete-service ()
   (ntservice:delete-service "nfs"))
