@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.48 2003/07/02 22:18:52 dancy Exp $
+;; $Id: nfs.cl,v 1.49 2003/07/03 02:42:33 dancy Exp $
 
 ;; nfs
 
@@ -128,17 +128,17 @@
 (defun nfsd ()
   (make-nfsdsockets)
   (ensure-nfsdxdr)
-  (portmap-add-program *nfsprog* *nfsvers* *nfsport* IPPROTO_TCP)
-  (portmap-add-program *nfsprog* *nfsvers* *nfsport* IPPROTO_UDP)
-  (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
-  (mp:process-run-function "stat cache reaper" #'statcache-reaper)
-  (mp:process-run-function "dir cache reaper" #'dircache-reaper)
-  (let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket*
-				 :udpsock *nfsd-udp-socket*)))
-    (loop
-      (multiple-value-bind (xdr peer)
-          (rpc-get-message server)
-        (nfsd-message-handler xdr peer)))))
+  (with-portmapper-mapping (*nfsprog* *nfsvers* *nfsport* IPPROTO_TCP)
+    (with-portmapper-mapping (*nfsprog* *nfsvers* *nfsport* IPPROTO_UDP)
+      (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
+      (mp:process-run-function "stat cache reaper" #'statcache-reaper)
+      (mp:process-run-function "dir cache reaper" #'dircache-reaper)
+      (let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket*
+				     :udpsock *nfsd-udp-socket*)))
+	(loop
+	  (multiple-value-bind (xdr peer)
+	      (rpc-get-message server)
+	    (nfsd-message-handler xdr peer)))))))
 
 (defun nfsd-message-handler (xdr peer)
   (let* ((msg (create-rpc-msg xdr))

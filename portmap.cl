@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
+;; $Id: portmap.cl,v 1.12 2003/07/03 02:42:33 dancy Exp $
 
 ;; portmapper
 
@@ -47,6 +47,8 @@
 
 (defparameter *portmap-debug* nil)
 
+(defparameter *use-system-portmapper* nil)
+
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
     (setf *pmap-tcp-socket*   
@@ -70,15 +72,16 @@
 
 
 (defun portmapper ()
-  (make-pmap-sockets)
-  (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_TCP)
-  (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_UDP)
-  (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket*
-				 :udpsock *pmap-udp-socket*)))
-    (loop
-      (multiple-value-bind (xdr peer)
-          (rpc-get-message server)
-        (portmap-message-handler xdr peer)))))
+  (when (not *use-system-portmapper*)
+    (make-pmap-sockets)
+    (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_TCP)
+    (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_UDP)
+    (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket*
+				   :udpsock *pmap-udp-socket*)))
+      (loop
+	(multiple-value-bind (xdr peer)
+	    (rpc-get-message server)
+	  (portmap-message-handler xdr peer))))))
       
 (defun portmap-message-handler (xdr peer)
   (let (msg cbody)
@@ -104,15 +107,10 @@
 	 (format t "portmap: unhandled procedure ~D~%"
 		 (call-body-proc cbody)))))))
 
-(defun portmap-verf ()
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-auth-null xdr)
-    xdr))
-
 (defun portmap-null (peer xid)
   (if *portmap-debug* (format t "portmap-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (portmap-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 
 (defun portmap-dump (peer xid)
@@ -125,7 +123,7 @@
       (xdr-int xdr (mapping-prot mapping))
       (xdr-int xdr (mapping-port mapping)))
     (xdr-int xdr 0) ;; no more data
-    (send-successful-reply peer xid (portmap-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 (defun portmap-getport (peer xid params)
   (let* ((m (with-xdr-xdr (params)
@@ -143,7 +141,7 @@
 	    (if *portmap-debug*
 		(format t "Program not found.  Returning 0~%~%"))
 	    (xdr-unsigned-int xdr 0))
-    (send-successful-reply peer xid (portmap-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 #|
 (defun portmap-callit (peer xid params)
@@ -185,9 +183,26 @@
                   :vers vers
                   :prot proto
                   :port port)))
-    (unless (find mapping *mappings* :test #'equalp)
-      (push mapping *mappings*))))
-  
+    (if* *use-system-portmapper*
+       then
+	    (portmap-set-client mapping)
+       else
+	    (unless (find mapping *mappings* :test #'equalp)
+	      (push mapping *mappings*)))))
+
+(defun portmap-remove-program (prog vers port proto)
+  (let ((mapping (make-mapping
+                  :prog prog
+                  :vers vers
+                  :prot proto
+                  :port port)))
+    (if* *use-system-portmapper*
+       then
+	    (portmap-unset-client mapping)
+       else
+	    (setf *mappings* 
+	      (delete mapping *mappings* :test #'equalp)))))
+
 (defstruct callargs
   prog
   vers
@@ -198,3 +213,87 @@
   port
   res)
 
+;; portmapper client stuff
+
+(defun portmap-dump-client (host)
+  (with-rpc-peer (peer host 111 :udp)
+    (let ((xdr (create-xdr :direction :build))
+	  (xid (random #.(expt 2 32))))
+      (dotimes (i 3) ;; try 3 times      
+	(rpc-send-call
+	 peer
+	 xid
+	 (rpc-make-call-body *pmapprog* *pmapvers* 4 
+			     (null-auth) (null-verf) xdr))
+	(let ((msg (mp:with-timeout (5 :timeout)
+		     (rpc-get-reply peer))))
+	  (if (not (eq msg :timeout))
+	      (with-good-reply-msg (msg xid results)
+		(format t "   program vers proto   port~%")
+		(while (/= 0 (xdr-int results))
+		  (format t "~10d ~4d ~@5a ~6d~%" 
+			  (xdr-unsigned-int results)
+			  (xdr-unsigned-int results)
+			  (ecase (xdr-unsigned-int results)
+			    (6
+			     "tcp")
+			    (17 
+			     "udp"))
+			  (xdr-unsigned-int results)))
+		(return-from portmap-dump-client))))))))
+
+;; No attempts to be robust.. but should be fine.
+(defun portmap-set-client (mapping)
+  (with-rpc-peer (peer "127.0.0.1" 111 :udp)
+    (let ((xdr (create-xdr :direction :build))
+	  (xid (random #.(expt 2 32))))
+      (xdr-unsigned-int xdr (mapping-prog mapping))
+      (xdr-unsigned-int xdr (mapping-vers mapping))
+      (xdr-unsigned-int xdr (mapping-prot mapping))
+      (xdr-unsigned-int xdr (mapping-port mapping))
+      
+      (rpc-send-call 
+       peer
+       xid
+       (rpc-make-call-body *pmapprog* *pmapvers* 1
+			   (null-auth) (null-verf) xdr))
+      
+      (with-good-reply-msg ((rpc-get-reply peer) xid results)
+	(if (/= 1 (xdr-int results))
+	    (error "portmap_set failed"))
+	t))))
+
+(defun portmap-unset-client (mapping)
+  (with-rpc-peer (peer "127.0.0.1" 111 :udp)
+    (let ((xdr (create-xdr :direction :build))
+	  (xid (random #.(expt 2 32))))
+      (xdr-unsigned-int xdr (mapping-prog mapping))
+      (xdr-unsigned-int xdr (mapping-vers mapping))
+      (xdr-unsigned-int xdr (mapping-prot mapping))
+      (xdr-unsigned-int xdr (mapping-port mapping))
+      
+      (rpc-send-call 
+       peer
+       xid
+       (rpc-make-call-body *pmapprog* *pmapvers* 2
+			   (null-auth) (null-verf) xdr))
+      
+      (with-good-reply-msg ((rpc-get-reply peer) xid results)
+	(if (/= 1 (xdr-int results))
+	    (error "portmap_unset failed"))
+	t))))
+
+(defmacro with-portmapper-mapping ((prog vers port proto) &body body)
+  (let ((progsym (gensym))
+	(verssym (gensym))
+	(portsym (gensym))
+	(protosym (gensym)))
+    `(let ((,progsym ,prog)
+	   (,verssym ,vers)
+	   (,portsym ,port)
+	   (,protosym ,proto))
+       (portmap-add-program ,progsym ,verssym ,portsym ,protosym)
+       (unwind-protect
+	   (progn
+	     ,@body)
+	 (portmap-remove-program ,progsym ,verssym ,portsym ,protosym)))))

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.13 2001/08/16 16:27:20 layer Exp $
+;; $Id: xdr.cl,v 1.14 2003/07/03 02:42:33 dancy Exp $
 
 (in-package :user)
 
@@ -318,6 +318,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	;;(format t "xdr-opaque-auth: new xdr pos is ~D~%" (xdr-pos xdr))
         oa))
      ((eq direction :build)
+      (if (null body)
+	  (error "xdr-opaque-auth: 'body' keyword arg required when building"))
       (xdr-int xdr flavor)
       (xdr-opaque-variable xdr :vec body)))))
 
@@ -355,6 +357,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
                      :gids gids)))
         newau))
      ((eq direction :build)
+      (if (null au)
+	  (error "xdr-auth-unix: 'au' keyword arg required when building"))
       (xdr-int xdr (auth-unix-stamp au))
       (xdr-string xdr (auth-unix-machinename au))
       (xdr-int xdr (auth-unix-uid au))

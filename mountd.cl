@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.13 2003/06/09 16:53:25 dancy Exp $
+;; $Id: mountd.cl,v 1.14 2003/07/03 02:42:32 dancy Exp $
 
 (in-package :user)
 
@@ -60,16 +60,20 @@
 
 (defun mountd ()
   (make-mountdsockets)
-  (portmap-add-program *mountprog* *mountvers*
-		       (socket:local-port *mountd-tcp-socket*) IPPROTO_TCP)
-  (portmap-add-program *mountprog* *mountvers*
-		       (socket:local-port *mountd-udp-socket*) IPPROTO_UDP)
-  (let ((server (make-rpc-server :tcpsock *mountd-tcp-socket*
-				 :udpsock *mountd-udp-socket*)))
-    (loop
-      (multiple-value-bind (xdr peer)
-          (rpc-get-message server)
-        (mountd-message-handler xdr peer)))))
+  (with-portmapper-mapping (*mountprog* 
+			    *mountvers*
+			    (socket:local-port *mountd-tcp-socket*) 
+			    IPPROTO_TCP)
+    (with-portmapper-mapping (*mountprog* 
+			      *mountvers*
+			      (socket:local-port *mountd-udp-socket*) 
+			      IPPROTO_UDP)
+      (let ((server (make-rpc-server :tcpsock *mountd-tcp-socket*
+				     :udpsock *mountd-udp-socket*)))
+	(loop
+	  (multiple-value-bind (xdr peer)
+	      (rpc-get-message server)
+	    (mountd-message-handler xdr peer)))))))
 
 
 (defun mountd-message-handler (xdr peer)
@@ -84,13 +88,13 @@
        then
 	    (format t "Sending program unavailable response for prog=~D~%"
 		    (call-body-prog cbody))
-	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (mountd-null-verf))
+	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
 	    (return-from mountd-message-handler))
     (if* (not (= (call-body-vers cbody) *mountvers*))
        then
 	    (write-line "Sending program version mismatch response")
 	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
-				    (mountd-null-verf) *mountvers* *mountvers*)
+				    (null-verf) *mountvers* *mountvers*)
 	    (return-from mountd-message-handler))
     (case (call-body-proc cbody)
       (0
@@ -108,15 +112,10 @@
        (format t "mountd: unhandled procedure ~D~%"
 	       (call-body-proc cbody))))))
 
-(defun mountd-null-verf ()
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-auth-null xdr)
-    xdr))
-
 (defun mountd-null (peer xid)
   (if *mountd-debug* (format t "mountd-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (mountd-null-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 (defparameter *mounts* nil)
 
@@ -142,7 +141,7 @@
     (if *mountd-debug* 
 	(format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au)))
     (setf rootpathname (locate-export dirpath))
-    (with-successful-reply (res peer xid (mountd-null-verf))
+    (with-successful-reply (res peer xid (null-verf))
       (cond 
        ((not (access-allowed-p (rpc-peer-addr peer)))
 	(if *mountd-debug* 
@@ -165,7 +164,7 @@
       (remove (list (rpc-peer-addr peer) dirpath) 
 	      *mounts*
 	      :test #'equalp))
-    (send-successful-reply peer xid (mountd-null-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
     
 (defun showmounts ()
   (dolist (mnt *mounts*)
@@ -192,4 +191,4 @@
       (xdr-string xdr (first export))
       (xdr-int xdr 0)) ;; no group information
     (xdr-int xdr 0) ;; no more exports
-    (send-successful-reply peer xid (mountd-null-verf) xdr)))
+    (send-successful-reply peer xid (null-verf) xdr)))
