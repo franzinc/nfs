@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.14 2002/02/28 00:37:31 layer Exp $
+;; $Id: loadem.cl,v 1.15 2002/09/20 22:22:12 layer Exp $
 
 (in-package :user)
 
@@ -71,7 +71,6 @@
      "nfs" 
      (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
 	     filelist)
-     :application-files '("nfs.cfg")
      #+(version>= 6 2 :pre-beta 13) :icon-file
      #+(version>= 6 2 :pre-beta 13) "nfs.ico")
     (run-shell-command

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 2002/09/20 22:08:31 layer Exp $
+# $Id: Makefile,v 1.8 2002/09/20 22:22:12 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -15,20 +15,30 @@ compile: FORCE
 	@echo '(exit 0)' >> b.tmp
 	$(LISPEXE) +s b.tmp
 	@rm -f b.tmp
+	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 
 version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
-source_files = *.cl ChangeLog nfs.cfg.sample *.txt
+nfs_source_files = Makefile ChangeLog *.cl *.txt nfs.cfg.sample nfs.ico
+ntservice_source_files = ntservice/ChangeLog ntservice/*.cl ntservice/*.txt
 
 dist: FORCE
+### make binary dist:
 	rm -f nfs-$(version).zip
 	rm -fr nfs-$(version)
 	cp -rp nfs nfs-$(version)
+	rm -f nfs-$(version)/nfs.cfg
+	cp -p nfs.cfg.sample nfs-$(version)
+	cp -p readme.txt nfs-$(version)
+	cp -p binary-license.txt nfs-$(version)
 	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version).zip nfs-$(version)
 	rm -fr nfs-$(version)
+### make source dist:
 	rm -f nfs-$(version)-src.zip
 	rm -fr nfs-$(version)-src
 	mkdir nfs-$(version)-src
-	cp -p $(source_files) nfs-$(version)-src
+	cp -p $(nfs_source_files) nfs-$(version)-src
+	mkdir nfs-$(version)-src/ntservice
+	cp -p $(ntservice_source_files) nfs-$(version)-src/ntservice
 	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version)-src.zip \
 		nfs-$(version)-src
 	rm -fr nfs-$(version)-src

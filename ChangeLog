@@ -7,7 +7,11 @@
 
 2002-09-20    <layer@HOBART>
 
-	* Makefile: add `dist' rule; remove `makezip'
+	* (NEW) binary-license.txt
+	* (REMOVED) makezip
+	* Makefile: add `dist' rule
+	* loadem.cl: let Makefile copy nfs.cfg
+	* nfs.cfg.sample: add d:\ mapping
 
 2002-09-20    <dancy@CANDY2K>
 1.0.36

@@ -5,5 +5,6 @@
  (*nfslocalgid* 50)
  (*nfsdebug* nil)
  (*nfslocalumask* #o022)
- (*exports* (("/c" "c:/")))
+ (*exports* (("/c" "c:/")
+             ("/d" "d:/")))
 )
