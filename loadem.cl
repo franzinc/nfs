@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.11 2001/08/15 23:35:14 dancy Exp $
+;; $Id: loadem.cl,v 1.12 2002/02/12 17:20:26 layer Exp $
 
 (in-package :user)
 
@@ -52,10 +52,8 @@
   (let ((configfile (merge-pathnames "nfs.cfg" (pop args))))
     (read-nfs-cfg configfile)
     (if* (and args (string= (first args) "/service"))
-       then
-	    (ntservice:start-service #'mainloop :init #'startem)
-       else
-	    (startem)
+       then (ntservice:start-service #'mainloop :init #'startem)
+       else (startem)
 	    (mainloop))))
 
 (defun read-nfs-cfg (configfile)
@@ -74,7 +72,18 @@
 				   :seq2 :foreign
 				   #.*ntservice.fasl*) 
 				 filelist)
-			 :application-files '("nfs.cfg"))))
+			 :application-files '("nfs.cfg")
+			 #+(version>= 6 2) :icon-file
+			 #+(version>= 6 2) "nfs.icon")
+    (run-shell-command
+     (format nil "~a -o nfs/nfs.exe ~a"
+	     (truename "sys:bin;setcmd.exe")
+	     ;; In ACL 6.2, the "show the icon in the tray" bug has been
+	     ;; fixed, so don't show the console by default.  Before 6.2,
+	     ;; show it minimized.
+	     #+(version>= 6 2) "+cx"
+	     #-(version>= 6 2) "+cm")
+     :show-window :hide)))
 
 (defun create-service (path)
   (ntservice:create-service 

@@ -21,24 +21,21 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fixes.cl,v 1.2 2001/08/15 23:35:14 dancy Exp $
+;; $Id: fixes.cl,v 1.3 2002/02/12 17:20:26 layer Exp $
 
 (in-package :excl)
 
-#-(version>= 6 1)
-(eval-when (compile load eval)
-  (defconstant excl::sc-rmdir 75))
+;; patch needed for delete-directory, so it knows the errno of why the
+;; delete failed.
 
-#-(version>= 6 1)
-(defun rmdir (directory)
-  (let ((dir (truename directory)))
-    (multiple-value-bind (res errcode)
-	(with-native-string (x (namestring dir))
-	  (excl::.primcall 'sys::lisp-syscall #.sc-rmdir x))
-      (if* errcode
-	 then (error 'file-error
-		     :pathname dir
-		     :errno errcode
-		     :format-control "Could not remove directory: ~a."
-		     :format-arguments (list (er-number-to-string errcode)))
-	 else res))))
+#+(and (version>= 6 0) (not (version>= 6 1)))
+(assert (and sys:*patches*
+	     (let ((lisp-patches
+		    (cdr (assoc :lisp sys:*patches* :test #'eq))))
+	       (assoc "4a015" lisp-patches :test #'string=))))
+
+#+(and (version>= 5 0 1) (not (version>= 6 0)))
+(assert (and sys:*patches*
+	     (let ((lisp-patches
+		    (cdr (assoc :lisp sys:*patches* :test #'eq))))
+	       (assoc "....." lisp-patches :test #'string=))))

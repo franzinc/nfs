@@ -1,3 +1,14 @@
+*** Don't forget to increment the version number in nfs.cl for each commit
+*** [and leave this message at the top of the file]
+
+2002-02-12  Kevin Layer  <layer@crikey>
+1.0.32 (because this is the 32nd changelog entry)
+
+	* nfs.cl: add version number
+	* fixes.cl: require delete-directory patch for 5.0.1 and 6.0.
+	* (NEW) nfs.ico
+	* loadem.cl: use new icon file in ACL 6.2
+
 2001-09-06    <dancy@DANCY2K>
 
 	* nfs.cl (nfsd-setattr): Changes and new functions to make sure
@@ -343,11 +354,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* mountd.cl: added (in-package :user) and cvs Id
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and cvs Id
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* nfs.cl added (in-package :user) and cvs Id
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -358,15 +369,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* portmap.cl:  added (in-package :user) and cvs Id
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and cvs Id
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* utils.cl: added (in-package :user) and cvs Id
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.39 2001/09/06 18:43:10 dancy Exp $
+	* xdr.cl: added (in-package :user) and cvs Id
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
