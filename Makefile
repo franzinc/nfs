@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.24 2004/02/04 20:38:31 dancy Exp $
+# $Id: Makefile,v 1.25 2004/02/10 21:36:19 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -33,7 +33,7 @@ build-epilogue:
 	$(LISPEXE) +B +cn +s b.tmp
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
-	$(MAKE) -C configure LISPDIR=$(LISPDIR)
+	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
 installer-common:
 	rm -f nfs/nfs.cfg

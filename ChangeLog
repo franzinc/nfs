@@ -1,3 +1,7 @@
+2004-02-10    <layer@HOBART>
+
+	* Makefile: quote the LISPDIR passed to configure/Makefile
+
 2004-02-04    <Ahmon Dancy@GOBY>
 
 	* Make configure/Makefile use the same lisp distribution as
