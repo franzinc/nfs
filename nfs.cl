@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.24 2001/08/14 23:00:58 dancy Exp $
+;;; $Id: nfs.cl,v 1.25 2001/08/14 23:45:34 dancy Exp $
 
 (in-package :user)
 
@@ -382,9 +382,10 @@
   (maphash #'(lambda (key value) (format t "~S -> ~S~%" key value)) *nfs-dircache*))
 
 (defun dircache-reaper ()
-  (loop
-    (sleep *nfs-dircachereaptime*)
-    (reap-dircache)))
+  (if (not (= 0 *nfs-dircachereaptime*))
+      (loop
+	(sleep *nfs-dircachereaptime*)
+	(reap-dircache))))
 
 (defun reap-dircache ()
   (mp:with-process-lock (*nfs-dircachelock*)
@@ -409,7 +410,12 @@
 (defun nfs-lookup-dir (dir)
   (mp:with-process-lock (*nfs-dircachelock*)
     (setf dir (canonicalize-dir dir))
-    (let ((dc (gethash dir *nfs-dircache*)))
+    (let ((dc (if* (= 0 *nfs-dircachereaptime*) 
+		 then
+		      (reap-dircache) ;; so it doesn't grow forever
+		      nil 
+		 else
+		      (gethash dir *nfs-dircache*))))
       (if (null dc)
 	  (progn
 	    (setf dc (cons (augmented-directory dir) nil))
@@ -628,7 +634,8 @@ struct readargs {
 		       (sb (lookup-statcache pathname)))
 		  ;;(format t "Closing ~S~%" (openfile-pathname of))
 		  (close (openfile-stream of))
-		  (set-file-time pathname (sbslot 'st_atime) (sbslot 'st_mtime)))))
+		  (if (eq (openfile-direction of) :output)
+		      (set-file-time pathname (sbslot 'st_atime) (sbslot 'st_mtime))))))
       (setf *nfs-openfilelist* res))))
 
 (defun nfsd-open-file-reaper ()
