@@ -1,4 +1,4 @@
-;; $Id: xdr.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
+;; $Id: xdr.cl,v 1.4 2001/05/23 18:17:01 dancy Exp $
 
 (in-package :user)
 
@@ -7,9 +7,11 @@
 (defstruct xdr
   vec
   size
-  direction)
+  direction
+  pos ;; for extracting
+  )
 
-(defparameter *xdrdefaultsize* 16000)
+(defparameter *xdrdefaultsize* (+ 8192 100))
 
 (defun create-xdr (&key (direction :extract) vec (size *xdrdefaultsize*))
   (let ((xdr (make-xdr)))
@@ -17,16 +19,20 @@
     (cond 
      ((eq direction :extract) 
       (unless (vectorp vec)
-        (error "create-xdr: vec must be specified and must be a vector"))
+        (error "create-xdr: 'vec' parameter must be specified and must be a vector"))
+      (setf (xdr-pos xdr) 0)
       (setf (xdr-vec xdr) vec)
       (setf (xdr-size xdr) (length vec)))
      ((eq direction :build)
       (setf (xdr-vec xdr) (make-vec size :init 0))
-      (setf (xdr-size xdr) 0))
+      (setf (xdr-size xdr) 0)
+      (setf (xdr-pos xdr) 0)
+      )
      (t 
       (error "create-xdr: Unknown direction: ~A~%" direction)))
     xdr))
 
+;;; should this use the new 'pos' slot?
 (defun xdr-get-vec (xdr)
   (subseq (xdr-vec xdr) 0 (xdr-size xdr)))
 
@@ -35,18 +41,21 @@
       (progn
 	(format t "expanding xdr~%")
 	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec *xdrdefaultsize*))))))
-  
+
+(defun xdr-advance (xdr size)
+  (decf (xdr-size xdr) size)
+  (incf (xdr-pos xdr) size))
+
 (defun xdr-unsigned-int (xdr &optional int)
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
       (unless (>= (xdr-size xdr) 4)
         (error "xdr-unsigned-int: No data left in this xdr!"))
-      (let ((vec (xdr-vec xdr))
-            (res 0)
+      (let ((res 0)
             (shift 24))
         (dotimes (i 4)
-          (incf res (ash (aref vec i) shift))
+          (incf res (ash (aref (xdr-vec xdr) (+ i (xdr-pos xdr))) shift))
           (decf shift 8))
 	(xdr-advance xdr 4)
         res))
@@ -72,11 +81,80 @@
      ((eq direction :build)
       (xdr-unsigned-int xdr int)))))
 
-;; auth_flavor:
-;; AUTH_NULL = 0
-;; AUTH_UNIX = 1
-;; AUTH_SHORT = 2
-;; AUTH_DES = 3
+(defun xdr-opaque-fixed (xdr &key vec len)
+  (let ((direction (xdr-direction xdr))
+        newvec
+	plen)
+    (cond
+     ((eq direction :extract)
+      (unless len
+        (error "xdr-opaque-fixed: 'len' parameter is required"))
+      (if (> len (xdr-size xdr))
+          (error "xdr-opaque-fixed: Not enough data left!"))
+      (setf newvec
+	(subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len)))
+      (xdr-advance xdr (compute-padded-len len))
+      newvec)
+     ((eq direction :build)
+      (unless vec
+        (error "xdr-opaque-fixed: 'vec' parameter is required"))
+      (unless len
+        (setf len (length vec)))
+      (setf plen (compute-padded-len len))
+      (xdr-expand-check xdr plen)
+      (dotimes (i len)
+        (setf (aref (xdr-vec xdr) (+ i (xdr-size xdr))) (aref vec i)))
+      (incf (xdr-size xdr) plen)))))
+
+      
+(defun xdr-opaque-variable (xdr &optional vec)
+  (let ((direction (xdr-direction xdr))
+        len)
+    (cond
+     ((eq direction :extract)
+      (setf len (xdr-int xdr))
+      (if (> len (xdr-size xdr))
+          (error "xdr-opaque-variable: Not enough data left!"))
+      (xdr-opaque-fixed xdr :len len))
+     ((eq direction :build)
+      (unless vec
+        (error "xdr-opaque-variable: 'vec' parameter is required"))
+      (setf len (length vec))
+      (xdr-int xdr len)
+      (xdr-opaque-fixed xdr :vec vec)))))
+
+
+(defun xdr-array-fixed (xdr typefunc &key len things)
+  (let ((direction (xdr-direction xdr))
+        res)
+    (cond
+     ((eq direction :extract)
+      (unless len
+        (error "xdr-array-fixed: 'len' parameter is required"))
+      (dotimes (i len)
+        (push (funcall typefunc xdr) res))
+      (reverse res))
+     ((eq direction :build)
+      (unless (consp things)
+        (error "xdr-array-fixed: 'things' parameter must be a list"))
+      (dolist (thing things)
+        (funcall typefunc xdr thing))))))
+
+(defun xdr-array-variable (xdr typefunc &optional things)
+  (let ((direction (xdr-direction xdr))
+        len)
+    (cond
+     ((eq direction :extract)
+      (setf len (xdr-int xdr))
+      (xdr-array-fixed xdr typefunc :len len))
+     ((eq direction :build)
+      (setf len (length things))
+      (xdr-int xdr len)
+      (xdr-array-fixed xdr typefunc :len len :things things)))))
+
+
+;; auth_flavor: AUTH_NULL = 0 AUTH_UNIX = 1 AUTH_SHORT = 2 AUTH_DES =
+;; 3
 
 (defstruct opaque-auth
   flavor ;; int
@@ -131,9 +209,6 @@
       (xdr-int xdr (auth-unix-gid au))
       (xdr-array-variable xdr #'xdr-int (auth-unix-gids au))))))
 
-(defun xdr-advance (xdr size)
-  (decf (xdr-size xdr) size)
-  (setf (xdr-vec xdr) (subseq (xdr-vec xdr) size)))
 
 (defun make-vec (size &key init)
   (if init
@@ -156,7 +231,7 @@
       (if (< (xdr-size xdr) len)
           (error "xdr-string: Not enough data left!"))
       (dotimes (i len)
-        (setf (schar newstring i) (code-char (aref (xdr-vec xdr) i))))
+        (setf (schar newstring i) (code-char (aref (xdr-vec xdr) (+ i (xdr-pos xdr))))))
       (xdr-advance xdr (compute-padded-len len))
       newstring)
      ((eq direction :build)
@@ -169,49 +244,6 @@
       (incf (xdr-size xdr) plen)))))
 
       
-(defun xdr-opaque-fixed (xdr &key vec len)
-  (let ((direction (xdr-direction xdr))
-        newvec
-	plen)
-    (cond
-     ((eq direction :extract)
-      (unless len
-        (error "xdr-opaque-fixed: 'len' parameter is required"))
-      (if (> len (xdr-size xdr))
-          (error "xdr-opaque-fixed: Not enough data left!"))
-      ;; I should have just used subseq here
-      (setf newvec (make-vec len))
-      (dotimes (i len)
-        (setf (aref newvec i) (aref (xdr-vec xdr) i)))
-      (xdr-advance xdr (compute-padded-len len))
-      newvec)
-     ((eq direction :build)
-      (unless vec
-        (error "xdr-opaque-fixed: 'vec' parameter is required"))
-      (unless len
-        (setf len (length vec)))
-      (setf plen (compute-padded-len len))
-      (xdr-expand-check xdr plen)
-      (dotimes (i len)
-        (setf (aref (xdr-vec xdr) (+ i (xdr-size xdr))) (aref vec i)))
-      (incf (xdr-size xdr) plen)))))
-
-      
-(defun xdr-opaque-variable (xdr &optional vec)
-  (let ((direction (xdr-direction xdr))
-        len)
-    (cond
-     ((eq direction :extract)
-      (setf len (xdr-int xdr))
-      (if (> len (xdr-size xdr))
-          (error "xdr-opaque-variable: Not enough data left!"))
-      (xdr-opaque-fixed xdr :len len))
-     ((eq direction :build)
-      (unless vec
-        (error "xdr-opaque-variable: 'vec' parameter is required"))
-      (setf len (length vec))
-      (xdr-int xdr len)
-      (xdr-opaque-fixed xdr :vec vec)))))
       
 
 (defun xdr-xdr (xdr &optional xdr2)
@@ -226,41 +258,14 @@
 	;; do the copy....
 	(dotimes (i size)
 	  (setf (aref (xdr-vec xdr) (+ i (xdr-size xdr)))
-	    (aref (xdr-vec xdr2) i)))
+	    (aref (xdr-vec xdr2) (+ i (xdr-pos xdr2))))) 
 	(incf (xdr-size xdr) size)))
      ((eq direction :extract)
-      (setf res (create-xdr :vec (xdr-vec xdr)))
-      (setf (xdr-size xdr) 0)
-      (setf (xdr-vec xdr) #())
+      (setf res 
+	(create-xdr :vec (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) (xdr-size xdr)))))
+      (setf (xdr-pos xdr) (xdr-size xdr))
       res))))
       
-(defun xdr-array-fixed (xdr typefunc &key len things)
-  (let ((direction (xdr-direction xdr))
-        res)
-    (cond
-     ((eq direction :extract)
-      (unless len
-        (error "xdr-array-fixed: 'len' parameter is required"))
-      (dotimes (i len)
-        (push (funcall typefunc xdr) res))
-      (reverse res))
-     ((eq direction :build)
-      (unless (consp things)
-        (error "xdr-array-fixed: 'things' parameter must be a list"))
-      (dolist (thing things)
-        (funcall typefunc xdr thing))))))
-
-(defun xdr-array-variable (xdr typefunc &optional things)
-  (let ((direction (xdr-direction xdr))
-        len)
-    (cond
-     ((eq direction :extract)
-      (setf len (xdr-int xdr))
-      (xdr-array-fixed xdr typefunc :len len))
-     ((eq direction :build)
-      (setf len (length things))
-      (xdr-int xdr len)
-      (xdr-array-fixed xdr typefunc :len len :things things)))))
 
 (defun xdr-timeval (xdr &optional timeval)
   (let ((direction (xdr-direction xdr)))

@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.4 2001/05/23 15:59:02 layer Exp $
+;; $Id: sunrpc.cl,v 1.5 2001/05/23 18:17:01 dancy Exp $
 
 (in-package :user)
 
@@ -196,11 +196,13 @@
     
 (defun send-accepted-reply (peer xid verf stat reply)
   (let ((xdr (create-xdr :direction :build)))
+    (xdr-int xdr xid)
+    (xdr-int xdr 1) ;; REPLY
     (xdr-int xdr 0) ;; MSG_ACCEPTED
     (xdr-xdr xdr verf) 
     (xdr-int xdr stat) 
     (xdr-xdr xdr reply)
-    (rpc-send-msg peer xid xdr)))
+    (rpc-send xdr peer)))
 
 (defun send-successful-reply (peer xid verf results)
   (send-accepted-reply peer xid verf 0 results))

@@ -1,3 +1,14 @@
+2001-05-23    <dancy@SUCK>
+
+	* nfs.cl:  Changed a debugging message
+
+	* sunrpc.cl: Update send-successful-reply so that it doesn't call
+	rpc-send-msg (which saves an xdr-xdr call).
+
+	* xdr.cl: Added a 'pos' slot to the xdr structure to use to avoid
+	subseq calls in xdr-advance.  Updated other code to use this new
+	slot.  Probably introduced a buncha bugs.
+
 2001-05-23    <layer@HOBART>
 
 	* extra.cl: make warning go away
@@ -13,11 +24,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -28,15 +39,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.7 2001/05/23 18:17:00 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

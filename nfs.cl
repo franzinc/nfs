@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.5 2001/05/23 16:51:40 layer Exp $
+;;; $Id: nfs.cl,v 1.6 2001/05/23 18:17:00 dancy Exp $
 
 (in-package :user)
 
@@ -398,7 +398,7 @@ struct entry {
          (newfhandle
 	  (third (multiple-value-list (pathname-to-fhandle newpath)))))
     (if *nfsdebug*
-	(format t "nfds-lookup ~A in ~A~%" filename dir))
+	(format t "nfds-lookup ~A~%" newpath))
     (if (probe-file newpath)
 	(send-successful-reply 
 	 peer xid 
