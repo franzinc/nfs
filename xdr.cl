@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.14 2003/07/03 02:42:33 dancy Exp $
+;; $Id: xdr.cl,v 1.15 2004/02/03 20:58:13 dancy Exp $
 
 (in-package :user)
 
@@ -51,7 +51,7 @@
 	 (values-list ,res)))))
 
 (eval-when (compile eval load)
-  (defmacro xdr-compute-bytes-added ((xdr) &body body)
+  (defmacro with-xdr-compute-bytes-added ((xdr) &body body)
     (let ((oldpos (gensym)))
       `(let ((,oldpos (xdr-pos ,xdr)))
 	 ,@body
@@ -96,6 +96,52 @@
      (decf (the fixnum (xdr-size ,xdr)) (the fixnum ,size))))
 
 (defun create-xdr (&key (direction :extract) vec size)
+  (case direction
+    (:extract
+     (create-xdr-extract-mode vec size))
+    (:build
+     (create-xdr-build-mode vec size))
+    (t 
+     (error "create-xdr: Unknown direction: ~A~%" direction))))
+
+(define-compiler-macro create-xdr (&key (direction :extract) vec size &whole whole)
+  (case direction
+    (:extract
+     `(create-xdr-extract-mode ,vec ,size))
+    (:build
+     `(create-xdr-build-mode ,vec ,size))
+    (t 
+     whole)))
+  
+
+(defun create-xdr-extract-mode (vec size)
+  (let ((xdr (make-xdr)))
+    (setf (xdr-direction xdr) :extract)
+    (unless (vectorp vec)
+      (error "~
+create-xdr: 'vec' parameter must be specified and must be a vector"))
+    (setf (xdr-pos xdr) 0)
+    (setf (xdr-vec xdr) vec)
+    (unless size
+      (setf size (length vec)))
+    (setf (xdr-size xdr) size)
+    xdr))
+
+(defun create-xdr-build-mode (vec size)
+  (let ((xdr (make-xdr)))
+    (setf (xdr-direction xdr) :build)
+    (unless size 
+      (setf size *xdrdefaultsize*))
+    (if vec
+	(setf (xdr-vec xdr) vec)
+      (setf (xdr-vec xdr) (make-vec size 0)))
+    (setf (xdr-size xdr) 0)
+    (setf (xdr-pos xdr) 0)
+    xdr))
+
+
+#+ignore
+(defun create-xdr-1 (direction vec size)
   (let ((xdr (make-xdr)))
     (setf (xdr-direction xdr) direction)
     (cond 
@@ -108,6 +154,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (unless size
 	(setf size (length vec)))
       (setf (xdr-size xdr) size))
+     
      ((eq direction :build)
       (unless size 
 	(setf size *xdrdefaultsize*))
@@ -139,19 +186,16 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
    ;;(:explain :calls :types)
    (type xdr xdr)
    (type fixnum more))
-  (if (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
-      (progn
-	;;(format t "expanding xdr~%")
-	(setf (xdr-vec xdr)
-	  (concatenate '(vector (unsigned-byte 8))
-	    (xdr-vec xdr)
-	    (make-vec (max *xdrdefaultsize* more)))))))
-
-
+  (when (> (+ (xdr-pos xdr) more) (length (xdr-vec xdr)))
+    ;;(format t "expanding xdr~%")
+    (setf (xdr-vec xdr)
+      (concatenate '(vector (unsigned-byte 8))
+	(xdr-vec xdr)
+	(make-vec (max *xdrdefaultsize* more))))))
 
 (defun extract-uint-from-array (array offset)
   (declare (type (simple-array (unsigned-byte 8) (*)) array)
-	   (type (mod 65563) offset))
+	   (type (mod #.(* 64 1024)) offset))
   (+ (aref array (+ offset 3))
      (ash (aref array (+ offset 2)) 8)
      (ash (aref array (+ offset 1)) 16)
@@ -159,7 +203,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 (defun set-uint-in-array (uint array offset)
   (declare (type (simple-array (unsigned-byte 8) (*)) array)
-	   (type (mod 65563) offset)
+	   (type (mod #.(* 64 1024)) offset)
 	   (type (unsigned-byte 32) uint))
   (setf (aref array offset) (ash uint -24))
   (let ((uintfixnum (logand uint #x00ffffff)))
@@ -175,12 +219,12 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
    (type (unsigned-byte 32) int))
   (let ((direction (xdr-direction xdr))
 	res)
-    (cond
-     ((eq direction :extract)
+    (ecase direction
+     (:extract
       (setf res (extract-uint-from-array (xdr-vec xdr) (xdr-pos xdr)))
       (xdr-advance xdr 4)
       res)
-     ((eq direction :build)
+     (:build
       (xdr-expand-check xdr 4)
       (set-uint-in-array int (xdr-vec xdr) (xdr-pos xdr))
       (xdr-update-pos xdr 4)))))
@@ -191,13 +235,15 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
    (type xdr xdr))
   (let ((direction (xdr-direction xdr))
 	res)
-    (cond
-     ((eq direction :extract)
+    (ecase direction
+     (:extract
       (setf res (xdr-unsigned-int xdr))
       (if (not (= 0 (logand res #x80000000)))
 	  (incf res -4294967296))
       res)
-     ((eq direction :build)
+     (:build
+      (if (< int 0)
+	  (incf int #x100000000)) ;;convert to 2s complement form
       (xdr-unsigned-int xdr int)))))
 
 ;; returns a vector
@@ -465,9 +511,22 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
-      (list (xdr-unsigned-int xdr) (xdr-unsigned-int xdr)))
+      (list (xdr-int xdr) (xdr-int xdr)))
      ((eq direction :build)
       (unless timeval
         (error "xdr-timeval: 'timeval' parameter required"))
-      (xdr-unsigned-int xdr (first timeval))
-      (xdr-unsigned-int xdr (second timeval))))))
+      (xdr-int xdr (first timeval))
+      (xdr-int xdr (second timeval))))))
+
+(defun xdr-list (xdr typefunc &key things)
+  (ecase (xdr-direction xdr)
+    (:extract
+     (let (res)
+       (while (= (xdr-unsigned-int xdr) 1)
+	 (push (funcall typefunc xdr) res))
+       (reverse res)))
+    (:build
+     (dolist (thing things)
+       (xdr-unsigned-int xdr 1)
+       (funcall typefunc xdr thing))
+     (xdr-unsigned-int xdr 0))))

@@ -22,149 +22,65 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.24 2003/12/15 22:33:04 dancy Exp $
+;; $Id: loadem.cl,v 1.25 2004/02/03 20:58:12 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
-  (defparameter *ntservice.fasl* "ntservice/ntservice.fasl")
-  (load *ntservice.fasl*))
-
 (defparameter *filelist*
-    '("util" "fixes" "mpsocketfix" "xdr" "sunrpc" 
-      "ipaddr" "access" "portmap" "fhandle" "mountd" "nfs"))
+    '("ntservice/ntservice"
+      "nfs-common" 
+      "xdr" 
+      "sunrpc" 
+      "ipaddr" 
+      "export"
+      "configure"
+      "portmap" 
+      "fhandle" 
+      "mountd" 
+      "attr" 
+      "dir" 
+      "openfile"
+      "nfs"
+      "main"))
+)
 
-(defun loadem ()
-  (dolist (file *filelist*)
-    (compile-file-if-needed (concatenate 'string file ".cl"))
-    (load file)))
-
-(defun startem (&rest args)
-  (declare (ignore args))
-  (mp:process-run-function "portmapper" #'portmapper)
-  (mp:process-run-function "mountd" #'mountd)
-  (mp:process-run-function "nfsd" #'nfsd))
-
-(defun mainloop ()
-  (loop (sleep most-positive-fixnum)))      
-
-(defun main (&rest args)
-  (let* ((exepath (if (first args) (first args) "nfs.exe"))
-	 (configfile (merge-pathnames "nfs.cfg" exepath))
-	 (*global-gc-behavior* nil))
-    (pop args)
-    (when (and args (string= (first args) "/install"))
-      (pop args)
-      (create-service exepath :quiet (equalp (pop args) "/quiet")))
-    (when (and args (string= (first args) "/remove"))
-      (pop args)
-      (delete-service :quiet (equalp (pop args) "/quiet")))
-    (when (and args (string= (first args) "/start"))
-      (pop args)
-      (start-service :quiet (equalp (pop args) "/quiet")))
-    (when (and args (string= (first args) "/stop"))
-      (pop args)
-      (stop-service :quiet (equalp (pop args) "/quiet")))
-
-    
-    (read-nfs-cfg configfile)
-    (if* (and args (string= (first args) "/service"))
-       then (ntservice:execute-service #'mainloop :init #'startem)
-       else (startem)
-	    (mainloop))))
-
-(defun read-nfs-cfg (configfile)
-  (declare (special *hosts-allow* *hosts-allow-parsed* 
-		    *hosts-deny* *hosts-deny-parsed*)
-	   (:fbound parse-addr))
-  (with-open-file (s configfile)
-    (dolist (pair (read s))
-      (set (first pair) (second pair))))
-  (setf *hosts-allow-parsed* (mapcar #'parse-addr *hosts-allow*))
-  (setf *hosts-deny-parsed* (mapcar #'parse-addr *hosts-deny*)))
-  
+(eval-when (compile load eval)
+  (require :osi)
+  (use-package :excl.osi)
+  (with-compilation-unit ()
+    (dolist (file *filelist*)
+      (compile-file-if-needed (concatenate 'string file ".cl"))
+      (load file))))
 
 (defun buildit (&key demo)
-  (compile-file "loadem.cl")
-  (loadem) 
+  #+(version>= 7)(progn
+		   (require :winapi)
+		   (require :res))
   (let (filelist)
-    (dolist (file (reverse (cons "loadem" *filelist*)))
+    (dolist (file (reverse *filelist*))
       (push (concatenate 'string file ".fasl") filelist))
     
     (generate-executable
      "nfs" 
-     (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
-	     filelist)
-     #+(version>= 6 2 :pre-beta 13) :icon-file
-     #+(version>= 6 2 :pre-beta 13) "nfs.ico"
+     (append '(:sock :acldns :seq2 :foreign)  filelist)
+     :icon-file "nfs.ico"
      :demo demo)
 
     ;; Set the command line flags.
     (run-shell-command
-     (format nil "~a -o nfs/nfs.exe +t ~s ~a"
+     ;; +cx hide console
+     ;; +Ti remove "interrupt lisp" from system tray menu
+     ;; +Cx disable console window exit.
+     ;; +N sets program name used in system tray menu     
+     (format nil "~a -o nfs/nfs.exe +t ~s +cx ~s"
 	     (truename "sys:bin;setcmd.exe")
 	     (if demo
 		 "Allegro NFS Server demo"
 	       "Allegro NFS Server")
-	     ;; In ACL 6.2, the "show the icon in the tray" bug has been
-	     ;; fixed, so don't show the console by default.  Before 6.2,
-	     ;; show it minimized.
-	     #+(version>= 6 2 :pre-beta 13) "+cx"
-	     #-(version>= 6 2 :pre-beta 13) "+cm")
+	     #-(version>= 7)"+Ti +Cx +N \"Allegro NFS\""
+	     #+(version>= 7)"")
+	     
      :show-window :hide)))
 
 
-(defun create-service (path &key quiet)
-  (multiple-value-bind (success code)
-      (ntservice:create-service 
-       "nfs" 
-       "NFS Server" 
-       (format nil "~A /service" path)
-       :start :auto)
-    (if* success
-       then
-	    (format t "NFS service successfully installed.~%")
-       else
-	    (format t "NFS service installation failed: ~A"
-		    (ntservice:winstrerror code))))
-  (exit (if quiet 0 1)))
-
-    
-
-(defun delete-service (&key quiet)
-  (multiple-value-bind (success err place)
-      (ntservice:delete-service "nfs")
-    (if* success
-       then
-	    (format t "NFS service successfully uninstalled.~%")
-       else
-	    (format t "NFS service deinstallation failed.~%(~A) ~A"
-		    place (ntservice:winstrerror err))))
-  (exit (if quiet 0 1)))
-
-
-(defun start-service (&key quiet)
-  (multiple-value-bind (success err place)
-      (ntservice:start-service "nfs")
-    (if* success
-       then
-	    (format t "NFS service started.~%")
-       else
-	    (format t "NFS service start failed.~%(~A) ~A"
-		    place (ntservice:winstrerror err))))
-  (exit (if quiet 0 1)))
-
-(defun stop-service (&key quiet)
-  (handler-bind
-      ((error (lambda (c)
-		(format t "error: ~A~%" c)
-		(tpl::zoom-command :from-read-eval-print-loop nil))))
-    (multiple-value-bind (success err place)
-	(ntservice:stop-service "nfs")
-      (if* success
-	 then
-	      (format t "NFS service stopped.~%")
-	 else
-	      (format t "NFS service stop failed.~%(~A) ~A"
-		      place (ntservice:winstrerror err)))))
-  (exit (if quiet 0 1)))

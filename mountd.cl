@@ -23,15 +23,12 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.15 2004/02/03 19:28:39 dancy Exp $
+;; $Id: mountd.cl,v 1.16 2004/02/03 20:58:12 dancy Exp $
 
 (in-package :user)
 
 (defconstant MNTPATHLEN 1024) ;; max number of bytes in a pathname argument
 (defconstant MNTNAMLEN 255) ;; max number of bytes in a name argument
-
-(defconstant *AUTH-NULL* 0)
-(defconstant *AUTH-UNIX* 1)
 
 (defconstant *mountprog* 100005)
 (defconstant *mountvers* 1)
@@ -71,8 +68,11 @@
 			      *mountvers*
 			      (socket:local-port *mountd-udp-socket*) 
 			      IPPROTO_UDP)
-      (let ((server (make-rpc-server :tcpsock *mountd-tcp-socket*
-				     :udpsock *mountd-udp-socket*)))
+      (let* ((buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
+	     (server (make-rpc-server :tcpsock *mountd-tcp-socket*
+				      :udpsock *mountd-udp-socket*
+				      :buffer buffer)))
+	(declare (dynamic-extent buffer server))
 	(loop
 	  (multiple-value-bind (xdr peer)
 	      (rpc-get-message server)
@@ -131,31 +131,31 @@
 (defun mountd-mount (peer xid cbody)
   (block nil
     (with-xdr-xdr ((call-body-params cbody) :name params)
-      (let ((dirpath (xdr-string params))
-	    rootpathname)
+      (let* ((dirpath (xdr-string params))
+	     (exp (locate-export dirpath)))
 	(if *mountd-debug* 
 	    (format t "Mountd: ~A requests mount of ~A.~%"
 		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		    dirpath))
-	
-	(setf rootpathname (locate-export dirpath))
-
 	(with-successful-reply (res peer xid (null-verf))
 	  (cond 
-	   ((not (access-allowed-p (rpc-peer-addr peer)))
-	    (if *mountd-debug* 
-		(format t "Mount request denied (host not allowed).~%"))
-	    (xdr-int res 13)) ;; access denied
-	   (rootpathname
-	    (if *mountd-debug*
-		(format t "Mount request accepted.~%"))
-	    (push (list (rpc-peer-addr peer) dirpath) *mounts*)
-	    (xdr-int res 0)
-	    (pathname-to-fhandle-with-xdr res rootpathname))
-	   (t
+	   ((null exp)
 	    (if *mountd-debug*
 		(format t "Mount request denied (no such export).~%"))
-	    (xdr-int res 2)))))))) ;; No such file or directory
+	    (xdr-int res NFSERR_NOENT))
+	   ((not (export-host-access-allowed-p exp (rpc-peer-addr peer)))
+	    (if *mountd-debug* 
+		(format t "Mount request denied (host not allowed).~%"))
+	    (xdr-int res NFSERR_ACCES))
+	   (t
+	    (if *mountd-debug*
+		(format t "Mount request accepted.~%"))
+	    (pushnew (list (rpc-peer-addr peer) dirpath) *mounts* 
+		     :test #'equalp)
+	    (xdr-int res NFS_OK)
+	    (xdr-fhandle res (get-export-fhandle exp)))))))))
+
+
 
 (defun mountd-umount (peer xid cbody)
   (let ((dirpath (with-xdr-xdr ((call-body-params cbody) :name x)
@@ -178,22 +178,12 @@
 	    (second mnt))))
 				     
 
-(defparameter *exports* nil)
-  
-
-;;; returns a pathname
-(defun locate-export (dirpath)
-  (let ((res (find dirpath *exports*
-		   :test (lambda (x pair) (string= (car pair) x)))))
-    (when res
-      (pathname (second res)))))
-
 (defun mountd-export (peer xid)
   (if *mountd-debug* (format t "mountd-export~%~%"))
   (let ((xdr (create-xdr :direction :build)))
-    (dolist (export *exports*)
+    (dotimes (n (length *exports*))
       (xdr-int xdr 1) ;; indicate that data follows
-      (xdr-string xdr (first export))
+      (xdr-string xdr (nfs-export-name (svref *exports* n)))
       (xdr-int xdr 0)) ;; no group information
     (xdr-int xdr 0) ;; no more exports
     (send-successful-reply peer xid (null-verf) xdr)))

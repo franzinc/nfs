@@ -21,33 +21,42 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.14 2004/02/03 19:28:39 dancy Exp $
+;; $Id: portmap.cl,v 1.15 2004/02/03 20:58:13 dancy Exp $
 
 ;; portmapper
 
 
 (in-package :user)
 
+(eval-when (compile load eval)
 (defconstant *pmapport* 111)
 (defconstant *pmapprog* 100000)
 (defconstant *pmapvers* 2)
-
-(defstruct mapping
-  prog
-  vers
-  prot
-  port)
-
+(defconstant *pmap-proc-null* 0)
+(defconstant *pmap-proc-set* 1)
+(defconstant *pmap-proc-unset* 2)
+(defconstant *pmap-proc-getport* 3)
+(defconstant *pmap-proc-dump* 4)
+(defconstant *pmap-proc-callit* 5)
 (defconstant IPPROTO_TCP 6)
 (defconstant IPPROTO_UDP 17)
+)
 
+
+(defstruct mapping
+  (prog 0)
+  (vers 0)
+  (prot 0)
+  (port 0))
+  
+(defparameter *pmap-gate* (mp:make-gate nil))
 (defparameter *mappings* nil)
 (defparameter *pmap-tcp-socket* nil)
 (defparameter *pmap-udp-socket* nil)
 
 (defparameter *portmap-debug* nil)
 
-(defparameter *use-system-portmapper* nil)
+(defparameter *use-system-portmapper* :auto)
 
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
@@ -72,16 +81,29 @@
 
 
 (defun portmapper ()
+  (when (eq *use-system-portmapper* :auto)
+    (setf *use-system-portmapper* nil)
+    (when (ping-portmapper)
+      (format t "Using system portmapper.~%")
+      (setf *use-system-portmapper* t)
+      (mp:open-gate *pmap-gate*)))
+  
   (when (not *use-system-portmapper*)
     (make-pmap-sockets)
     (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_TCP)
     (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_UDP)
-    (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket*
-				   :udpsock *pmap-udp-socket*)))
+    (let* ((buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
+	   (server (make-rpc-server :tcpsock *pmap-tcp-socket*
+				    :udpsock *pmap-udp-socket*
+				    :buffer buffer)))
+      (declare (dynamic-extent buffer server))
+      (mp:open-gate *pmap-gate*)
       (loop
 	(multiple-value-bind (xdr peer)
 	    (rpc-get-message server)
 	  (portmap-message-handler xdr peer))))))
+  
+  
       
 (defun portmap-message-handler (xdr peer)
   (let (msg cbody)
@@ -94,13 +116,13 @@
     (when (and (= (call-body-prog cbody) *pmapprog*)
                (= (call-body-vers cbody) *pmapvers*))
       (case (call-body-proc cbody)
-	(0
+	(#.*pmap-proc-null*
 	 (portmap-null peer (rpc-msg-xid msg)))
-	(4
+	(#.*pmap-proc-dump*
 	 (portmap-dump peer (rpc-msg-xid msg)))
-	(3
+	(#.*pmap-proc-getport*
 	 (portmap-getport peer (rpc-msg-xid msg) (call-body-params cbody)))
-	(5 
+	(#.*pmap-proc-callit* 
 	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
 	(t 
 	 ;; should send a negative response
@@ -127,7 +149,7 @@
 
 (defun portmap-getport (peer xid params)
   (let* ((m (with-xdr-xdr (params)
-	      (make-mapping-from-xdr params)))
+	      (xdr-portmap-mapping params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
     (if *portmap-debug* (format t "portmap-getport: ~A~%" m))
@@ -168,15 +190,6 @@
       (return-from locate-matching-mapping m2)))
   nil)
 
-(defun make-mapping-from-xdr (xdr)
-  (let ((m (make-mapping))) 
-    (setf (mapping-prog m) (xdr-int xdr))
-    (setf (mapping-vers m) (xdr-int xdr))
-    (setf (mapping-prot m) (xdr-int xdr))
-    (setf (mapping-port m) (xdr-int xdr))
-    m))
-  
-
 (defun portmap-add-program (prog vers port proto)
   (let ((mapping (make-mapping
                   :prog prog
@@ -215,73 +228,84 @@
 
 ;; portmapper client stuff
 
-(defun portmap-dump-client (host)
-  (with-rpc-peer (peer host 111 :udp)
-    (let ((xdr (create-xdr :direction :build))
-	  (xid (random #.(expt 2 32))))
-      (dotimes (i 3) ;; try 3 times      
-	(rpc-send-call
-	 peer
-	 xid
-	 (rpc-make-call-body *pmapprog* *pmapvers* 4 
-			     (null-auth) (null-verf) xdr))
-	(let ((msg (mp:with-timeout (5 :timeout)
-		     (rpc-get-reply peer))))
-	  (if (not (eq msg :timeout))
-	      (with-good-reply-msg (msg xid results)
-		(format t "   program vers proto   port~%")
-		(while (/= 0 (xdr-int results))
-		  (format t "~10d ~4d ~5@a ~6d~%" 
-			  (xdr-unsigned-int results)
-			  (xdr-unsigned-int results)
-			  (ecase (xdr-unsigned-int results)
-			    (6
-			     "tcp")
-			    (17 
-			     "udp"))
-			  (xdr-unsigned-int results)))
-		(return-from portmap-dump-client))))))))
+;; Direction is determined by the existence of the optional
+;; 'mapping' argument.
+(defun xdr-portmap-mapping (xdr &optional mapping)
+  (if* mapping
+     then
+	  (xdr-unsigned-int xdr (mapping-prog mapping))
+	  (xdr-unsigned-int xdr (mapping-vers mapping))
+	  (let ((prot (mapping-prot mapping)))
+	    (xdr-unsigned-int 
+	     xdr 
+	     (cond 
+	      ((numberp prot)
+	       prot)
+	      ((eq prot :udp)
+	       IPPROTO_UDP)
+	      ((eq prot :ucp)
+	       IPPROTO_TCP)
+	      (t
+	       (error "invalid prot in mapping: ~S" mapping)))))
+	  (xdr-unsigned-int xdr (mapping-port mapping))
+     else
+	  (let ((m (make-mapping))) 
+	    (setf (mapping-prog m) (xdr-unsigned-int xdr))
+	    (setf (mapping-vers m) (xdr-unsigned-int xdr))
+	    (setf (mapping-prot m) (xdr-unsigned-int xdr))
+	    (setf (mapping-port m) (xdr-unsigned-int xdr))
+	    m)))
 
-;; No attempts to be robust.. but should be fine.
+(defun portmap-getport-client (host prognum versnum proto)
+  (let ((m (make-mapping :prog prognum
+			 :vers versnum
+			 :prot proto)))
+    (callrpc host *pmapprog* *pmapvers* *pmap-proc-getport* 
+	     :udp #'xdr-portmap-mapping m :port *pmapport*
+	     :outproc #'xdr-unsigned-int)))
+
+
+(defun portmap-dump-client (host)
+  (let ((mappings
+	 (callrpc host *pmapprog* *pmapvers* *pmap-proc-dump* :udp nil nil 
+		  :port *pmapport*
+		  :outproc 
+		  #'(lambda (xdr) (xdr-list xdr #'xdr-portmap-mapping)))))
+    (format t "   program vers proto   port~%")
+    (dolist (m mappings)
+      (format t "~10d ~4d ~5@a ~6d~%" 
+	      (mapping-prog m)
+	      (mapping-vers m)
+	      (ecase (mapping-prot m)
+		(#.IPPROTO_TCP
+		 "tcp")
+		(#.IPPROTO_UDP
+		 "udp"))
+	      (mapping-port m)))))
+
 (defun portmap-set-client (mapping)
-  (with-rpc-peer (peer "127.0.0.1" 111 :udp)
-    (let ((xdr (create-xdr :direction :build))
-	  (xid (random #.(expt 2 32))))
-      (xdr-unsigned-int xdr (mapping-prog mapping))
-      (xdr-unsigned-int xdr (mapping-vers mapping))
-      (xdr-unsigned-int xdr (mapping-prot mapping))
-      (xdr-unsigned-int xdr (mapping-port mapping))
-      
-      (rpc-send-call 
-       peer
-       xid
-       (rpc-make-call-body *pmapprog* *pmapvers* 1
-			   (null-auth) (null-verf) xdr))
-      
-      (with-good-reply-msg ((rpc-get-reply peer) xid results)
-	(if (/= 1 (xdr-int results))
-	    (error "portmap_set failed"))
-	t))))
+  (if (/= (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-set*
+		   :udp #'xdr-portmap-mapping mapping 
+		   :port *pmapport*
+		   :outproc #'xdr-unsigned-int)
+	  1)
+      (error "portmap_set failed")))
 
 (defun portmap-unset-client (mapping)
-  (with-rpc-peer (peer "127.0.0.1" 111 :udp)
-    (let ((xdr (create-xdr :direction :build))
-	  (xid (random #.(expt 2 32))))
-      (xdr-unsigned-int xdr (mapping-prog mapping))
-      (xdr-unsigned-int xdr (mapping-vers mapping))
-      (xdr-unsigned-int xdr (mapping-prot mapping))
-      (xdr-unsigned-int xdr (mapping-port mapping))
-      
-      (rpc-send-call 
-       peer
-       xid
-       (rpc-make-call-body *pmapprog* *pmapvers* 2
-			   (null-auth) (null-verf) xdr))
-      
-      (with-good-reply-msg ((rpc-get-reply peer) xid results)
-	(if (/= 1 (xdr-int results))
-	    (error "portmap_unset failed"))
-	t))))
+  (if (/= (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-unset*
+		   :udp #'xdr-portmap-mapping mapping 
+		   :port *pmapport*
+		   :outproc #'xdr-unsigned-int)
+	  1)
+      (error "portmap_unset failed")))
+
+;; See if a portmapper is running locally.
+;; return nil if not.
+(defun ping-portmapper ()
+  (ignore-errors
+   (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-null* :udp
+	    nil nil :port *pmapport*)))
+
 
 (defmacro with-portmapper-mapping ((prog vers port proto) &body body)
   (let ((progsym (gensym))
@@ -292,8 +316,9 @@
 	   (,verssym ,vers)
 	   (,portsym ,port)
 	   (,protosym ,proto))
-       ;; XXXX -- remove any existing mapping first..
-       ;; unsafe.. but helpful
+       ;; clean up.  Important when using system portmapper.
+       ;; however,  this could affect existing servers.  
+       ;; XXXXX --- unsafe
        (ignore-errors
 	(portmap-remove-program ,progsym ,verssym ,portsym ,protosym))
        (portmap-add-program ,progsym ,verssym ,portsym ,protosym)

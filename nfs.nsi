@@ -1,9 +1,3 @@
-;; TODO:
-
-;; option to install service
-;; option to start service
-;; install/uninstall: stop and remove service first.
-
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
 !define VERBOSE_PROD "Allegro NFS Server for Windows"
 !define SHORT_PROD "Allegro NFS"
@@ -38,9 +32,6 @@ UninstPage instfiles
 
 ;--------------------------------
 
-var nfs_cfg_existed
-
-
 ; The stuff to install
 Section "${VERBOSE_PROD}"
 
@@ -49,26 +40,18 @@ Section "${VERBOSE_PROD}"
   ; Set output path to the installation directory.
   SetOutPath "$INSTDIR"
 
-  ; In case we're installing over an existing setup  
-  ExecWait '"$INSTDIR\nfs.exe" /stop /quiet'
-  ExecWait '"$INSTDIR\nfs.exe" /remove /quiet'
+  IfFileExists "$INSTDIR\nfs.exe" 0 +3
+      ExecWait '"$INSTDIR\nfs.exe" /stop /remove /quiet'
+      Sleep 3000 ;; allow time for Windows to let go
 
-  ; binaries
+
   File /r "nfs\*"
-  File  "readme.txt"
   File "binary-license.txt"
-  File "access-control.txt"
+  File "nfs.cfg.default"
 
-; if nfs.cfg already exists, keep it (copy in nfs.cfg.sample instead)
-  IfFileExists  "$INSTDIR\nfs.cfg" 0 make_fresh_nfs_cfg
-   strcpy $nfs_cfg_existed "yes"
-   File "nfs.cfg.sample"
-   Goto nfs_cfg_done
-  make_fresh_nfs_cfg:
-   strcpy $nfs_cfg_existed "no"
-   File /oname=nfs.cfg nfs.cfg.sample
-  
-  nfs_cfg_done:
+  ; If nfs.cfg is already there, don't overwrite it.
+  IfFileExists "$INSTDIR\nfs.cfg" +2
+	File /oname=nfs.cfg nfs.cfg.default
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
@@ -91,24 +74,22 @@ Section "Start Menu Shortcuts"
 !define SMDIR "$SMPROGRAMS\${VERBOSE_PROD}"
 
   CreateDirectory "${SMDIR}"
-  CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe" "" "" ""
-  CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe" "" "" ""
+  CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
+  CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe"
   CreateShortCut "${SMDIR}\Start NFS Service.lnk" "$INSTDIR\nfs.exe" \
-                                                   "/start" "" ""
+                                                   "/start /quiet"
   CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "$INSTDIR\nfs.exe" \
-                                                   "/stop" "" ""
-  CreateShortCut "${SMDIR}\Edit nfs.cfg.lnk" "notepad" "$INSTDIR\nfs.cfg" "" ""
+                                                   "/stop /quiet"
+  CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
+		"$INSTDIR\configure\configure.exe"
 SectionEnd
 
 Section "Install as a service"
-  ;; just in case
-  ExecWait '"$INSTDIR\nfs.exe" /stop /quiet'
-  ExecWait '"$INSTDIR\nfs.exe" /remove /quiet'
-  ExecWait '"$INSTDIR\nfs.exe" /install /quiet'
-  strcmp $nfs_cfg_existed "yes" 0 do_not_start_service
-      ExecWait '"$INSTDIR\nfs.exe" /start /quiet'
+  ExecWait '"$INSTDIR\nfs.exe" /stop /remove /install /start /quiet'
+SectionEnd
 
-  do_not_start_service:
+Section "Run configuration program after install"
+  Exec '"$INSTDIR\configure\configure.exe"'
 SectionEnd
 
 ;--------------------------------
@@ -117,8 +98,8 @@ SectionEnd
 
 Section "Uninstall"
   ; Stop and remove service 
-  ExecWait '"$INSTDIR\nfs.exe" /stop /quiet'
-  ExecWait '"$INSTDIR\nfs.exe" /remove /quiet'
+  ExecWait '"$INSTDIR\nfs.exe" /stop /remove /quiet'
+  Sleep 3000 ;; allow time for Windows to let go
   
   ; Remove registry keys
   DeleteRegKey HKLM "${UNINSTKEY}"
@@ -133,8 +114,8 @@ Section "Uninstall"
   Delete /rebootok "$INSTDIR\*.dxl"
   Delete /rebootok "$INSTDIR\*.exe"
   Delete /rebootok "$INSTDIR\*.lic"
-  Delete /rebootok "$INSTDIR\nfs.cfg.sample"
-
+  Delete /rebootok "$INSTDIR\nfs.cfg.default"
+  Rmdir /r "$INSTDIR\configure"
 
   IfFileExists "$INSTDIR\nfs.cfg" 0 no_nfs_cfg
     MessageBox MB_YESNO|MB_ICONQUESTION \

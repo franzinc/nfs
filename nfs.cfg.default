@@ -1,0 +1,9 @@
+(
+ ;; lists must defined first.
+  
+ ;; defaults. 
+ (define-host-list "all" t)
+ (define-user-list "everyone" t)
+
+)
+
