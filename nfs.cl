@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.34 2001/09/06 18:43:10 dancy Exp $
+;; $Id: nfs.cl,v 1.35 2001/09/06 20:35:17 dancy Exp $
 
 ;; nfs
 
@@ -928,7 +928,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 	      (if (not (= (sattr-size sattr) #xffffffff))
 		  (progn
 		    (truncate-file (namestring p) (sattr-size sattr))
-		    (set-file-size p (sattr-size sattr))
+		    (set-cached-file-size p (sattr-size sattr))
 		    (update-atime-and-mtime p)))
 	      ;;; atime and mtime mods should always come together.  We'll
 	      ;;; presume that here to simplify the code.
