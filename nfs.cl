@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.23 2001/08/11 22:20:40 dancy Exp $
+;;; $Id: nfs.cl,v 1.24 2001/08/14 23:00:58 dancy Exp $
 
 (in-package :user)
 
@@ -543,7 +543,7 @@ struct entry {
 	    (if *nfsdebug* (format t "nfsd-lookup(~A)~%" newpath))
 	    (if* (or (null newpath) (not (probe-file newpath)))
 	       then
-		    (format t "file not found~%")
+		    (if (eq *nfsdebug* :verbose) (format t "file not found~%"))
 		    (xdr-int *nfsdxdr* NFSERR_NOENT)
 	       else
 		    (xdr-int *nfsdxdr* NFS_OK)
