@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.8.4.1 2005/02/01 22:17:00 layer Exp $
+; $Id: nfs.nsi,v 1.8.4.2 2005/02/03 01:15:17 layer Exp $
 
 ;SetCompressor bzip2
 SetCompressor lzma
@@ -547,6 +547,10 @@ SectionEnd
 ;--------------------------------
 
 ; Uninstaller
+
+Function un.onUninstSuccess
+    ExecShell "open" "http://nfsforwindows.com/uninstall"
+FunctionEnd
 
 Section Uninstall
 

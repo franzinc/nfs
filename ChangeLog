@@ -1,3 +1,7 @@
+2005-02-02    <layer@HOBART>
+
+	* nfs.nsi: have uninstallers visit website
+
 2005-02-01    <layer@HOBART>
 
 	* configure/configuration.txt: update with new info
