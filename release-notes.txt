@@ -1,4 +1,4 @@
-Changes from 2.0 to 2.2
+Changes from 2.0 to 3.0
 
   - UNC shares are now supported as NFS mount points
   - improved performance
