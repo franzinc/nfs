@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0 [Windows] (Oct 26, 2004 13:48)"; cg: "1.54.2.17"; -*-
+;; -*- lisp-version: "7.0 [Windows] (Jan 24, 2005 18:33)"; cg: "1.54.2.17"; -*-
 
 (in-package :cg-user)
 
@@ -10,6 +10,7 @@
                  (make-instance 'module :name "..\\portmap")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
+                 (make-instance 'module :name "..\\nfs-shared")
                  (make-instance 'module :name "ipaddr")
                  (make-instance 'form-module :name "configform"
                                 :finder-function 'configform

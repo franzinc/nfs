@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0 [Windows] (Oct 26, 2004 13:48)"; cg: "1.54.2.17"; form: configform; -*-
+;; -*- lisp-version: "7.0 [Windows] (Jan 24, 2005 18:33)"; cg: "1.54.2.17"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -17,7 +17,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*)))
-     (exterior (make-box 474 124 1022 494)) (name :configform)
+     (exterior (make-box 219 154 767 524)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner

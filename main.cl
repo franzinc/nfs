@@ -72,10 +72,8 @@
        (format nil "~A /service" path)
        :start :auto)
     (if* success
-       then
-	    (format t "NFS service successfully installed.~%")
-       else
-	    (format t "NFS service installation failed: ~A"
+       then (format t "NFS service successfully installed.~%")
+       else (format t "NFS service installation failed: ~A"
 		    (ntservice:winstrerror code)))))
 
 (defun delete-service ()

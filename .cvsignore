@@ -3,5 +3,4 @@
 *.zip
 autoloads.out
 nfs
-nfs-*
 nfs.cfg

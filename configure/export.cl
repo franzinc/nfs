@@ -15,27 +15,6 @@
   rw-users
   ro-users)
 
-(defun cleanup-dir (dir)
-  ;; Change all forward slashes to backslashes.  
-  (setf dir (substitute #\\ #\/ dir))
-  
-  (multiple-value-bind (matched dummy remainder)
-      (match-regexp "^[a-z]:\\(.*\\)" dir :case-fold t)
-    (declare (ignore dummy))
-    (if (not matched)
-	(error "~A is not a valid directory specification." dir))
-    (cond
-     ((string= remainder "")
-      (concatenate 'string dir "\\"))
-     ((string= remainder "\\")
-      dir)
-     ((char= (schar dir (1- (length dir))) #\\)
-      ;; strip trailing backslash
-      (subseq dir 0 (1- (length dir))))
-     (t ;; already in canonical form
-      dir))))
-      
-
 (defun define-export (&key name path (uid 9999) (gid 9999)
                            (umask 0) (set-mode-bits 0)
                            hosts-allow rw-users ro-users)
@@ -56,7 +35,7 @@
              (make-nfs-export
               :index (length *exports*)
               :name name
-              :path (cleanup-dir path)
+              :path (user::cleanup-dir path)
               :uid uid
               :gid gid
               :umask umask
@@ -64,8 +43,3 @@
               :hosts-allow hosts-allow
               :rw-users rw-users
               :ro-users ro-users)))))
-
-  
-
-  
-

@@ -1,3 +1,16 @@
+2005-01-25    <layer@HOBART>
+
+	* loadem.cl: add nfs-shared.cl
+	* nfs-common.cl: move cleanup-dir to nfs-shared.cl
+	* (NEW) nfs-shared.cl -- code shared with configure/;
+>>>	  allow UNC pathnames
+	* configure/Makefile: use final not prefinal
+	* configure/configform.cl: have configform-export-path-on-change
+	  return t when we change the value, so the Apply button is
+	  active
+	* configure/configure.lpr: add ../nfs-shared.cl
+	* configure/export.cl: use cleanup-dir in ../nfs-shared.cl
+
 2004-11-02    <layer@HOBART>
 
 	* Makefile: use 7.0 final

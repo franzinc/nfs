@@ -428,9 +428,11 @@
   t) ; Accept the new value
 
 (defun clear-and-disable-export-controls (form)
-  (let ((text-widgets '(:export-path :export-uid :export-gid :export-umask :export-set-bits))
+  (let ((text-widgets '(:export-path :export-uid :export-gid :export-umask
+			:export-set-bits))
         (buttons '(:remove-export-button :directory-browse-button))
-        (lists '(:export-host-allowed-lists :export-rw-users-lists :export-ro-users-lists)))
+        (lists '(:export-host-allowed-lists :export-rw-users-lists
+		 :export-ro-users-lists)))
     (let (wij)
       (dolist (wij-name text-widgets)
         (setf wij (my-find-component wij-name form))
@@ -488,7 +490,7 @@
          (expname (value (my-find-component :export-selection-combo form)))
          (exp (get-export expname)))
     (when path
-      (setf path (cleanup-dir (namestring path)))
+      (setf path (user::cleanup-dir (namestring path)))
       (setf (nfs-export-path exp) path)
       (setf (value (my-find-component :export-path form)) path)
       (refresh-apply-button form)))
@@ -506,10 +508,11 @@
         (:set-mode-bits
          (values 8 "Set mode bits")))
   (let ((value (extract-number value :radix radix))
-        (exp (get-export (value (my-find-component :export-selection-combo form)))))
+        (exp (get-export (value
+			  (my-find-component :export-selection-combo
+					     form)))))
     (if* value
-       then
-            (ecase type
+       then (ecase type
               (:uid
                (setf (nfs-export-uid exp) value)
                (update-export-uid form exp))
@@ -524,12 +527,12 @@
                (update-export-set-mode-bits form exp)))
             (refresh-apply-button form)
             t
-       else
-            (pop-up-message-dialog form "Invalid entry" 
-                                   (concatenate 'string name " field must be a non-negative "
-                                     (if (= radix 8) "octal " "")
-                                     "number")
-                                   error-icon "OK")
+       else (pop-up-message-dialog
+	     form "Invalid entry" 
+	     (concatenate 'string name " field must be a non-negative "
+			  (if (= radix 8) "octal " "")
+			  "number")
+	     error-icon "OK")
             nil))))
             
 
@@ -554,7 +557,8 @@
                                                        old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let* ((form (parent widget))
-         (exp (get-export (value (my-find-component :export-selection-combo form)))))
+         (exp (get-export (value (my-find-component :export-selection-combo
+						    form)))))
     (when exp
       (setf (nfs-export-hosts-allow exp) new-value)
       (refresh-apply-button form)))
@@ -565,7 +569,8 @@
                                                    old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let* ((form (parent widget))
-         (exp (get-export (value (my-find-component :export-selection-combo form)))))
+         (exp (get-export (value (my-find-component :export-selection-combo
+						    form)))))
     (when exp
       (setf (nfs-export-rw-users exp) new-value)
       (refresh-apply-button form)))
@@ -576,7 +581,8 @@
                                                    old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let* ((form (parent widget))
-         (exp (get-export (value (my-find-component :export-selection-combo form)))))
+         (exp (get-export (value (my-find-component :export-selection-combo
+						    form)))))
     (when exp
       (setf (nfs-export-ro-users exp) new-value)
       (refresh-apply-button form)))
@@ -585,16 +591,18 @@
 (defun configform-export-path-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let ((form (parent widget))
-        (path (ignore-errors (cleanup-dir new-value))))
+        (path (ignore-errors (user::cleanup-dir new-value))))
     (if* path
-       then
-            (setf (nfs-export-path (get-export (value (my-find-component :export-selection-combo form))))
+       then (setf (nfs-export-path
+		   (get-export
+		    (value (my-find-component :export-selection-combo form))))
               path)
             (refresh-apply-button form)
-       else
-            (pop-up-message-dialog form "Invalid input" 
-                                   (format nil "~A is not a valid directory specification" new-value)
-                                   error-icon "OK")
+            t
+       else (pop-up-message-dialog
+	     form "Invalid input" 
+	     (format nil "~A is not a valid directory specification" new-value)
+	     error-icon "OK")
             nil)))
           
 
@@ -605,7 +613,8 @@
 
 ;; return t if sure, nil if not.
 (defun ask-user-if-sure (form warning)
-  (= 1 (pop-up-message-dialog form "Saving configuration..." warning warning-icon "Yes" "No")))
+  (= 1 (pop-up-message-dialog form "Saving configuration..."
+			      warning warning-icon "Yes" "No")))
 
 
 ;; if there is a potential problem, prompt the user.
@@ -823,7 +832,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                        :direction :output
                        :if-does-not-exist :create
                        :if-exists :supersede)
-      (format f "~S~%" (generate-config-expression)))
+      (pprint (generate-config-expression) f))
     (delete-file filename)
     (rename-file tmpname filename)))
 

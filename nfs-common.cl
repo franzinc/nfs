@@ -45,25 +45,3 @@
 ;;; given a particular blocksize
 (defun howmany (value blocksize)
   (/ (roundup value blocksize) blocksize))
-
-
-(defun cleanup-dir (dir)
-  ;; Change all forward slashes to backslashes.  
-  (setf dir (substitute #\\ #\/ dir))
-  
-  (multiple-value-bind (matched dummy remainder)
-      (match-regexp "^[a-z]:\\(.*\\)" dir :case-fold t)
-    (declare (ignore dummy))
-    (if (not matched)
-	(error "~A is not a valid directory specification." dir))
-    (cond
-     ((string= remainder "")
-      (concatenate 'string dir "\\"))
-     ((string= remainder "\\")
-      dir)
-     ((char= (schar dir (1- (length dir))) #\\)
-      ;; strip trailing backslash
-      (subseq dir 0 (1- (length dir))))
-     (t ;; already in canonical form
-      dir))))
-      
