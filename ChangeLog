@@ -1,5 +1,7 @@
 2004-02-19    <Ahmon Dancy@GOBY>
 
+	* configure/Makefile:  Remove ../*.fasl before building.
+
 	* Makefile:
 
 	(LISPDIR): Changed to 6.2 lisp.
