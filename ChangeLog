@@ -1,6 +1,12 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+	2003-07-03    <dancy@CANDY2K>
+
+	* mountd and nfsd can now use an existing portmapper instead of
+	the built-in one.  This will help for people who have Microsoft's
+	SFU installed.
+	
 2003-07-02    <Ahmon Dancy@GOBY>
 
 	* nfs.cl: Added *nfs-set-mode-bits* variable and corresponding
