@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.16 2001/07/03 03:22:34 dancy Exp $
+;;; $Id: nfs.cl,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
 (in-package :user)
 
@@ -11,8 +11,11 @@
 (defparameter *nfslocaluid* 443)
 (defparameter *nfslocalgid* 50)
 (defparameter *nfslocalumask* #o022)
-
 (defparameter *nfsconfigfile* "nfs.cfg")
+
+(defparameter *openfilereaptime* 2) ;; seconds
+(defparameter *statcachereaptime* 5)
+(defparameter *nfs-dircachereaptime* 30)
 
 (defconstant *nfsprog* 100003)
 (defconstant *nfsvers* 2)
@@ -24,6 +27,8 @@
 (defparameter *nfsd-tcp-socket* nil)
 (defparameter *nfsd-udp-socket* nil)
 (defconstant *blocksize* 512)
+
+(defparameter *socketbuffersize* (* 128 1024))
 
 (defparameter *nfsdxdr* (create-xdr :direction :build))
 
@@ -80,12 +85,14 @@
       (socket:make-socket :type :stream
                           :connect :passive
                           :local-port *nfsport*
-                          :reuse-address t)))
-    (unless *nfsd-udp-socket*
+                          :reuse-address t))
+    (socket:set-socket-options *nfsd-tcp-socket* :receive-buffer-size *socketbuffersize* :send-buffer-size *socketbuffersize*))
+  (unless *nfsd-udp-socket*
     (setf *nfsd-udp-socket*
       (socket:make-socket :type :datagram
-                          :local-port *nfsport*
-                          :reuse-address t))))
+			  :local-port *nfsport*
+			  :reuse-address t))
+    (socket:set-socket-options *nfsd-udp-socket* :receive-buffer-size *socketbuffersize* :send-buffer-size *socketbuffersize*)))
 
   
 
@@ -169,7 +176,6 @@
 	  (update-fattr-from-pathname p *nfsdxdr*))))))
 
 (defparameter *nfs-statcache* (make-hash-table :test #'equalp))
-(defparameter *statcachereaptime* 5)
 (defparameter *statcache-lock* (mp:make-process-lock))
 
 ;; sbcons..  (sb . lastaccesstime)
@@ -415,7 +421,6 @@
 
 ;; entries look like (dirlist . atime)
 (defparameter *nfs-dircache* (make-hash-table :test #'equalp))
-(defparameter *nfs-dircachereaptime* 3)
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
 (defun dump-nfsdircache ()
@@ -434,11 +439,16 @@
 	     (remhash key *nfs-dircache*)))
      *nfs-dircache*)))
 
+#|
 (defun augmented-directory (dir)
   (append (list
 	   (pathname (concatenate 'string dir "."))
 	   (pathname (concatenate 'string dir "..")))
 	  (directory dir)))
+|#
+
+(defun augmented-directory (dir)
+  (directory dir))
    
 
 (defun nfs-lookup-dir (dir)
@@ -473,9 +483,18 @@
 
     
 (defun add-direntries (xdr dir max startindex)
-  (let ((totalbytesadded 8) ;; starts at 8 because in the minimal case, we need to be able to add the final 0 discriminant.. and the eof indicator
-	(dirlist (nfs-lookup-dir dir))
-	bytesadded)
+  (block nil
+    (let ((dirlist (handler-case (nfs-lookup-dir dir)
+		     (file-error (c)
+		       (case (excl::file-error-errno c)
+			 (5 
+			  (format t "add-direntries: Handling I/O error while reading directory ~A~%" dir)
+			  (xdr-int xdr NFSERR_IO)
+			  (return :err))
+			 (t
+			  (error c))))))
+	  (totalbytesadded 8) ;; starts at 8 because in the minimal case, we need to be able to add the final 0 discriminant.. and the eof indicator
+	  bytesadded)
       
     (xdr-int xdr NFS_OK)
 
@@ -506,13 +525,16 @@
 	      ;;(if (eq *nfsdebug* :verbose) (format t "totalbytesadded: ~D~%" totalbytesadded))
 	      (if (> totalbytesadded max)
 		  (progn
+		    (if (eq *nfsdebug* :verbose) 
+			(format t " [not added due to size overflow]~%"))
 		    (if *nfsdebug* (format t "add-direntries: stopping at entry for ~A due to size reasons.~%" p))
 		    (xdr-backspace xdr bytesadded)
 		    (xdr-int xdr 0) ;; no more entries
 		    (xdr-int xdr 0) ;; not EOF
 		    (return)))))
+	(if (eq *nfsdebug* :verbose) (format t " [added]~%"))
 
-	(incf index)))))
+	(incf index))))))
 
 #|
 struct entry {
@@ -529,7 +551,7 @@ struct entry {
    (type pathname p))
   (let ((fileid (pathname-to-fhandle-id p))
 	(filename (basename p)))
-    (when (eq *nfsdebug* :verbose) (format t "~D: ~A fileid=~A next=~A~%" (1- cookie) filename fileid cookie))
+    (when (eq *nfsdebug* :verbose) (format t "~D: ~A fileid=~A next=~A" (1- cookie) filename fileid cookie))
     (xdr-compute-bytes-added (xdr)
 			     (xdr-int xdr 1) ;; indicate that data follows
 			     (xdr-unsigned-int xdr fileid)
@@ -661,8 +683,6 @@ struct readargs {
 	     (reap-open-files)))))
 	     
 
-(defparameter *openfilereaptime* 2) ;; seconds
-
 (defun reap-open-files ()
   (mp:with-process-lock (*nfs-openfilelist-lock*)
     (let ((res nil)
@@ -688,7 +708,7 @@ struct readargs {
 	 ;;(totalcount (xdr-unsigned-int readargs))  ;; unused
 	 )
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
-      (if *nfsdebug* (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
+      (if (eq *nfsdebug* :verbose) (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
       (if (null p)
 	  (progn
 	    (xdr-int *nfsdxdr* NFSERR_STALE))
@@ -835,7 +855,7 @@ struct readargs {
 	(if (null p)
 	    (xdr-int *nfsdxdr* NFSERR_STALE)
 	  (progn 
-	    (if *nfsdebug* (format t "nfsd-write(~A,offset=~A) ~D bytes~%" p offset (third data)))
+	    (if (eq *nfsdebug* :verbose) (format t "nfsd-write(~A,offset=~A) ~D bytes~%" p offset (third data)))
 	    (if (nfs-okay-to-write (call-body-cred cbody))
 		(let ((f (get-open-file p :output)))
 		  (file-position f offset)

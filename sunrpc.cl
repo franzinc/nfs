@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.9 2001/07/03 03:22:34 dancy Exp $
+;; $Id: sunrpc.cl,v 1.10 2001/07/03 22:11:45 dancy Exp $
 
 (in-package :user)
 
@@ -35,7 +35,18 @@
 	  (push udpsock waitlist))
 	;;(format t "waiting for input.~%")
 	;;(format t "waitlist is ~S~%" waitlist)
-	(setf readylist (mp:wait-for-input-available waitlist))
+	(handler-case (setf readylist (mp:wait-for-input-available waitlist))
+	  (socket-error (c)
+	    (case (stream-error-identifier c)
+	      (:connection-reset 
+	       (let ((stream (stream-error-stream c)))
+		 (format t "closing error socket ~S~%" stream)
+		 (close stream)
+		 (setf clientlist (remove stream clientlist))
+		 nil))
+	      (t 
+	       (error c)))))
+		 
 	;;(format t "readylist is ~A~%" readylist)
 	
 	(when (member tcpsock readylist)
@@ -187,19 +198,20 @@
 	    (let ((newxdr (create-xdr :direction :build :size (+ 4 (xdr-size xdr)))))
 	      (xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
 	      (xdr-xdr newxdr xdr) ;; slow
-	      (write-sequence (xdr-get-complete-vec newxdr) (rpc-peer-socket peer) :end (xdr-size newxdr))))
+	      (ignore-errors (write-sequence (xdr-get-complete-vec newxdr) (rpc-peer-socket peer) :end (xdr-size newxdr)))))
       (let ((sizexdr (create-xdr :direction :build :size 4)))
         (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
-	(write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
-        (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer) :end (xdr-size xdr)))))
+	(ignore-errors
+	 (write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
+	 (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer) :end (xdr-size xdr))))))
      ((eq type :datagram)
       #-(version>= 6 1)
       (mp:wait-for-input-available (- 0 (socket::socket-fd (rpc-peer-socket peer)) 1))
-      (socket:send-to (rpc-peer-socket peer) 
-                      (xdr-get-complete-vec xdr) 
-                      (xdr-size xdr) 
-                      :remote-host (rpc-peer-addr peer)
-                      :remote-port (rpc-peer-port peer))))))
+      (ignore-errors (socket:send-to (rpc-peer-socket peer) 
+				     (xdr-get-complete-vec xdr) 
+				     (xdr-size xdr) 
+				     :remote-host (rpc-peer-addr peer)
+				     :remote-port (rpc-peer-port peer)))))))
 
 (defun rpc-send-reply (peer xid rbody)  ;; rbody should be an xdr
   (let ((xdr (create-xdr :direction :build)))

@@ -1,3 +1,30 @@
+2001-07-03    <dancy@SUCK>
+
+	* nfs.cl: Moved some defparameters closer to the top of the file.
+	Set the directory cache reap time parameter to 30 seconds.  This
+	should help w/ 'rm -r' behavior.  Added a new parameter
+	*socketbuffersize* which is used when creating the udp and tcp
+	communications sockets.  It looks like the default receive buffer
+	size for UDP packets was pretty small (somewhere around 8KB) so
+	writes from high-performance operating systems such as Solaris
+	would cause a lot of packets to be dropped... resulting in very
+	slow performance.  
+
+	Undo the addition of '.' and '..' to directories.  It doesn't
+	appear to be necessary and it may have been causing problems.
+
+	(add-direntries): Added error handler to handle weird directories
+	like "c:\System Volume Information" on Windows 2000.  Also
+	added/changed some debugging output.
+
+	* sunrpc.cl: Added an error handler around
+	mp:wait-for-input-available.  Apparently errors will occur here if
+	a socket in the waitlist gets a connection refused message.  This
+	new code will handle that situation.   
+
+	Added (ignore-errors) around write-sequence and send-to calls.  If
+	they fail, the client will try.
+
 2001-07-02    <dancy@SUCK>
 
 	* nfs.cl: Lowered *statcachereaptime* from 50000 to 5.  The 50000
@@ -128,11 +155,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -143,15 +170,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.16 2001/07/03 03:22:34 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.17 2001/07/03 22:11:45 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
