@@ -12,6 +12,7 @@
 	* loadem.cl: declare parse-addr :fbound
 	* nfs.cl: update for 6.2 osi patch -- NOTE: compilation now
 	  requires a fully patched ACL 6.2
+	* readme.txt: update
 
 2003-01-22    <dancy@DANCYSOFT>
 

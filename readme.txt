@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.10 2003/01/23 05:08:20 layer Exp $
+$Id: readme.txt,v 1.11 2003/01/23 21:21:47 layer Exp $
 
 *******************************************************************************
 1. Installation
@@ -19,7 +19,9 @@ You can either build aNFSd from sources or use the binaries built by
 Franz Inc.  If you want to build your own, then you must have Allegro
 Common Lisp Enterprise Edition.
 
-aNFSd works best with Allegro CL 6.1 and 6.2.
+aNFSd works with a fully patched Allegro CL 6.2.  Evaluate
+(sys:update-allegro) in a running 6.2 image to download and install
+patches.
 
 *******************************************************************************
 1A. Installation: from source code
