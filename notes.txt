@@ -1,10 +1,10 @@
-$Id: notes.txt,v 1.1 2001/08/21 20:21:35 dancy Exp $
+$Id: notes.txt,v 1.2 2003/06/06 17:04:57 dancy Exp $
 
 			*Implementation notes*
 
 *Discussion of NFSv2 readdir*
 
-The readdir call works as follows.  The client sends to the server the
+The readdir call works as follows: The client sends to the server the
 directory which it wants to read, along with a special piece of data
 called a cookie.  If the cookie is all zeros, the directory read
 operation starts working from the beginning of the directory.  The
@@ -30,7 +30,7 @@ typically implemented like so:
 
 char buf[bufsize];
 
-/* depth first! */
+/* depth first */
 while (getdents(directory_fd, buf, bufsize)) {
      foreach entry (buf)  {
         if (directoryp entry) 
@@ -131,24 +131,21 @@ operation, then close the file.... for every block of data.
 
 To avoid this potential constant opening and closing of the file, this
 NFS server employs and open file cache.  A parameter
-*openfilereaptime* (defaults to 2) controls how long files are held
-open after their last use.  The default value should be fine for most
-people but you may want to make an adjustment if your situation calls
-for it.  Just remember that a file will stay open *openfilereaptime*
-seconds longer than the last access to it.
+*openfilereaptime* (defaults value: 2) controls how long files are
+held open after their last access.  The default value should be fine
+for most people but you may want to make an adjustment if your
+situation calls for it.  Just remember that a file will stay open
+*openfilereaptime* seconds longer than the last access to it.. so
+attempted accesses on the Windows-side may not work during that time
+[due to file locking].
 
-Similarly, calls to stat() are cached for *statcachereaptime* seconds.
-Most NFS calls return information from the stat() call.  Keep this in
-mind if you edit a file or directory locally on the NFS server.  NFS
-clients may not see the change for up to *statcachereaptime* seconds.
+Similarly, calls to stat() are cached for *statcachereaptime* (default
+value: 5) seconds.  Most NFS calls return information from the stat()
+call along with their results.  Keep this in mind if you edit a file
+or directory locally on the NFS server.  NFS clients may not see the
+change for up to *statcachereaptime* seconds.
 
 Note that *statcachereaptime* should be larger than
-*openfilereaptime*.  This is is because the open file reaper needs to
+*openfilereaptime*.  This is is because the open file reaper needs the
 cached stat information when closing a file that was opened for
-writing.
-
-
-
-
-
-
+writing [so that it can update the atime/mtime of the file].
