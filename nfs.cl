@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.47 2003/06/06 17:55:09 dancy Exp $
+;; $Id: nfs.cl,v 1.48 2003/07/02 22:18:52 dancy Exp $
 
 ;; nfs
 
@@ -37,7 +37,10 @@
 (defparameter *nfslocaluid* 443)
 (defparameter *nfslocalgid* 50)
 (defparameter *nfs-rw-uids* nil)
+;; bits to clear from mode before returning to client
 (defparameter *nfslocalumask* #o022)
+;; bits to set in mode before returning to client
+(defparameter *nfs-set-mode-bits* 0)
 
 (defparameter *openfilereaptime* 2) ;; seconds
 (defparameter *statcachereaptime* 5) ;; should always be larger than *openfilereaptime*
@@ -334,7 +337,8 @@
      (if (= 0 (logand (sbslot 'st_mode) #o40000))
 	 *NFREG* 
        *NFDIR*) ;; type
-     (logand (sbslot 'st_mode) (lognot *nfslocalumask*)) ;; mode
+     (logior (logand (sbslot 'st_mode) (lognot *nfslocalumask*)) ;; mode
+	     *nfs-set-mode-bits*)
      (sbslot 'st_nlink) ;;nlink
      *nfslocaluid* ;; uid
      *nfslocalgid* ;; gid

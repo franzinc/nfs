@@ -1,8 +1,15 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-07-02    <Ahmon Dancy@GOBY>
+
+	* nfs.cl: Added *nfs-set-mode-bits* variable and corresponding
+	code for allow the administrator to set extra mode bits before
+	returning them to the client.
+	
 2003-06-06    <dancy@CANDY2K>
 
+	
 	* nfs.cl: Bumped version to 1.1.4
 
 	Updated nfs-okay-to-write so that it checks *nfs-rw-uids* for

@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.12 2003/06/06 17:55:09 dancy Exp $
+$Id: readme.txt,v 1.13 2003/07/02 22:18:52 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -73,6 +73,11 @@ Currently, group id is not used to determine read/write access.
 
 *nfslocalumask* controls which file mode bits are cleared before
  reporting them to the remote client.
+
+*nfs-set-mode-bits* controls which file mode bits are set before
+ reporting them to the remote client.  For example, if you want all
+ files to appear to be executable for all users on the remote client,
+ use #o111 for the value.
 
 *exports* controls what directories are exported and by what name they
  are known.  Each entry in the list is a list of two elements.  The
