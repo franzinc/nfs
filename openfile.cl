@@ -3,8 +3,9 @@
 (defparameter *openfilereaptime* 2) ;; seconds
 
 ;; keys are file handles.
-(defparameter *open-file-cache-read* (make-hash-table :test #'eq))
-(defparameter *open-file-cache-write* (make-hash-table :test #'eq))
+;; bug14795/bug14692 -- Change these back to an eq hash table when fixed.
+(defparameter *open-file-cache-read* (make-hash-table :test #'equal))
+(defparameter *open-file-cache-write* (make-hash-table :test #'equal))
 
 (defmacro direction-to-cache-hash (dir)
   `(ecase ,dir

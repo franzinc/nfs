@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.56 2004/03/03 20:17:37 dancy Exp $
+;; $Id: nfs.cl,v 1.57 2004/09/16 17:40:17 dancy Exp $
 
 ;; nfs
 
@@ -242,7 +242,7 @@
     `(defun ,funcname (peer xid cbody)
        (with-xdr-xdr ((call-body-params cbody) :name params)
 	 (let (,@argdefs)
-	   #-ignore(when *nfs-debug*
+	   (when *nfs-debug*
 	     (format t "~A(" (quote ,name))
 	     ,@debugs)
 	   (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) 

@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 18, 2004 15:42)"; cg: "1.40"; -*-
+;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 24, 2004 14:28)"; cg: "1.42"; -*-
 
 (in-package :cg-user)
 
@@ -7,8 +7,7 @@
 (define-project :name :configure
   :modules (list (make-instance 'module :name "..\\xdr")
                  (make-instance 'module :name "..\\sunrpc")
-                 (make-instance 'module :name
-                                "..\\portmap")
+                 (make-instance 'module :name "..\\portmap")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
                  (make-instance 'module :name "ipaddr")

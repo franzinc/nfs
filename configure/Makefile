@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.5 2004/02/20 23:14:28 layer Exp $
+# $Id: Makefile,v 1.6 2004/09/16 17:40:17 dancy Exp $
 
-LISPDIR=$(shell if test -d ../../acl70pb; then echo ../../acl70pb; else echo '"/c/Program Files/acl70pb"'; fi)
+LISPDIR=$(shell if test -d ../../acl70pb; then echo ../../acl70pb; else echo '"/c/Program Files/acl70pf"'; fi)
 ALLEGRO=$(LISPDIR)/allegro
 
 build: configure/configure.exe

@@ -29,7 +29,8 @@
 (defparameter *attr-cache-reap-time* 5) 
 
 ;; keys are file handles
-(defparameter *nfs-attr-cache* (make-hash-table :test #'eq))
+;; bug14795/bug14692 -- Change this back to an eq hash table when fixed.
+(defparameter *nfs-attr-cache* (make-hash-table :test #'equal))
 (defparameter *attr-cache-lock* (mp:make-process-lock))
 
 (defun stat-mode-to-type (mode)

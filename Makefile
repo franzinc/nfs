@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.35 2004/02/26 19:25:39 layer Exp $
+# $Id: Makefile,v 1.36 2004/09/16 17:40:17 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
-LISPDIR=$(shell if test -d ../acl62; then echo ../acl62; else echo '"/c/Program Files/acl62"'; fi)
+#LISPDIR=$(shell if test -d ../acl62; then echo ../acl62; else echo '"/c/Program Files/acl62"'; fi)
+LISPDIR="/c/Program Files/acl70pf"
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
@@ -82,12 +83,26 @@ update_demo_cobweb: FORCE
 ## version that expires 30 days into the future.  See nightly.bat.
 nightly: dist-demo update_demo_cobweb
 
-nfs_bin_files = nfs.cfg.sample readme.txt binary-license.txt access-control.txt
-nfs_source_files = Makefile ChangeLog *.cl *.txt nfs.cfg.sample nfs.ico
+nfs_source_files = Makefile ChangeLog *.cl *.txt \
+		nfs.cfg.default nfs.ico nfs.nsi
 ntservice_source_files = ntservice/ChangeLog ntservice/*.cl ntservice/*.txt
+configure_source_files = configure/Makefile configure/*.cl \
+			configure/*.txt configure/configure.lpr \
+			configure/*.bil 
 
-binzip = dists/nfs-$(version).zip
 srczip = dists/nfs-$(version)-src.zip
+
+srcdist: FORCE
+	rm -f $(srczip)
+	rm -fr nfs-$(version)-src
+	mkdir nfs-$(version)-src \
+	 nfs-$(version)-src/ntservice \
+	 nfs-$(version)-src/configure
+	cp -p $(nfs_source_files) nfs-$(version)-src
+	cp -p $(ntservice_source_files) nfs-$(version)-src/ntservice
+	cp -p $(configure_source_files) nfs-$(version)-src/configure
+	zip -r $(srczip) nfs-$(version)-src
+	rm -fr nfs-$(version)-src
 
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~ ntservice/testapp
