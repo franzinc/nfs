@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.21 2004/02/03 23:37:07 layer Exp $
+# $Id: Makefile,v 1.22 2004/02/04 00:03:51 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -65,10 +65,9 @@ srczip = dists/nfs-$(version)-src.zip
 
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~ ntservice/testapp
-	(cd configure; make clean)
 
 real-clean: clean
-	rm -fr configure/configure
+	(cd configure; make clean)
 
 # Assumes cygwin mounted c:\ on /c
 install: FORCE
