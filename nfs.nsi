@@ -1,6 +1,7 @@
-; $Id: nfs.nsi,v 1.7 2005/01/26 21:26:42 layer Exp $
+; $Id: nfs.nsi,v 1.8 2005/01/31 20:48:45 layer Exp $
 
-SetCompressor bzip2
+;SetCompressor bzip2
+SetCompressor lzma
 
 ;------------------------------------------------------------------------------
 ;-- obtained from:
