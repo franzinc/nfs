@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.25 2001/08/14 23:45:34 dancy Exp $
+;;; $Id: nfs.cl,v 1.26 2001/08/15 20:36:41 dancy Exp $
 
 (in-package :user)
 
@@ -880,18 +880,19 @@ struct readargs {
 		  (format t "permission denied~%")
 		  (xdr-int *nfsdxdr* NFSERR_ACCES))
 	      ;; okay to write
-	      (if (probe-file newpath)
-		  (xdr-int *nfsdxdr* NFSERR_EXIST)
-		;; doesn't exist.. do the work
-		(progn
-		  ;; need error checking here
-		  (make-directory newpath)
-		  ;;(format t "mkdir: newpath is ~S~%" newpath)
-		  (nfs-add-file-to-dircache newpath dir)
-		  (update-atime-and-mtime dir)
-		  (xdr-int *nfsdxdr* NFS_OK)
-		  (pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
-		  (update-fattr-from-pathname newpath *nfsdxdr*))))))))))
+	      (if* (probe-file newpath)
+		 then 
+		      (xdr-int *nfsdxdr* NFSERR_EXIST)
+	       elseif (null (ignore-errors ((make-directory newpath)))) ;; this could use some work
+		 then
+		      (xdr-int *nfsdxdr* NFSERR_ACCES)
+		 else
+		      ;; doesn't exist.. do the work
+		      (nfs-add-file-to-dircache newpath dir)
+		      (update-atime-and-mtime dir)
+		      (xdr-int *nfsdxdr* NFS_OK)
+		      (pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
+		      (update-fattr-from-pathname newpath *nfsdxdr*)))))))))
 
 
 (defun nfsd-rmdir (peer xid cbody)

@@ -1,4 +1,154 @@
-need notes about readdir and rm -r.
+$Id: NOTES.txt,v 1.2 2001/08/15 20:36:41 dancy Exp $
 
-need notes about the statcache and open file cache.
+			*Implementation notes*
+
+*Discussion of NFSv2 readdir*
+
+The readdir call works as follows.  The client sends to the server the
+directory which it wants to read, along with a special piece of data
+called a cookie.  If the cookie is all zeros, the directory read
+operation starts working from the beginning of the directory.  The
+server fills in a data buffer with directory entries.  Each entry has
+a cookie associated with it.  The cookie is basically a pointer to the
+_next_ entry.  The server puts as much data into the buffer as it can.
+If the buffer fills up, the readdir operation returns w/ a "more data"
+indicator.  If the client sees this indicator, it makes a note of the
+cookie for the last entry it received.  Since the cookie points to the
+next entry, the client can use that cookie to make another readdir
+call that starts w/ that next entry.  Repeating this until the "more
+data" indicator is no longer set, a client can read the entire
+directory contents.
+
+This is all great unless the directory incurs a change between readdir
+calls.  If a directory changes between readdir calls, a cookie that a
+client is holding may become invalid.  NFSv2 provides no way for a
+server to indicate to a client that its cookie is no longer any good.
+
+This situation can happen quite easily when the 'rm -r' command is
+used on the client to delete a directory tree on the server.  rm -r is
+typically implemented like so:
+
+char buf[bufsize];
+
+/* depth first! */
+while (getdents(directory_fd, buf, bufsize)) {
+     foreach entry (buf)  {
+        if (directoryp entry) 
+           rm_recursive(entry)
+        else
+           unlink(entry);
+     }
+}
+
+The getdents syscall call eventually boils down to a readdir call.
+Depending on how large 'bufsize' is, getdents calls (thus readdir
+calls) may be interspersed with unlink calls.  This means that the
+directory is changing as it is being read in small pieces.  This can
+lead to the rm -r command getting confused and not completing
+correctly.  
+
+You've probably never experienced this problem w/ Unix NFS servers.  I
+believe the reason for this is:
+  1) Those NFS servers are kernel-mode software.
+  2) The NFS readdir call was designed w/ Unix filesystems in mind.
+
+Typical Unix filesystems store directories as just a special form of a
+regular file.  The file contains variable-length records.  The records
+are entries in the directory.  An example follows:
+
+directory:
+offset  0: filea
+offset 10: fileb
+offset 20: filec 
+
+Some of these records may be empty.  An empty record would result if,
+say, 'filea' were unlinked from the above example.  Instead of
+shifting all the entries down, the 'filea' entry is just marked as
+unused.  This saves time... and also gives rise to why rm -r works
+fine w/ Unix NFS servers.
+
+User-mode programs generally don't see this low-level structure of
+directories, but kernel-mode programs (thus Unix NFS servers) do.  The
+directory offsets in the above example make perfect cookies for the
+readdir call.  A readdir call using the above example might return:
+
+filea  cookie: 10
+fileb  cookie: 20
+filec  cookie: xxxx (end of listing)
+
+(recall: the cookie for an entry identifies the entry that follows)
+
+Even if rm -r only read and unlinked one directory entry per loop, it
+would work fine becauses the actual directory contents don't shift
+when an unlink occurs, therefore the cookies wouldn't shift.
+
+
+The NFS project that you are dealing with now is not a Unix kernel-
+mode program.  Quite the opposite, in fact.  It's a lowly user-mode
+Windows program.  It is likely that FAT and/or NTFS filesystems, like
+their Unix filesystem counterparts, don't shift directory contents
+when unlinking files... but unfortunately we can't get at the raw
+directory information easily (at least, not as far as I can tell).
+This makes cookie selection difficult.
+
+This program uses the lisp (directory) function to read the contents
+of a directory to respond to a 'readdir' call.  To combat the 'rm -r'
+issue, the following things were done.
+
+1) Calls to (directory) are cached for *nfs-dircachereaptime*
+   (defaults to 5) seconds.   The cache contains the contents of the
+   directory, along with a timestamp.
+2) NFS operations that modify a directory (unlink, create, rename)
+   will be recorded in the directory cache (as long as they occur
+   within *nfs-dircachereaptime* of the last operation).
+3) The unlink operation doesn't shift the contents of the directory
+   listing.  Instead, it just sets the corresponding entry to nil.
+   The code that handles the readdir call knows to ignore these
+   entries.
+4) The cookies that the readdir handler uses are indexes into the
+   cached directory listing.
+
+This caching of (directory) calls also has the side effect of making
+the operations a bit faster.
+
+For an rm -r to work w/o problems, *nfs-dircachereaptime* must be
+large enough to keep the directory contents cached while rm -r
+descends through subdirectories.  You can adjust this parameter if you
+are having problems.
+
+Note that while a directory listing is cached, any changes to the
+directory made by a local user on the NFS server will not be visible
+to the NFS client for *nfs-dircachereaptime* seconds.  You'll want to
+adjust *nfs-dircachereaptime* to balance between rm -r success and
+confusion avoidance.
+
+*Other information caching*
+
+The NFS protocol doesn't have an 'open' call.  Clients simply make
+read and write calls to files.  A basic implementation of a user-mode
+NFS server would have to open the file, do the read or write
+operation, then close the file.... for every block of data.  
+
+To avoid this potential constant opening and closing of the file, this
+NFS server employs and open file cache.  A parameter
+*openfilereaptime* (defaults to 2) controls how long files are held
+open after their last use.  The default value should be fine for most
+people but you may want to make an adjustment if your situation calls
+for it.  Just remember that a file will stay open *openfilereaptime*
+seconds longer than the last access to it.
+
+Similarly, calls to stat() are cached for *statcachereaptime* seconds.
+Most NFS calls return information from the stat() call.  Keep this in
+mind if you edit a file or directory locally on the NFS server.  NFS
+clients may not see the change for up to *statcachereaptime* seconds.
+
+Note that *statcachereaptime* should be larger than
+*openfilereaptime*.  This is is because the open file reaper needs to
+cached stat information when closing a file that was opened for
+writing.
+
+
+
+
+
 
