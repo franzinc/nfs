@@ -1,0 +1,4 @@
+need notes about readdir and rm -r.
+
+need notes about the statcache and open file cache.
+

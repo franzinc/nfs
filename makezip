@@ -1,0 +1,2 @@
+#!/bin/sh
+zip nfs.zip *.cl ChangeLog nfs.cfg.sample *.html *.txt
