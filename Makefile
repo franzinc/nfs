@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 2002/09/20 22:06:36 layer Exp $
+# $Id: Makefile,v 1.7 2002/09/20 22:08:31 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -24,15 +24,17 @@ dist: FORCE
 	rm -fr nfs-$(version)
 	cp -rp nfs nfs-$(version)
 	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version).zip nfs-$(version)
+	rm -fr nfs-$(version)
 	rm -f nfs-$(version)-src.zip
-	rm -fr mkdir nfs-$(version)-src
+	rm -fr nfs-$(version)-src
 	mkdir nfs-$(version)-src
 	cp -p $(source_files) nfs-$(version)-src
 	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version)-src.zip \
 		nfs-$(version)-src
+	rm -fr nfs-$(version)-src
 
 clean: FORCE
-	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~
+	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 
 # Assumes cygwin mounted c:\ on /c
 install: FORCE
