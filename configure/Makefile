@@ -1,4 +1,7 @@
-ALLEGRO="/c/Program Files/acl62/allegro"
+ifndef LISPDIR
+LISPDIR="/c/Program Files/acl62"
+endif
+ALLEGRO=$(LISPDIR)/allegro
 
 build: configure/configure.exe
 

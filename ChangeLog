@@ -1,3 +1,8 @@
+2004-02-04    <Ahmon Dancy@GOBY>
+
+	* Make configure/Makefile use the same lisp distribution as
+	../Makefile.
+
 2004-02-03    <layer@HOBART>
 
 	* Makefile: have `clean' do it in configure/, too
