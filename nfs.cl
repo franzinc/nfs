@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.12 2001/06/14 21:55:45 dancy Exp $
+;;; $Id: nfs.cl,v 1.13 2001/06/14 23:57:37 dancy Exp $
 
 (in-package :user)
 
@@ -483,8 +483,7 @@
        (type fixnum endindex)
        (type pathname p))
 
-      (format t "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
-	      
+      ;;(format t "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
       
       (loop
 	(if (>= index endindex) ;; end of directory
@@ -588,7 +587,7 @@ struct entry {
 		      (pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
 		      (update-fattr-from-pathname newpath *nfsdxdr*))
 		  (progn
-		    (format t "lookup: doesn't exist~%")
+		    ;;(format t "lookup: doesn't exist~%")
 		    (xdr-int *nfsdxdr* NFSERR_NOENT)))))))))))
 
 (defun make-diropres-xdr (stat diropok)
@@ -641,6 +640,7 @@ struct readargs {
 			:if-exists :overwrite)))
 	      (setf (openfile-lastaccess newof) (get-universal-time))
 	      (push newof *nfs-openfilelist*)
+	      ;;(format t "open file list has ~d entries now~%" (length *nfs-openfilelist*))
 	      (openfile-stream newof)))))
     (file-error (c)
       (values nil (excl::file-error-errno c)))))
@@ -721,17 +721,21 @@ struct readargs {
 		(:no-error (exists)
 		  (if exists
 		      (xdr-int *nfsdxdr* NFSERR_EXIST)
-		    ;; doesn't exist.. do the work
-		    (progn
-		      ;; need error checking here
-		      (with-open-file (f newpath :direction :output)
-			;; do nothing.. just touches the file
-			)
-		      (update-atime-and-mtime dir)
-		      (nfs-add-file-to-dircache newpath dir)
-		      (xdr-int *nfsdxdr* NFS_OK)
-		      (pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
-		      (update-fattr-from-pathname newpath *nfsdxdr*))))))))))))
+		    (let ((f (handler-case (open newpath :direction :output)
+			       (file-error (c)
+				 (cond 
+				  ((= (excl::file-error-errno c) 22)
+				   (xdr-int *nfsdxdr* NFSERR_ACCES)
+				   :err)
+				  (t (error c)))))))
+		      (if (not (eq f :err)) 
+			  (progn
+			    (close f)
+			    (update-atime-and-mtime dir)
+			    (nfs-add-file-to-dircache newpath dir)
+			    (xdr-int *nfsdxdr* NFS_OK)
+			    (pathname-to-fhandle-with-xdr *nfsdxdr* newpath)
+			    (update-fattr-from-pathname newpath *nfsdxdr*))))))))))))))
 
   
 #|
@@ -790,7 +794,7 @@ struct readargs {
 			    (xdr-int *nfsdxdr* NFSERR_IO)))
 		  (:no-error (c)
 		    (declare (ignore c))
-		    (format t "delete succeeded.~%")
+		    ;;(format t "delete succeeded.~%")
 		    (update-atime-and-mtime dir)
 		    (nfs-remove-file-from-dircache newpath dir)
 		    (xdr-int *nfsdxdr* NFS_OK)))
