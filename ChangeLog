@@ -1,5 +1,13 @@
 2005-01-31    <layer@HOBART>
-2.2
+3.0
+
+	* Makefile:
+	- 2.2 -> 3.0
+	- copy binaries to cobweb
+	- use scp to get to cobweb for the non-demo dist
+	* nfs.cl: 2.2 -> 3.0
+
+2005-01-31    <layer@HOBART>
 
 	* nfs.cl: change version to 2.2
 	* nfs.nsi: use LZMA compressor... wow!
