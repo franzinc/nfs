@@ -1,3 +1,8 @@
+2001-05-23    <layer@HOBART>
+
+	* extra.cl: make warning go away
+	* nfs.cl: fix nfsd-remove to handle permission denied
+
 2001-05-23  Kevin Layer  <layer@crikey>
 
 	* many files, CRLF conversion
@@ -8,11 +13,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -23,15 +28,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.5 2001/05/23 15:59:01 layer Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.6 2001/05/23 16:51:40 layer Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

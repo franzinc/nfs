@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.4 2001/05/23 15:59:02 layer Exp $
+;;; $Id: nfs.cl,v 1.5 2001/05/23 16:51:40 layer Exp $
 
 (in-package :user)
 
@@ -386,10 +386,17 @@ struct entry {
 
 (defun nfsd-lookup (peer xid cbody)
   (let* ((doa (xdr-to-diropargs (call-body-params cbody)))
-         (dir (fhandle-to-pathname (diropargs-fhandle doa)))
+         (dir (let ((dir (fhandle-to-pathname (diropargs-fhandle doa))))
+		(when (null dir)
+		  (send-successful-reply
+		   peer xid (nfsd-null-verf)
+		   (make-diropres-xdr NFSERR_STALE nil))
+		  (return-from nfsd-lookup))
+		dir))
          (filename (diropargs-filename doa))
          (newpath (add-filename-to-dirname dir filename))
-         (newfhandle (third (multiple-value-list (pathname-to-fhandle newpath)))))
+         (newfhandle
+	  (third (multiple-value-list (pathname-to-fhandle newpath)))))
     (if *nfsdebug*
 	(format t "nfds-lookup ~A in ~A~%" filename dir))
     (if (probe-file newpath)
@@ -570,7 +577,17 @@ struct readargs {
 	(format t "nfsd-remove(~A)~%" newpath))
     (if (nfs-okay-to-write (call-body-cred cbody))
 	(progn
-	  (delete-file newpath)
+	  (handler-case (delete-file newpath)
+	    (file-error (c)
+	      (if* (= 13 (excl::file-error-errno c))
+		 then ;; permission denied
+		      (xdr-int res NFSERR_ACCES)
+		      (send-successful-reply peer xid (nfsd-null-verf) res)
+		      (return-from nfsd-remove)
+		 else ;; unknown (as of now)
+		      (xdr-int res NFSERR_IO)
+		      (send-successful-reply peer xid (nfsd-null-verf) res)
+		      (return-from nfsd-remove))))
 	  (xdr-int res NFS_OK)
 	  (send-successful-reply peer xid (nfsd-null-verf) res))
       (progn
