@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.55 2004/02/26 19:17:13 dancy Exp $
+;; $Id: nfs.cl,v 1.56 2004/03/03 20:17:37 dancy Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "2.0")
+(defvar *nfsd-version* "2.1")
 
 (eval-when (compile)
   (declaim (optimize (speed 3))))
@@ -46,7 +46,7 @@
 (defun make-nfsdsockets ()
   (unless *nfsd-tcp-socket*
     (setf *nfsd-tcp-socket*
-      (socket:make-socket :type :stream
+      (socket:make-socket :type :hiper
                           :connect :passive
                           :local-port *nfsport*
                           :reuse-address t))

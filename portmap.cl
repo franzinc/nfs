@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.16 2004/02/19 22:33:10 dancy Exp $
+;; $Id: portmap.cl,v 1.17 2004/03/03 20:17:37 dancy Exp $
 
 ;; portmapper
 
@@ -61,7 +61,7 @@
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
     (setf *pmap-tcp-socket*   
-      (socket:make-socket :type :stream
+      (socket:make-socket :type :hiper
                           :connect :passive
                           :local-port *pmapport*
                           :reuse-address t)))

@@ -23,12 +23,9 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.16 2004/02/03 20:58:12 dancy Exp $
+;; $Id: mountd.cl,v 1.17 2004/03/03 20:17:37 dancy Exp $
 
 (in-package :user)
-
-(defconstant MNTPATHLEN 1024) ;; max number of bytes in a pathname argument
-(defconstant MNTNAMLEN 255) ;; max number of bytes in a name argument
 
 (defconstant *mountprog* 100005)
 (defconstant *mountvers* 1)
@@ -42,7 +39,7 @@
 (defun make-mountdsockets ()
   (unless *mountd-tcp-socket*
     (setf *mountd-tcp-socket*
-      (socket:make-socket :type :stream
+      (socket:make-socket :type :hiper
                           :connect :passive
                           :reuse-address t)))
   (unless *mountd-udp-socket*
