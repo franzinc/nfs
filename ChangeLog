@@ -1,13 +1,19 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2002-02-27    <layer@HOBART>
+1.0.33
+
+	* nfs.ico: minorly updated
+	* loadem.cl: make icon changes dependent 6.2.pre-beta.13
+
 2002-02-12  Kevin Layer  <layer@crikey>
 1.0.32 (because this is the 32nd changelog entry)
 
 	* (NEW) Makefile
 	* nfs.cl: add version number
 	* fixes.cl: require delete-directory patch for 5.0.1 and 6.0.
-	* (NEW) nfs.ico
+	* (NEW, from jkf) nfs.ico
 	* loadem.cl: use new icon file in ACL 6.2; set program title, too
 
 2001-09-06    <dancy@DANCY2K>

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.13 2002/02/12 22:12:06 layer Exp $
+;; $Id: loadem.cl,v 1.14 2002/02/28 00:37:31 layer Exp $
 
 (in-package :user)
 
@@ -72,8 +72,8 @@
      (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
 	     filelist)
      :application-files '("nfs.cfg")
-     #+(version>= 6 2) :icon-file
-     #+(version>= 6 2) "nfs.ico")
+     #+(version>= 6 2 :pre-beta 13) :icon-file
+     #+(version>= 6 2 :pre-beta 13) "nfs.ico")
     (run-shell-command
      (format nil "~a -o nfs/nfs.exe +t ~s ~a"
 	     (truename "sys:bin;setcmd.exe")
@@ -81,8 +81,8 @@
 	     ;; In ACL 6.2, the "show the icon in the tray" bug has been
 	     ;; fixed, so don't show the console by default.  Before 6.2,
 	     ;; show it minimized.
-	     #+(version>= 6 2) "+cx"
-	     #-(version>= 6 2) "+cm")
+	     #+(version>= 6 2 :pre-beta 13) "+cx"
+	     #-(version>= 6 2 :pre-beta 13) "+cm")
      :show-window :hide)))
 
 (defun create-service (path)
