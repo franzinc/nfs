@@ -1,4 +1,5 @@
 2005-01-25    <layer@HOBART>
+2.1.99
 
 	* loadem.cl: add nfs-shared.cl
 	* nfs-common.cl: move cleanup-dir to nfs-shared.cl
@@ -18,8 +19,8 @@
 	* nfs.cl: move startup announcement and gc-debug stuff here
 	* nfs.nsi: bug14783: remove service with NSIS not with nfs.exe
 	* configure/Makefile: use 7.0 final
-	* configure/configform.bil: "use system portmapper" option
-	* configure/configform.cl: gc debugging
+>>>	* configure/configform.bil: "use system portmapper" option
+>>>	* configure/configform.cl: gc debugging
 	* configure/configure.lpr: automatic changes
 
 2004-09-16    <layer@HOBART>
@@ -42,7 +43,7 @@
 
 	* Removed unused defconstants from mountd.cl
 
-	* Use :hiper sockets for all TCP streams for best performance.
+>>>	* Use :hiper sockets for all TCP streams for best performance.
 
 *******************************************************************************
 *** version 2.0 release
