@@ -1,11 +1,8 @@
-# $Id: Makefile,v 1.4 2002/02/12 22:20:50 layer Exp $
+# $Id: Makefile,v 1.5 2002/07/24 19:25:25 layer Exp $
 # This makefile assumes that cygwin has been installed.
 
-LISPEXE = /d/acl62b/src/cl/src/lisp
-LISPDXL = dcl
-### these would be a good choice for the standard installation of ACL 6.1:
-#LISPEXE = "/c/program files/acl61/mlisp"
-#LISPDXL = mlisp
+LISPEXE = "/c/Program Files/acl62/mlisp"
+LISPDXL = mlisp
 
 default: compile
 

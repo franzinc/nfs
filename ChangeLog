@@ -1,6 +1,12 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2002-07-24    <layer@HOBART>
+1.0.34
+
+	* Makefile: make 6.2 the default
+	* sunrpc.cl: *gather* -> nil; add force-output's in rpc-send
+
 2002-02-27    <layer@HOBART>
 1.0.33
 

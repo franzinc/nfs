@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.14 2001/08/16 16:27:20 layer Exp $
+;; $Id: sunrpc.cl,v 1.15 2002/07/24 19:25:25 layer Exp $
 
 (in-package :user)
 
@@ -220,7 +220,7 @@ Accepting new tcp connection and adding it to the client list.~%")
   auth-stat ;; (for AUTH_ERROR)
   )
 
-(defparameter *gather* t) ;; easier to use network analyzers w/ this on.
+(defparameter *gather* nil) ;; easier to use network analyzers w/ this on.
 
 (defun rpc-send (xdr peer)
   (let ((type (rpc-peer-type peer)))
@@ -232,15 +232,19 @@ Accepting new tcp connection and adding it to the client list.~%")
 				      :size (+ 4 (xdr-size xdr)))))
 	      (xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
 	      (xdr-xdr newxdr xdr) ;; slow
-	      (ignore-errors (write-sequence (xdr-get-complete-vec newxdr)
-					     (rpc-peer-socket peer)
-					     :end (xdr-size newxdr)))))
-      (let ((sizexdr (create-xdr :direction :build :size 4)))
-        (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
-	(ignore-errors
-	 (write-sequence (xdr-get-complete-vec sizexdr) (rpc-peer-socket peer))
-	 (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
-			 :end (xdr-size xdr))))))
+	      (ignore-errors
+	       (write-sequence (xdr-get-complete-vec newxdr)
+			       (rpc-peer-socket peer)
+			       :end (xdr-size newxdr))
+	       (force-output (rpc-peer-socket peer)))))
+	(let ((sizexdr (create-xdr :direction :build :size 4)))
+	  (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
+	  (ignore-errors
+	   (write-sequence (xdr-get-complete-vec sizexdr)
+			   (rpc-peer-socket peer))
+	   (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
+			   :end (xdr-size xdr))
+	   (force-output (rpc-peer-socket peer))))))
      ((eq type :datagram)
       #-(version>= 6 1)
       (mp:wait-for-input-available (- 0 (socket::socket-fd
