@@ -339,7 +339,10 @@
     (tagbody
       askforname
       (multiple-value-bind (listname dummy1 dummy2 ok)
-          (ask-user-for-string "Provide a name for this new list" "" "OK" "Cancel" nil nil "New list")
+          (ask-user-for-string 
+           (format nil "Provide a name for this new ~A list" type)
+           "" "OK" "Cancel" nil nil 
+           (format nil "New ~A list" type))
         (declare (ignore dummy1 dummy2))
         (when ok
           (setf listname (string-trim '(#\space) listname))
@@ -755,11 +758,17 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 
 
 (defun init-func ()
-  (let ((window (default-init-function)))
+  (let* ((window (default-init-function))
+         (center-box (center-box-on-screen (width window) (height window))))
+    (setf 
+     (top window) (box-top center-box)
+     (left window) (box-left center-box))
+    
     (setf *progpath* (first sys::*application-command-line-arguments*))
     (setf *configfile* (user::get-nfs-server-config-file))
     (if* (null *configfile*)
        then
+            (setf *server-running* nil)
             (setf *configfile* (merge-pathnames "..\\nfs.cfg" *progpath*))
             ;; for testing during development
             (if (not (probe-file *configfile*))

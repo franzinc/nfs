@@ -17,7 +17,7 @@ clients.  Exports have several important parameters:
    export.
 
  * uid: All files will appear to be owned by this user id.  NFS
-   Clients accessing with this user id will have read/write permission
+   clients accessing with this user id will have read/write permission
    to all files in the export.
 
  * gid: All files will appear to be owned by this group id.  In
@@ -172,4 +172,7 @@ ids 100, 400, 401, and 402.  However, if the umask were set to 022
 then the NFS client would conclude that the files could only be
 written to by user 100... and attempts by user ids 400, 401, and 402
 would not even be passed on to the NFS server.... defeating the
-utility of user lists.
+utility of user lists.   
+
+Using the default umask and set-mode-bits settings (both 0) will avoid
+this problem while still maintaining security.

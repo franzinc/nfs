@@ -1,3 +1,19 @@
+2004-02-19    <dancy@CANDY2K>
+
+	* loadem.cl: Removed conditionalizations for command line switches
+	for 7.0.
+
+	* main.cl: Conditionalize call to console-control since it is only
+	available in 7.0.
+
+	* configure/configure.bil:  Keyboard shortcut changes.
+
+	* configure/configform.cl: New user/host list function: Make the
+	title bar and prompt text mention the type of list being added.
+	Also, center the main window on the screen when starting up.
+
+	* configure/configuration.txt: Fixed some typos.
+
 2004-02-11    <dancy@CANDY2K>
 
 	* openfile.cl: Use excl::cl-internal-real-time instead of

@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0.pre-beta.7 [Windows] (Feb 10, 2004 12:02)"; cg: "1.38"; form: configform; -*-
+;; -*- lisp-version: "7.0.pre-beta.8 [Windows] (Feb 13, 2004 10:24)"; cg: "1.38"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -17,7 +17,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*)))
-     (exterior (make-box 597 124 1145 494)) (name :configform)
+     (exterior (make-box 672 124 1220 494)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner
@@ -57,13 +57,13 @@
                        127 :name :new-export-button :on-change
                        'configform-new-export-button-on-change
                        :tab-control '(:tab-control :exports) :title
-                       "~New" :top 43)
+                       "New" :top 43)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        212 :name :remove-export-button :on-change
                        'configform-remove-export-button-on-change
                        :tab-control '(:tab-control :exports) :title
-                       "Remove" :top 43)
+                       "~Delete" :top 43)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        27 :name :export-path :on-change
@@ -204,20 +204,20 @@
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        28 :name :user-list-combo :on-change
                        'select-user-list :range '(:one :two :three)
-                       :tab-control '(:tab-control :user-lists) :top 55
+                       :tab-control '(:tab-control :user-lists) :top 46
                        :value :one)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        128 :name :new-user-list-button :on-change
                        'configform-new-user-list-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "~New" :top 52)
+                       "New" :top 43)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        212 :name :user-list-remove-button :on-change
                        'configform-user-list-remove-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "Remove" :top 52)
+                       "~Delete" :top 43)
         (make-instance 'editable-text :delayed nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        28 :name :new-user-id-edit :on-change
@@ -229,13 +229,13 @@
                        93 :name :user-add-button :on-change
                        'configform-user-add-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "Add >>" :top 132)
+                       "~Add >>" :top 132)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        93 :name :user-remove-button :on-change
                        'configform-user-remove-button-on-change
                        :tab-control '(:tab-control :user-lists) :title
-                       "Remove" :top 167)
+                       "~Remove" :top 167)
         (make-instance 'multi-item-list :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
                        :height 137 :left 177 :name :user-list-multi
@@ -252,20 +252,20 @@
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        28 :name :host-list-combo :on-change
                        'select-host-list :range '(:one :two :three)
-                       :tab-control '(:tab-control :host-lists) :top 56
+                       :tab-control '(:tab-control :host-lists) :top 46
                        :value :one)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        127 :name :new-host-list-button :on-change
                        'configform-new-host-list-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
-                       "~New" :top 52)
+                       "~New" :top 43)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        211 :name :host-list-remove-button :on-change
                        'configform-host-list-remove-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
-                       "Remove" :top 52)
+                       "~Delete" :top 43)
         (make-instance 'editable-text :delayed nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        22 :name :new-address :on-change
@@ -277,13 +277,13 @@
                        219 :name :host-add-button :on-change
                        'configform-host-add-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
-                       "Add >>" :top 148)
+                       "~Add >>" :top 148)
         (make-instance 'button :available nil :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil) :left
                        219 :name :host-remove-button :on-change
                        'configform-host-remove-button-on-change
                        :tab-control '(:tab-control :host-lists) :title
-                       "Remove" :top 180)
+                       "~Remove" :top 180)
         (make-instance 'multi-item-list :font
                        (make-font-ex nil "Tahoma / ANSI" 11 nil)
                        :height 137 :left 310 :name :host-list-multi

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.27 2004/02/03 23:20:06 dancy Exp $
+;; $Id: loadem.cl,v 1.28 2004/02/19 16:20:51 dancy Exp $
 
 (in-package :user)
 
@@ -75,10 +75,7 @@
      ;; +Cx disable console window exit.
      ;; +N sets program name used in system tray menu     
      (format nil 
-	     #-(version>= 7)
 	     "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS\""
-	     #+(version>= 7)
-	     "~a -o nfs/nfs.exe +t ~s +cx"
 	     (truename "sys:bin;setcmd.exe")
 	     (if demo
 		 "Allegro NFS Server demo"
