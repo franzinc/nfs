@@ -1,22 +1,36 @@
-# $Id: Makefile,v 1.13 2003/03/20 16:04:20 dancy Exp $
+# $Id: Makefile,v 1.14 2003/12/03 21:33:20 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 LISPEXE = "/c/Program Files/acl62/mlisp"
 
-default: compile
+default: build
 
-### used on Windows:
-compile: FORCE
+demo: build-demo
+
+build: build-prologue build-normal-cmd build-epilogue
+
+build-demo: build-prologue build-demo-cmd build-epilogue
+
+build-prologue:
 	rm -fr nfs
 	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp
 	@echo '(compile-file-if-needed "ntservice/ntservice.cl")' >> b.tmp
 	@echo '(load "loadem.cl")' >> b.tmp
+
+build-normal-cmd:
 	@echo '(buildit)' >> b.tmp
+
+build-demo-cmd:
+	@echo '(buildit :demo 30)' >> b.tmp
+
+build-epilogue:
 	@echo '(exit 0)' >> b.tmp
 	$(LISPEXE) +s b.tmp
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
+
+
 
 version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
 nfs_bin_files = nfs.cfg.sample readme.txt binary-license.txt access-control.txt

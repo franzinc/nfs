@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.21 2003/12/03 21:03:44 dancy Exp $
+;; $Id: loadem.cl,v 1.22 2003/12/03 21:33:20 dancy Exp $
 
 (in-package :user)
 
@@ -74,7 +74,7 @@
   (setf *hosts-deny-parsed* (mapcar #'parse-addr *hosts-deny*)))
   
 
-(defun buildit ()
+(defun buildit (&key demo)
   (compile-file "loadem.cl")
   (loadem) 
   (let (filelist)
@@ -86,9 +86,10 @@
      (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
 	     filelist)
      #+(version>= 6 2 :pre-beta 13) :icon-file
-     #+(version>= 6 2 :pre-beta 13) "nfs.ico")
+     #+(version>= 6 2 :pre-beta 13) "nfs.ico"
+     :demo demo)
 
-    ;; Set the command line flags.a
+    ;; Set the command line flags.
     (run-shell-command
      (format nil "~a -o nfs/nfs.exe +t ~s ~a"
 	     (truename "sys:bin;setcmd.exe")
