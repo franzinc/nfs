@@ -1,3 +1,7 @@
+2004-02-26    <layer@HOBART>
+
+	* Makefile: copy to cobweb using scp
+
 2004-02-20    <layer@HOBART>
 
 	* (NEW) nightly.bat
