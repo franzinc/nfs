@@ -1,5 +1,8 @@
 2005-04-04    <Ahmon Dancy@GOBY>
 
+	* openfile.cl/attr.cl: Changed some equal hash tables back to eq
+	since bug14795/bug14692 are resolved.
+
 	* fhandle.cl
 	 * Define new error condition 'illegal-filename-error'
 	 * (sanity-check-filename): Use new error condition for illegal
