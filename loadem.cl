@@ -1,4 +1,4 @@
-;; $Id: loadem.cl,v 1.8 2001/08/11 22:20:40 dancy Exp $
+;; $Id: loadem.cl,v 1.9 2001/08/13 17:09:55 dancy Exp $
 
 (in-package :user)
 
@@ -45,9 +45,15 @@
     (dolist (file (reverse (cons "loadem" *filelist*)))
       (push (concatenate 'string file ".fasl") filelist))
     (generate-executable "nfs" 
-			 (append '(:sock :acldns :seq2 "c:/devel/service/service.fasl") 
+			 (append '(:sock :acldns :seq2 "service.fasl") 
 				 filelist)
 			 :application-files '("nfs.cfg"))))
 
-(defun create-service ()
-  (ntservice:create-service "nfs" "NFS Server" "c:\\devel\\nfs\\nfs\\nfs.exe /service"))
+(defun create-service (path)
+  (ntservice:create-service 
+   "nfs" 
+   "NFS Server" 
+   (format nil "~A /service")))
+
+(defun delete-service ()
+  (ntservice:delete-service "nfs"))
