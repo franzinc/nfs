@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.12 2002/02/12 17:20:26 layer Exp $
+;; $Id: loadem.cl,v 1.13 2002/02/12 22:12:06 layer Exp $
 
 (in-package :user)
 
@@ -67,17 +67,17 @@
   (let (filelist)
     (dolist (file (reverse (cons "loadem" *filelist*)))
       (push (concatenate 'string file ".fasl") filelist))
-    (generate-executable "nfs" 
-			 (append '(:sock :acldns 
-				   :seq2 :foreign
-				   #.*ntservice.fasl*) 
-				 filelist)
-			 :application-files '("nfs.cfg")
-			 #+(version>= 6 2) :icon-file
-			 #+(version>= 6 2) "nfs.icon")
+    (generate-executable
+     "nfs" 
+     (append '(:sock :acldns :seq2 :foreign #.*ntservice.fasl*)
+	     filelist)
+     :application-files '("nfs.cfg")
+     #+(version>= 6 2) :icon-file
+     #+(version>= 6 2) "nfs.ico")
     (run-shell-command
-     (format nil "~a -o nfs/nfs.exe ~a"
+     (format nil "~a -o nfs/nfs.exe +t ~s ~a"
 	     (truename "sys:bin;setcmd.exe")
+	     "Allegro NFSd"
 	     ;; In ACL 6.2, the "show the icon in the tray" bug has been
 	     ;; fixed, so don't show the console by default.  Before 6.2,
 	     ;; show it minimized.

@@ -4,10 +4,11 @@
 2002-02-12  Kevin Layer  <layer@crikey>
 1.0.32 (because this is the 32nd changelog entry)
 
+	* (NEW) makefile
 	* nfs.cl: add version number
 	* fixes.cl: require delete-directory patch for 5.0.1 and 6.0.
 	* (NEW) nfs.ico
-	* loadem.cl: use new icon file in ACL 6.2
+	* loadem.cl: use new icon file in ACL 6.2; set program title, too
 
 2001-09-06    <dancy@DANCY2K>
 
