@@ -32,7 +32,7 @@ file and compile it.
 Edit loadem.cl.  You'll need to change the *ntservice.fasl* parameter
 to point to the ntservice.fasl file you created in the prior step.
 
-Start lisp and load loadem.cl.  
+Start Lisp and load loadem.cl.  
 
 Evaluate '(loadem)'
 
@@ -58,8 +58,8 @@ are in c:\devel\nfs, you'd specify:
 
 If create-service returns 1, you've successfully registered the
 program as a service.  To test it, make sure that no other NFS servers
-are running (including one running in lisp.  You may want to exit the
-lisp to be sure).  Now open the Services control panel.  Locate the
+are running (including one running in Lisp.  You may want to exit the
+Lisp to be sure).  Now open the Services control panel.  Locate the
 "nfs" service start it up.  Everything should work the same as it did
 as as standalone application.
 
