@@ -41,19 +41,19 @@ clients.  Exports have several important parameters:
    turned on before reporting them back to the client.  See the Notes
    section below for more information.
 
- * Allow host lists: By default, no remote hosts are allowed to access
-   an export.  You can use this parameter to specify lists of
+ * Allowed host lists: By default, no remote hosts are allowed to
+   access an export.  You can use this parameter to specify lists of
    remote hosts/networks that should be granted access.  See below for
    more information on host lists.
 
- * Read/write user lists: Remote users having user id matching the
+ * Read/Write user lists: Remote users having a user id matching the
    "uid" parameter (above) automatically have read/write access.  You
    can use the read/write user lists parameter to specify lists of
    other users that should also have read/write access.  You can
    select more than one list.  See below for information on user
    lists.
 
- * Read-only user lists: Remote users having user id matching the
+ * Read-only user lists: Remote users having a user id matching the
    "uid" parameter (above) automatically have read access.  You can
    use the read-only user lists parameter to specify lists of other
    users that should also have read-only access.  You can select more
@@ -65,13 +65,14 @@ clients.  Exports have several important parameters:
 
 A user list is a named list of numeric user ids.  There is a built-in
 user list called "everyone" that implicitly includes any possible user
-id.  You can make your own user lists by selecting the "User lists"
-tab and clicking the "New" button.  You will be prompted for the name
-of the new list.  This will create an empty list.  You can add user
-ids to the list by filling in the "New user id" edit box and clicking
-the "Add" button.  You can add as many user ids as you want to a list.
-The same user id can used be in multiple lists.  The simplest useful
-user list would have just one user id.
+id.  There is also a built-in user list called "root" which includes
+user id 0.  You can make your own user lists by selecting the "User
+lists" tab and clicking the "New" button.  You will be prompted for
+the name of the new list.  This will create an empty list.  You can
+add user ids to the list by filling in the "New user id" edit box and
+clicking the "Add" button.  You can add as many user ids as you want
+to a list.  The same user id can be used in multiple lists.  The
+simplest useful user list would have just one user id.
 
 User list examples:
 
@@ -102,7 +103,7 @@ by selecting the "Host lists" tab and clicking the "New" button.  You
 will be prompted for the name of the new list.  This will create an
 empty list.  You can add IP addresses to the list by filling in the
 "New address" edit box and clicking the "Add" button.  You can add as
-many addresses you want to a list.  The same address can be used in
+many addresses as you want to a list.  The same address can be used in
 multiple lists.  The simplest useful host list would have just one
 address.
 
@@ -130,10 +131,10 @@ IP addresses can be specified in several ways:
 
 * Global settings *
  
-  * NFS/mountd protocol debugging: You can turn these options on if
+  * NFS/Mount protocol debugging: You can turn these options on if
     you want to see what's going on at the protocol level.  Debugging
     output will be generated in the console window.  Be careful!
-    Turning on NFS protocol debugging can generate logs of output
+    Turning on NFS protocol debugging can generate lots of output
 
 ----------------------------------------------------------------------------
 
@@ -141,7 +142,7 @@ IP addresses can be specified in several ways:
 
 Exports should always grant at least read access to user id 0 (root)
 so that the root user on remote systems can successfully mount the
-export. 
+export.  [Mount requests are usually made under user id 0].
 
 Umask/set-mode-bits: It may seem that the default file mode bits
 (typically rw-rw-rw-) that are reported by the NFS server are too
@@ -169,8 +170,6 @@ will send all write requests over to the server.  The NFS server will
 then do its own security checks and grant write access only to user
 ids 100, 400, 401, and 402.  However, if the umask were set to 022
 then the NFS client would conclude that the files could only be
-written to by user 100.. and attempts by user ids 400, 401, and 402
+written to by user 100... and attempts by user ids 400, 401, and 402
 would not even be passed on to the NFS server.... defeating the
 utility of user lists.
-
-

@@ -1,3 +1,8 @@
+2004-02-10  Ahmon Dancy  <dancy@dancy>
+
+	* configure/configuration.txt: Updated according to alita's
+	comments.
+
 2004-02-10    <layer@HOBART>
 
 	* Makefile: quote the LISPDIR passed to configure/Makefile
