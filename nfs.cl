@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.19 2001/07/11 20:34:30 dancy Exp $
+;;; $Id: nfs.cl,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
 (in-package :user)
 
@@ -30,7 +30,7 @@
 
 (defparameter *socketbuffersize* (* 128 1024))
 
-(defparameter *nfsdxdr* (create-xdr :direction :build))
+(defparameter *nfsdxdr* nil)
 
 #|
            NFS_OK = 0,
@@ -106,10 +106,14 @@
     (close *nfsd-udp-socket*)
     (setf *nfsd-udp-socket* nil)))
 
+(defun ensure-nfsdxdr ()
+  (unless *nfsdxdr*
+    (setf *nfsdxdr* (create-xdr :direction :build))))
 
 (defun nfsd ()
   (read-nfs-cfg)
   (make-nfsdsockets)
+  (ensure-nfsdxdr)
   (portmap-add-program *nfsprog* *nfsvers* *nfsport* IPPROTO_TCP)
   (portmap-add-program *nfsprog* *nfsvers* *nfsport* IPPROTO_UDP)
   (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)

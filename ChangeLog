@@ -1,3 +1,11 @@
+2001-08-03    <dancy@DANCY2K>
+
+	* loadem.cl: Added a (buildit) function to build an nfs
+	executable.  Added a (main) function.
+
+	* nfs.cl:  Minor change that turned out to be unnecessary
+	regarding the initialization of *nfsdxdr*.
+
 2001-07-11    <dancy@SUCK>
 
 	* nfs.cl (nfsd-statfs):  Added check for stale file handle.
@@ -176,11 +184,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -191,15 +199,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.20 2001/08/03 21:53:29 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
