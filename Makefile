@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.33 2004/02/20 23:44:11 layer Exp $
+# $Id: Makefile,v 1.34 2004/02/26 19:17:13 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -6,8 +6,7 @@ LISPDIR=$(shell if test -d ../acl62; then echo ../acl62; else echo '"/c/Program 
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
-version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
-
+version = $(shell grep 'defvar .nfsd-version' nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
 
 default: build
 

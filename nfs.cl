@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.54 2004/02/26 19:01:08 dancy Exp $
+;; $Id: nfs.cl,v 1.55 2004/02/26 19:17:13 dancy Exp $
 
 ;; nfs
 
@@ -89,7 +89,7 @@
 					:udpsock *nfsd-udp-socket*
 					:buffer buffer)))
 	  (declare (dynamic-extent buffer server))
-	  (format t "Allegro NFS v~~A started.~%" *nfsd-version*)
+	  (format t "Allegro NFS v~A started.~%" *nfsd-version*)
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)
