@@ -1,5 +1,2 @@
 *.fasl
 nfs.cfg
-extra.dll
-extra.lib
-extra.exp
