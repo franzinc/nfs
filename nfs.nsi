@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.6 2005/01/26 21:22:31 layer Exp $
+; $Id: nfs.nsi,v 1.7 2005/01/26 21:26:42 layer Exp $
 
 SetCompressor bzip2
 
@@ -403,7 +403,6 @@ Section "${VERBOSE_PROD}"
      Push ""
      Call Service
      Pop $0 ;response
-     MessageBox MB_OK "stop return value $0"
 
 ServiceNotRunning:
 
@@ -420,7 +419,6 @@ ServiceNotRunning:
      Push ""
      Call Service
      Pop $0 ;response
-     MessageBox MB_OK "delete return value $0"
      Sleep 3000 ;; allow time for Windows to let go
 
 ServiceNotInstalled:
