@@ -3,6 +3,7 @@
 (
  (*nfslocaluid* 1000) 
  (*nfslocalgid* 50)
+ (*nfs-rw-uids* nil)
  (*nfsdebug* nil)
  (*nfslocalumask* #o022)
  (*exports* (("/c" "c:/")

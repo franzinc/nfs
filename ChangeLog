@@ -5,10 +5,20 @@
 
 	* nfs.cl: Bumped version to 1.1.4
 
+	Updated nfs-okay-to-write so that it checks *nfs-rw-uids* for
+	other user ids that are granted write access.
+	
+	* nfs.cfg.sample:  New parameter *nfs-rw-uids*.
+
+	* readme.txt: Added documentation about *nfs-rw-uids*.
+
 	* util.cl: Fixed stupid signed/unsigned bug in the ULARGE_INTEGER
 	foreign struct definition.  It was screwing up the results of the
 	diskfree function.  Also added :foreign-static-gc allocation type
 	to ff:allocate-fobject calls.
+
+	* loadem.cl: Modified function 'main' for convenience during
+	debugging.  
 
 	* notes.txt: Clarifications
 

@@ -7,7 +7,7 @@ Table of Contents:
    B. using the supplied binaries
 2. Configuration
 
-$Id: readme.txt,v 1.11 2003/01/23 21:21:47 layer Exp $
+$Id: readme.txt,v 1.12 2003/06/06 17:55:09 dancy Exp $
 
 *******************************************************************************
 1. Installation
@@ -59,13 +59,17 @@ Make a copy of nfs.cfg.sample and call it nfs.cfg.
 
 Edit nfs.cfg and replace the values of the parameters to your liking.
 
-*nfslocaluid* controls what user id the NFS server uses to specify the
- owner of all exported files.  Remote users with this user id will
- have write permission to all exported files.
+*nfslocaluid* specifies what user id the NFS server returns as the
+ owner of all exported files.
 
-*nfslocalgid* controls what group id the NFS server uses to specify
- the group of all exported files.  Currently, the NFS server does not
- use the group id when determining local file write access.
+*nfslocalgid* specifies what group id the NFS server returns as the
+ group of all exported files.
+
+*nfs-rw-uids* is a list of remote user ids that are granted read/write
+ access to exported filesystems.  *nfslocaluid* implicity in this list
+ so it is not necessary to include it.
+
+Currently, group id is not used to determine read/write access.  
 
 *nfslocalumask* controls which file mode bits are cleared before
  reporting them to the remote client.

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.46 2003/06/06 16:56:46 dancy Exp $
+;; $Id: nfs.cl,v 1.47 2003/06/06 17:55:09 dancy Exp $
 
 ;; nfs
 
@@ -36,6 +36,7 @@
 (defparameter *nfsdebug* nil)
 (defparameter *nfslocaluid* 443)
 (defparameter *nfslocalgid* 50)
+(defparameter *nfs-rw-uids* nil)
 (defparameter *nfslocalumask* #o022)
 
 (defparameter *openfilereaptime* 2) ;; seconds
@@ -788,7 +789,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 	    (if (or (null newpath)
 		    (not (nfs-okay-to-write (call-body-cred cbody))))
 		(progn
-		  (format t "permission denied~%") 
+		  (if *nfsdebug* (format t "permission denied~%") )
 		  (xdr-int *nfsdxdr* NFSERR_ACCES))
 	      ;; okay to write
 	      (if (probe-file newpath)
@@ -1132,8 +1133,8 @@ struct symlinkargs {
 ;; should also check the file permissions..
 (defun nfs-okay-to-write (cred)
   (if (= 1 (opaque-auth-flavor cred))
-      (let ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred)))
-	(= (auth-unix-uid au) *nfslocaluid*))
+      (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
+	     (uid (auth-unix-uid au)))
+	(or (= uid *nfslocaluid*)  (member uid *nfs-rw-uids*)))
     nil))
-	  
 
