@@ -1,3 +1,13 @@
+2001-09-04    <dancy@DANCY2K>
+
+	* mountd.cl (mountd-message-handler): Added checks to make sure
+	the version of the mount protocol being requested is the one we
+	support (version 1).  If not, let the client know so that it'll
+	(hopefully) downgrade versions.  I copied this code from nfs.cl
+	where I made the same change a short while ago.
+
+	Also changed the big 'cond' to a 'case' statement.
+
 2001-08-16    <dancy@DANCY2K>
 
 	* nfs.cl (nfsd-rename):  Close the from file before trying to
@@ -317,11 +327,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -332,15 +342,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.35 2001/08/16 21:44:22 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.36 2001/09/04 15:50:09 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.

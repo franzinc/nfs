@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.9 2001/08/16 16:27:19 layer Exp $
+;; $Id: mountd.cl,v 1.10 2001/09/04 15:50:09 dancy Exp $
 
 (in-package :user)
 
@@ -77,24 +77,35 @@
     ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
-    (when (and (= (call-body-prog cbody) *mountprog*)
-               (= (call-body-vers cbody) *mountvers*))
-      (cond
-       ((= (call-body-proc cbody) 0)
-        (mountd-null peer (rpc-msg-xid msg)))
-       ((= (call-body-proc cbody) 1)
-        (mountd-mount peer (rpc-msg-xid msg) cbody))
+    ;; sanity checks first
+    (if* (not (= (call-body-prog cbody) *mountprog*))
+       then
+	    (format t "Sending program unavailable response for prog=~D~%"
+		    (call-body-prog cbody))
+	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (mountd-null-verf))
+	    (return-from mountd-message-handler))
+    (if* (not (= (call-body-vers cbody) *mountvers*))
+       then
+	    (write-line "Sending program version mismatch response")
+	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
+				    (mountd-null-verf) *mountvers* *mountvers*)
+	    (return-from mountd-message-handler))
+    (case (call-body-proc cbody)
+      (0
+       (mountd-null peer (rpc-msg-xid msg)))
+      (1
+       (mountd-mount peer (rpc-msg-xid msg) cbody))
        ;;; right now, we don't do anything special for umounts
-       ((= (call-body-proc cbody) 3)
-        (mountd-null peer (rpc-msg-xid msg)))
-       ((= (call-body-proc cbody) 4)
-        (mountd-null peer (rpc-msg-xid msg)))
-       ((= (call-body-proc cbody) 5)
-        (mountd-export peer (rpc-msg-xid msg)))
-       (t
-	;; should send a negative response
-        (format t "mountd: unhandled procedure ~D~%"
-		(call-body-proc cbody)))))))
+      (3
+       (mountd-null peer (rpc-msg-xid msg)))
+      (4
+       (mountd-null peer (rpc-msg-xid msg)))
+      (5
+       (mountd-export peer (rpc-msg-xid msg)))
+      (t
+       ;; should send a negative response
+       (format t "mountd: unhandled procedure ~D~%"
+	       (call-body-proc cbody))))))
 
 (defun mountd-null-verf ()
   (let ((xdr (create-xdr :direction :build)))
