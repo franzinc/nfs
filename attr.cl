@@ -7,7 +7,9 @@
 (defconstant *NFBLK* 3)
 (defconstant *NFCHR* 4)
 (defconstant *NFLNK* 5)
-
+;; v3
+(defconstant *NFSOCK* 6)
+(defconstant *NFFIFO* 7)
 
 (defstruct nfs-attr
   type
@@ -16,9 +18,10 @@
   uid
   gid
   size
-  blocksize
-  rdev
-  blocks
+  blocksize ;; v2 only
+  used ;; v3.  used disk space in bytes (may be less than filesize in case of sparse files)
+  rdev ;; we don't support this.. so always unused.
+  blocks ;; v2 only
   fsid
   fileid
   atime
@@ -46,12 +49,12 @@
     (make-nfs-attr
      :type (stat-mode-to-type (stat-mode s))
      :mode (stat-mode s)
-     :nlinks 1 ;; simulated
+     :nlinks 1 ;; simulated.  Perhaps at least '2' should be reported for directories.
      :uid (stat-uid s)
      :gid (stat-gid s)
      :size (stat-size s)
      :blocksize blocksize
-     :rdev 0 ;; only used for block/char devices.
+     :used (stat-size s)
      :blocks (howmany (stat-size s) blocksize)
      :fsid (nfs-export-id (fh-export fh))
      :fileid (fh-id fh)
@@ -78,6 +81,13 @@
 	      (setf (gethash fh *nfs-attr-cache*) attr-cache))
       ;; return results
       (nfs-attr-cache-attr attr-cache))))
+
+;; list of size, mtime, ctime
+(defun get-pre-op-attrs (fh)
+  (let ((attrs (lookup-attr fh)))
+    (list (nfs-attr-size attrs) 
+	  (nfs-attr-mtime attrs) 
+	  (nfs-attr-ctime attrs))))
 
 (defun dump-attr-cache ()
   (mp:with-process-lock (*attr-cache-lock*)

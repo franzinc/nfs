@@ -23,12 +23,11 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.17 2004/03/03 20:17:37 dancy Exp $
+;; $Id: mountd.cl,v 1.18 2005/04/05 02:45:51 dancy Exp $
 
 (in-package :user)
 
 (defconstant *mountprog* 100005)
-(defconstant *mountvers* 1)
 
 (defparameter *mountd-tcp-socket* nil)
 (defparameter *mountd-udp-socket* nil)
@@ -54,63 +53,78 @@
     (close *mountd-udp-socket*)
     (setf *mountd-udp-socket* nil)))
 
+(defmacro with-mountd-sockets (() &body body)
+  `(unwind-protect
+       (progn
+	 (make-mountdsockets)
+	 ,@body)
+     (close-mountdsockets)))
 
 (defun mountd ()
-  (make-mountdsockets)
-  (with-portmapper-mapping (*mountprog* 
-			    *mountvers*
-			    (socket:local-port *mountd-tcp-socket*) 
-			    IPPROTO_TCP)
+  (with-mountd-sockets ()
     (with-portmapper-mapping (*mountprog* 
-			      *mountvers*
-			      (socket:local-port *mountd-udp-socket*) 
-			      IPPROTO_UDP)
-      (let* ((buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
-	     (server (make-rpc-server :tcpsock *mountd-tcp-socket*
-				      :udpsock *mountd-udp-socket*
-				      :buffer buffer)))
-	(declare (dynamic-extent buffer server))
-	(loop
-	  (multiple-value-bind (xdr peer)
-	      (rpc-get-message server)
-	    (mountd-message-handler xdr peer)))))))
+			      '(1 2 3)
+			      (socket:local-port *mountd-tcp-socket*) 
+			      IPPROTO_TCP)
+      (with-portmapper-mapping (*mountprog* 
+				'(1 2 3)
+				(socket:local-port *mountd-udp-socket*) 
+				IPPROTO_UDP)
+	(let* ((buffer (make-array (* 64 1024) 
+				   :element-type '(unsigned-byte 8)))
+	       (server (make-rpc-server :tcpsock *mountd-tcp-socket*
+					:udpsock *mountd-udp-socket*
+					:buffer buffer)))
+	  (declare (dynamic-extent buffer server))
+	  (loop
+	    (multiple-value-bind (xdr peer)
+		(rpc-get-message server)
+	      (mountd-message-handler xdr peer))))))))
 
 
 (defun mountd-message-handler (xdr peer)
-  (let (msg cbody)
-    (setf msg (create-rpc-msg xdr))
-    (setf cbody (rpc-msg-cbody msg))
-    ;;(pprint-cbody cbody)
-    (unless (= (rpc-msg-mtype msg) 0)
-      (error "Unexpected data!"))
-    ;; sanity checks first
-    (if* (not (= (call-body-prog cbody) *mountprog*))
-       then
-	    (format t "Sending program unavailable response for prog=~D~%"
-		    (call-body-prog cbody))
-	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
-	    (return-from mountd-message-handler))
-    (if* (not (= (call-body-vers cbody) *mountvers*))
-       then
-	    (write-line "Sending program version mismatch response")
-	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
-				    (null-verf) *mountvers* *mountvers*)
-	    (return-from mountd-message-handler))
-    (case (call-body-proc cbody)
-      (0
-       (mountd-null peer (rpc-msg-xid msg)))
-      (1
-       (mountd-mount peer (rpc-msg-xid msg) cbody))
-      (3
-       (mountd-umount peer (rpc-msg-xid msg) cbody))
-      (4
-       (mountd-null peer (rpc-msg-xid msg)))
-      (5
-       (mountd-export peer (rpc-msg-xid msg)))
-      (t
-       ;; should send a negative response
-       (format t "mountd: unhandled procedure ~D~%"
-	       (call-body-proc cbody))))))
+  (block nil
+    (let (msg cbody)
+      (setf msg (create-rpc-msg xdr))
+      (setf cbody (rpc-msg-cbody msg))
+      
+      ;; sanity checks first
+      (when (null cbody)
+	(format t "Invalid message from ~A~%" peer)
+	(return))
+      
+      (when (/= (call-body-prog cbody) *mountprog*)
+	(format t "Mountd: Sending program unavailable response for prog=~D to ~A~%"
+		(call-body-prog cbody)
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
+	(return))
+
+      (unless (<= 1 (call-body-vers cbody) 3)
+	(format t "Mountd: Sending program version mismatch response (requested version was ~D) to ~A~%" 
+		(call-body-vers cbody)
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) (null-verf) 1 3)
+	(return))
+      
+      (case (call-body-proc cbody)
+	(0
+	 (mountd-null peer (rpc-msg-xid msg)))
+	(1
+	 (mountd-mount peer (rpc-msg-xid msg) cbody))
+	(2
+	 (mountd-dump peer (rpc-msg-xid msg)))
+	(3
+	 (mountd-umount peer (rpc-msg-xid msg) cbody))
+	(4 
+	 (mountd-umntall peer (rpc-msg-xid msg)))
+	(5
+	 (mountd-export peer (rpc-msg-xid msg)))
+	(t
+	 ;; should send a negative response
+	 (format t "mountd: unhandled procedure ~D requested by ~A~%"
+		 (call-body-proc cbody)
+		 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))))))
 
 (defun mountd-null (peer xid)
   (if *mountd-debug* (format t "mountd-null~%~%"))
@@ -124,14 +138,19 @@
 ;; or
 ;; 0 followed by:
 ;;  fhandle
+;; (nfsv3) plus a variable size listed of ints indicating the 
+;;         acceptable auth flavors.  We only accept the unix
+;;         auth flavor.
 
 (defun mountd-mount (peer xid cbody)
   (block nil
     (with-xdr-xdr ((call-body-params cbody) :name params)
-      (let* ((dirpath (xdr-string params))
+      (let* ((vers (call-body-vers cbody))
+	     (dirpath (xdr-string params))
 	     (exp (locate-export dirpath)))
 	(if *mountd-debug* 
-	    (format t "Mountd: ~A requests mount of ~A.~%"
+	    (format t "Mountd(v~D): ~A requests mount of ~A.~%"
+		    vers
 		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		    dirpath))
 	(with-successful-reply (res peer xid (null-verf))
@@ -150,9 +169,23 @@
 	    (pushnew (list (rpc-peer-addr peer) dirpath) *mounts* 
 		     :test #'equalp)
 	    (xdr-int res NFS_OK)
-	    (xdr-fhandle res (get-export-fhandle exp)))))))))
+	    (if (= vers 1) ;; mountd v1 handles nfs v2
+		(setf vers 2))
+	    (xdr-fhandle res vers (get-export-fhandle exp))
+	    (when (= vers 3)
+	      (xdr-int res 1) ;; one entry
+	      (xdr-int res *AUTH_UNIX*)))))))))
 
-
+(defun mountd-dump (peer xid)
+  (if *mountd-debug* 
+      (format t "Mountd: ~A mountd-dump.~%"
+	      (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+  (with-successful-reply (res peer xid (null-verf))
+    (dolist (entry *mounts*)
+      (xdr-int res 1) ;; data follows
+      (xdr-string res (socket:ipaddr-to-dotted (first entry)))
+      (xdr-string res (second entry)))
+    (xdr-int res 0))) ;; no more data
 
 (defun mountd-umount (peer xid cbody)
   (let ((dirpath (with-xdr-xdr ((call-body-params cbody) :name x)
@@ -167,13 +200,15 @@
 	      *mounts*
 	      :test #'equalp))
     (send-successful-reply peer xid (null-verf) xdr)))
-    
-(defun showmounts ()
-  (dolist (mnt *mounts*)
-    (format t "~A -> ~A~%"
-	    (socket:ipaddr-to-dotted (first mnt))
-	    (second mnt))))
-				     
+
+(defun mountd-umntall (peer xid)
+  (let ((xdr (create-xdr :direction :build)))
+    (if *mountd-debug* 
+	(format t "Mountd: ~A: umntall~%"
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+    (setf *mounts* 
+      (remove (rpc-peer-addr peer) *mounts* :key #'first))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 (defun mountd-export (peer xid)
   (if *mountd-debug* (format t "mountd-export~%~%"))
@@ -184,3 +219,10 @@
       (xdr-int xdr 0)) ;; no group information
     (xdr-int xdr 0) ;; no more exports
     (send-successful-reply peer xid (null-verf) xdr)))
+
+;; debugging/informational.  No callers.
+(defun showmounts ()
+  (dolist (mnt *mounts*)
+    (format t "~A -> ~A~%"
+	    (socket:ipaddr-to-dotted (first mnt))
+	    (second mnt))))

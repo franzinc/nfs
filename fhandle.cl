@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.11 2004/02/03 20:58:12 dancy Exp $
+;; $Id: fhandle.cl,v 1.12 2005/04/05 02:45:51 dancy Exp $
 
 ;; file handle stuff
 
@@ -31,9 +31,15 @@
 (eval-when (compile)
   (declaim (optimize (speed 3))))
 
-;; Far too large for our needs.  NFSv3 allows for a variable
-;; size file handle.
-(defconstant *fhsize* 32)
+;; Far too large for our needs.  
+(defconstant *fhsize2* 32)
+(defconstant *fhsizewords2* (/ *fhsize2* 4))
+;; NFSv3 allows for a variable length file handle of up to 64 bytes.
+;; We only use as much as needed to hold a fixnum (rounded to a 4 byte
+;; boundary)
+(defconstant *fhsize3* 
+    (/ (floor (roundup (log (1+ most-positive-fixnum) 2) 32)) 8))
+(defconstant *fhsizewords3* (/ *fhsize3* 4))
 
 ;; Maps file handle ids to file handles
 (defparameter *fhandles* (make-hash-table))
@@ -142,21 +148,51 @@
       ;; Create a fresh entry
       (insert-fhandle (make-fhandle dirfh filename) filename))))
 
-(eval-when (compile load eval)
-  (if (> most-positive-fixnum #xffffffff)
-      (error "fixnums are bigger than xdr-unsigned-int.  pathname-to-fhandle-with-xdr needs adjustment.")))
 
-(defun xdr-fhandle (xdr &optional fh)
+(defun xdr-fhandle (xdr vers &optional fh)
+  (declare ;;(optimize (speed 3) (safety 0))
+	   (type fixnum vers))
+  (check-type xdr xdr)
+  (check-type vers number)
   (ecase (xdr-direction xdr)
     (:build
      (if (null fh)
 	 (error "xdr-fhandle: 'fh' parameter is required when building"))
-     (let ((id (fh-id fh)))
-       (dotimes (i (/ *fhsize* 4))
-	 (xdr-unsigned-int xdr id))))
+     (let ((value (fh-id fh))
+	   words)
+       (declare (type fixnum value words))
+       (ecase vers
+	 (2
+	  (setf words *fhsizewords2*))
+	 (3 
+	  (setf words *fhsizewords3*)
+	  (xdr-int xdr *fhsize3*)))
+       (dotimes (i words)
+	 (declare (type fixnum i))
+	 (xdr-unsigned-int xdr (logand value #xffffffff))
+	 (setf value (ash value -32)))))
+        
     (:extract
-     (let ((id (xdr-int xdr)))
-       (xdr-advance xdr (- *fhsize* 4))
+     (let ((id 0)
+	   (shift 0)
+	   words)
+       ;; Can't trust client not to fool with the file handle
+       ;; so can't declare this.
+       ;;(declare (type fixnum id))   
+       (ecase vers
+	 (2
+	  (setf words *fhsizewords2*))
+	 (3 
+	  (setf words (/ (xdr-unsigned-int xdr) 4))
+	  ;; sanity check.
+	  (if (/= words *fhsizewords3*)
+	      (error "xdr-fhandle: Invalid file handle size (~D words)" words))))
+       (dotimes (i words)
+	 (declare (type fixnum words shift i))
+	 (setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
+	 (incf shift 32))
+       (if (not (fixnump id))
+	   (error "xdr-fhandle: Invalid id (non-fixnum) ~D" id))
        (without-interrupts
 	 (gethash id *fhandles*))))))
 
@@ -220,7 +256,3 @@
   (let ((fh (get-export-fhandle exp)))
     (invalidate-fhandles fh)
     (remhash (nfs-export-path exp) *export-roots*)))
-  
-  
-  
-  

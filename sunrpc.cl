@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.21 2004/02/19 22:33:10 dancy Exp $
+;; $Id: sunrpc.cl,v 1.22 2005/04/05 02:45:51 dancy Exp $
 
 (in-package :user)
 
@@ -56,21 +56,29 @@
 (defconstant *AUTH_TOOWEAK* 5)
 )
 
+;; enum auth_flavor
+(defconstant *AUTH_NULL* 0)
+(defconstant *AUTH_UNIX* 1)
+(defconstant *AUTH_SHORT* 2)
+(defconstant *AUTH_DES* 3)
+
 (defstruct rpc-peer
   type
   socket
   addr
   port)
 
+;; Use 64K since that's the maximum UDP packet size.
+(defconstant *rpc-buffer-size* (* 64 1024))
 
 (defstruct rpc-server
   tcpsock
   udpsock
   tcpclientlist
-  (buffer (make-array (* 1024 64) :element-type '(unsigned-byte 8))))
+  (buffer (make-array *rpc-buffer-size* :element-type '(unsigned-byte 8))))
 
 (defparameter *rpc-debug* nil)
-
+ 
 ;; returns an xdr
 (defun rpc-get-message (server)
   (symbol-macrolet ((clientlist (rpc-server-tcpclientlist server)))
@@ -186,7 +194,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 
 (defstruct rpc-msg 
   xid
-  mtype ;; CALL = 0, REPLY = 1
+  mtype ;; CALL = 0, REPLY = 1, nil = invalid type found
   cbody ;; (for CALL)
   rbody ;; (for REPLY)
   )
@@ -197,12 +205,11 @@ Accepting new tcp connection and adding it to the client list.~%"))
          (mtype (xdr-int xdr)))
     (setf (rpc-msg-xid msg) xid)
     (setf (rpc-msg-mtype msg) mtype)
-    (ecase mtype
+    (case mtype
       (#.*CALL* 
        (setf (rpc-msg-cbody msg) (create-call-body-from-xdr xdr)))
       (#.*REPLY*
        (setf (rpc-msg-rbody msg) (create-reply-body-from-xdr xdr))))
-
     msg))
 
 (defstruct call-body
@@ -325,39 +332,18 @@ Accepting new tcp connection and adding it to the client list.~%"))
   (ecase (rpc-peer-type peer)
     (:stream
      (let ((sizevec (make-array 1 :element-type '(unsigned-byte 32))))
-       (declare 
-	(dynamic-extent sizevec)
-	(type (simple-array (unsigned-byte 32) (*)) vec))
-       (set-uint-in-array (logior #x80000000 (xdr-size xdr)) sizevec 0)
-       (ignore-errors
-	(write-vector sizevec (rpc-peer-socket peer))
-	(write-vector (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
-		      :end (xdr-size xdr))
-	(force-output (rpc-peer-socket peer)))))
-    (:datagram
-     (ignore-errors (socket:send-to (rpc-peer-socket peer) 
-				    (xdr-get-complete-vec xdr) 
-				    (xdr-size xdr) 
-				    :remote-host (rpc-peer-addr peer)
-				    :remote-port (rpc-peer-port peer))))))
-
-#+ignore
-(defun rpc-send (xdr peer)
-  (ecase (rpc-peer-type peer)
-    (:stream
-     (let ((sizevec (make-array 1 :element-type '(signed-byte 32))))
-       (declare 
-	(dynamic-extent sizevec)
-	(type (simple-array (signed-byte 32) (*)) vec))
+       (declare (dynamic-extent sizevec)
+		(type xdr xdr))
        (setf (aref sizevec 0) (logior #x80000000 (xdr-size xdr)))
        (ignore-errors
-	(write-vector sizevec (rpc-peer-socket peer) :endian-swap :network-order)
-	(write-vector (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
+	(write-vector sizevec (rpc-peer-socket peer) 
+		      :endian-swap :network-order)
+	(write-vector (xdr-vec xdr) (rpc-peer-socket peer)
 		      :end (xdr-size xdr))
 	(force-output (rpc-peer-socket peer)))))
     (:datagram
      (ignore-errors (socket:send-to (rpc-peer-socket peer) 
-				    (xdr-get-complete-vec xdr) 
+				    (xdr-vec xdr) 
 				    (xdr-size xdr) 
 				    :remote-host (rpc-peer-addr peer)
 				    :remote-port (rpc-peer-port peer))))))
@@ -382,11 +368,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 (defun send-successful-reply (peer xid verf results)
   (send-accepted-reply peer xid verf 0 results))
 
-
-
 (defmacro with-successful-reply ((xdr-name peer xid verf) &body body)
   (let ((xdrbuf (gensym)))
-    `(let* ((,xdrbuf (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
+    `(let* ((,xdrbuf (make-array *rpc-buffer-size* 
+				 :element-type '(unsigned-byte 8)))
 	    (,xdr-name (create-xdr :direction :build :vec ,xdrbuf)))
        (declare 
 	(dynamic-extent ,xdrbuf))
@@ -458,7 +443,8 @@ Accepting new tcp connection and adding it to the client list.~%"))
 ;; returns xdr
 (defun rpc-get-reply (peer &key buffer)
   (when (null buffer)
-    (setf buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8))))
+    (setf buffer (make-array *rpc-buffer-size* 
+			     :element-type '(unsigned-byte 8))))
   
   (create-rpc-msg
    (ecase (rpc-peer-type peer)

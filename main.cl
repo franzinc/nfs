@@ -24,6 +24,15 @@
   #+(version>= 7) (console-control :close :hide)
   (loop (sleep most-positive-fixnum)))      
 
+(defun debugmain ()
+  (setf *configfile* "nfs.cfg")
+  (read-nfs-cfg *configfile*)
+  (setf *mountd-debug* t)
+  (setf *nfs-debug* t)
+  (setf *portmap-debug* t)
+  ;;(setf *rpc-debug* t)
+  (startem))
+
 (defun main (&rest args)
   (let ((exepath (if (first args) (first args) "nfs.exe"))
 	(*global-gc-behavior* nil)

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.18 2004/11/02 23:17:19 layer Exp $
+;; $Id: portmap.cl,v 1.19 2005/04/05 02:45:51 dancy Exp $
 
 ;; portmapper
 
@@ -307,23 +307,28 @@
 	    nil nil :port *pmapport*)))
 
 
+;; vers may be a list
 (defmacro with-portmapper-mapping ((prog vers port proto) &body body)
   (let ((progsym (gensym))
 	(verssym (gensym))
 	(portsym (gensym))
-	(protosym (gensym)))
+	(protosym (gensym))
+	(v (gensym)))
     `(let ((,progsym ,prog)
 	   (,verssym ,vers)
 	   (,portsym ,port)
 	   (,protosym ,proto))
+       (if (not (listp ,verssym))
+	   (setf ,verssym (list ,verssym)))
        ;; clean up.  Important when using system portmapper.
        ;; however,  this could affect existing servers.  
        ;; XXXXX --- unsafe
-       (ignore-errors
-	(portmap-remove-program ,progsym ,verssym ,portsym ,protosym))
-       (portmap-add-program ,progsym ,verssym ,portsym ,protosym)
+       (dolist (,v ,verssym)
+	 (ignore-errors
+	  (portmap-remove-program ,progsym ,v ,portsym ,protosym))
+	 (portmap-add-program ,progsym ,v ,portsym ,protosym))
        (unwind-protect
 	   (progn
 	     ,@body)
-	 (portmap-remove-program ,progsym ,verssym ,portsym ,protosym)))))
-
+	 (dolist (,v ,verssym)
+	   (portmap-remove-program ,progsym ,v ,portsym ,protosym))))))

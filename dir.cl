@@ -10,11 +10,15 @@
 (defparameter *nfs-dircache* (make-hash-table :test #'equalp))
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
+;; This can be much lower for nfsv3.  Like 1 or 2 seconds.
 (defparameter *nfs-dircachereaptime* 10)
 
 (defstruct dircache 
   entries
-  lastaccess)
+  lastaccess
+  id)
+
+(defparameter *nfs-dircache-id* 0)
 
 ;; Returns a list of basenames.
 (defun augmented-directory (dir)
@@ -31,7 +35,8 @@
   (mp:with-process-lock (*nfs-dircachelock*)
     (let ((dc (gethash dir *nfs-dircache*)))
       (when (null dc)
-	(setf dc (make-dircache :entries (augmented-directory dir)))
+	(setf dc (make-dircache :entries (augmented-directory dir)
+				:id (incf *nfs-dircache-id*)))
 	(setf (gethash dir *nfs-dircache*) dc))
       (setf (dircache-lastaccess dc) (get-universal-time))
       (values (dircache-entries dc) dc))))
