@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.18 2001/07/04 20:55:27 dancy Exp $
+;;; $Id: nfs.cl,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
 (in-package :user)
 
@@ -396,8 +396,12 @@
   (let ((p (with-xdr-xdr (params) (xdr-fhandle-to-pathname params))))
     (if *nfsdebug*
 	(format t "nfsd-statfs(~A)~%" p))
-    (send-successful-reply peer xid (nfsd-null-verf) 
-     (make-statfsres 0 (make-fsinfo-xdr p)))))
+    (if (null p)
+	(let ((xdr (create-xdr :direction :build)))
+	  (xdr-int xdr NFSERR_STALE)
+	  (send-successful-reply peer xid (nfsd-null-verf) xdr))
+      (send-successful-reply peer xid (nfsd-null-verf) 
+			     (make-statfsres 0 (make-fsinfo-xdr p))))))
 
 (defun canonicalize-dir (dir)
   (setf dir (namestring dir))

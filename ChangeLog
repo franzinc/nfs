@@ -1,3 +1,7 @@
+2001-07-11    <dancy@SUCK>
+
+	* nfs.cl (nfsd-statfs):  Added check for stale file handle.
+
 2001-07-04    <dancy@DANCYSOFT>
 
 	* fhandle.cl: Added function swap-fhandles which is used by the
@@ -172,11 +176,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -187,15 +191,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.18 2001/07/04 20:55:27 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.19 2001/07/11 20:34:30 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
