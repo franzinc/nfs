@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.5 2002/07/24 19:25:25 layer Exp $
-# This makefile assumes that cygwin has been installed.
+# $Id: Makefile,v 1.6 2002/09/20 22:06:36 layer Exp $
+# This makefile assumes that cygwin has been installed (ie, it assumes
+# GNU make).
 
 LISPEXE = "/c/Program Files/acl62/mlisp"
-LISPDXL = mlisp
 
 default: compile
 
@@ -13,16 +13,28 @@ compile: FORCE
 	@echo '(load "loadem.cl")' >> b.tmp
 	@echo '(buildit)' >> b.tmp
 	@echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +s b.tmp -I $(LISPDXL)
+	$(LISPEXE) +s b.tmp
+	@rm -f b.tmp
 
-### used on UNIX:
-zip: FORCE
-	rm -f nfs.zip
-	zip nfs.zip *.cl ChangeLog nfs.cfg.sample *.txt
+version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
+source_files = *.cl ChangeLog nfs.cfg.sample *.txt
+
+dist: FORCE
+	rm -f nfs-$(version).zip
+	rm -fr nfs-$(version)
+	cp -rp nfs nfs-$(version)
+	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version).zip nfs-$(version)
+	rm -f nfs-$(version)-src.zip
+	rm -fr mkdir nfs-$(version)-src
+	mkdir nfs-$(version)-src
+	cp -p $(source_files) nfs-$(version)-src
+	/c/winzip/wzzip.exe -ex -rP -yb nfs-$(version)-src.zip \
+		nfs-$(version)-src
 
 clean: FORCE
-	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs
+	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~
 
+# Assumes cygwin mounted c:\ on /c
 install: FORCE
 	rm -fr /c/nfs.old
 	-mv /c/nfs /c/nfs.old

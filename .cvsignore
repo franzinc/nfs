@@ -1,6 +1,7 @@
 *.fasl
 *.tmp
-nfs.cfg
-nfs.zip
-nfs
+*.zip
 autoloads.out
+nfs
+nfs-*
+nfs.cfg

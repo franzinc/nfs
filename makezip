@@ -1,4 +1,0 @@
-#!/bin/sh
-# $Id: makezip,v 1.4 2001/08/21 21:04:34 dancy Exp $
-rm -f nfs.zip
-zip nfs.zip *.cl ChangeLog nfs.cfg.sample *.txt

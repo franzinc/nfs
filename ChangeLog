@@ -5,6 +5,10 @@
 1.0.36 public release
 *******************************************************************************
 
+2002-09-20    <layer@HOBART>
+
+	* Makefile: add `dist' rule; remove `makezip'
+
 2002-09-20    <dancy@CANDY2K>
 1.0.36
 
