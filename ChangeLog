@@ -1,6 +1,10 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2004-01-20  Kevin Layer  <layer@gemini>
+
+	* binary-license.txt: updated
+
 2003-12-15    <dancy@CANDY2K>
 
 	* Makefile:  Added rules for making demo distributions.  
