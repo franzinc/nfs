@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: util.cl,v 1.9 2001/08/16 16:27:20 layer Exp $
+;; $Id: util.cl,v 1.10 2002/09/19 18:16:34 dancy Exp $
 
 (in-package :user)
 
@@ -127,21 +127,37 @@
    0))
 
 (defun truncate-file (filename size)
-  (let ((hFile (createfile filename))
-	res)
-    (if (= hFile win:INVALID_HANDLE_VALUE)
-	(return-from truncate-file (win:GetLastError)))
+  (if (probe-file filename)
+      (format t "truncate-file: ~S is there, according to probe-file~%"
+	      filename))
+  (let (hFile res err)
+    (without-interrupts
+      (setf hFile (createfile filename))
+      (setf err (win:GetLastError)))
+    (if* (= hFile win:INVALID_HANDLE_VALUE)
+       then
+	    (format t "truncate-file: Failed to open file ~A~%" filename)
+	    (return-from truncate-file err))
     
-    (if* (= (SetFilePointer hFile size 0 FILE_BEGIN)
-	    INVALID_SET_FILE_POINTER -1)
-       then (setf res (win:GetLastError))
+    (without-interrupts
+      (setf res (SetFilePointer hFile size 0 FILE_BEGIN))
+      (setf err (win:GetLastError)))
+    (if* (= res INVALID_SET_FILE_POINTER)
+       then 
 	    (win:CloseHandle hFile)
-	    (return-from truncate-file res))
-
-    (if* (= 0 (SetEndOfFile hFile))
-       then (setf res (win:GetLastError))
+	    (format t "truncate-file: SetFilePointer failed w/ err code ~D~%"
+		    err)
+	    (return-from truncate-file err))
+    
+    (without-interrupts
+      (setf res (SetEndOfFile hFile))
+      (setf err (win:GetLastError)))
+    (if* (= res 0)
+       then 
 	    (win:CloseHandle hFile)
-	    (return-from truncate-file res))
+	    (format t "truncate-file: SetEndofFile failed w/ err code ~D~%"
+		    err)
+	    (return-from truncate-file err))
     
     (win:CloseHandle hFile)			
     0))

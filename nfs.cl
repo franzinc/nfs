@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.38 2002/07/24 19:25:25 layer Exp $
+;; $Id: nfs.cl,v 1.39 2002/09/19 18:16:34 dancy Exp $
 
 ;; nfs
 
@@ -916,34 +916,44 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 
 (defun nfsd-setattr (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name xdr)
-  (let* ((p (xdr-fhandle-to-pathname xdr))
-	 (sattr (xdr-sattr-to-struct-sattr xdr)))
-    (if *nfsdebug*
-	(format t "nfsd-setattr(~A ~A)~%" p  sattr))
-    (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
-      (if* (not (nfs-okay-to-write (call-body-cred cbody)))
-	 then
-	      (format t "permission denied~%") 
-	      (xdr-int *nfsdxdr* NFSERR_ACCES)
-	 else
-	      (close-open-file p)
-	      (if (not (= (sattr-size sattr) #xffffffff))
-		  (progn
-		    (truncate-file (namestring p) (sattr-size sattr))
-		    (set-cached-file-size p (sattr-size sattr))
-		    (update-atime-and-mtime p)))
+    (let* ((p (xdr-fhandle-to-pathname xdr))
+	   (sattr (xdr-sattr-to-struct-sattr xdr))
+	   (err 0))
+      (if *nfsdebug*
+	  (format t "nfsd-setattr(~A ~A)~%" p  sattr))
+      (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
+	(if* (not (nfs-okay-to-write (call-body-cred cbody)))
+	   then
+		(format t "permission denied~%") 
+		(xdr-int *nfsdxdr* NFSERR_ACCES)
+	   else
+		(close-open-file p)
+		(if* (not (= (sattr-size sattr) #xffffffff))
+		   then
+			(setf err 
+			  (truncate-file (namestring p) (sattr-size sattr)))
+			(if* (= err 0)
+			   then
+				(set-cached-file-size p (sattr-size sattr))
+				(update-atime-and-mtime p)))
+
 	      ;;; atime and mtime mods should always come together.  We'll
 	      ;;; presume that here to simplify the code.
-	      (if (not (= (first (sattr-atime sattr)) #xffffffff))
-		  (progn
-		    (set-file-time p 
-				    (first (sattr-atime sattr))
-				    (first (sattr-mtime sattr)))
-		    (set-cached-file-atime p (first (sattr-atime sattr)))
-		    (set-cached-file-mtime p (first (sattr-mtime sattr)))))
+		(if* (and (= err 0)
+			  (not (= (first (sattr-atime sattr)) #xffffffff)))
+		   then
+			(set-file-time p 
+				       (first (sattr-atime sattr))
+				       (first (sattr-mtime sattr)))
+			(set-cached-file-atime p (first (sattr-atime sattr)))
+			(set-cached-file-mtime p (first (sattr-mtime sattr))))
 	      ;;; uid/gid/mode updates are ignored for now
-	      (xdr-int *nfsdxdr* NFS_OK)
-	      (update-fattr-from-pathname p *nfsdxdr*))))))
+		(if* (= err 0)
+		   then
+			(xdr-int *nfsdxdr* NFS_OK)
+			(update-fattr-from-pathname p *nfsdxdr*)
+		   else
+			(xdr-int *nfsdxdr* NFSERR_IO)))))))
 
 ;;; from:  fhandle dir, filename name
 ;;; to:    fhandle dir, filename name
