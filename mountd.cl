@@ -23,7 +23,7 @@
 ;;
 
 ;; mountd
-;; $Id: mountd.cl,v 1.10 2001/09/04 15:50:09 dancy Exp $
+;; $Id: mountd.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
 
 (in-package :user)
 
@@ -35,6 +35,8 @@
 
 (defparameter *mountd-tcp-socket* nil)
 (defparameter *mountd-udp-socket* nil)
+
+(defparameter *mountd-debug* nil)
 
 
 (defun make-mountdsockets ()
@@ -95,9 +97,8 @@
        (mountd-null peer (rpc-msg-xid msg)))
       (1
        (mountd-mount peer (rpc-msg-xid msg) cbody))
-       ;;; right now, we don't do anything special for umounts
       (3
-       (mountd-null peer (rpc-msg-xid msg)))
+       (mountd-umount peer (rpc-msg-xid msg) cbody))
       (4
        (mountd-null peer (rpc-msg-xid msg)))
       (5
@@ -113,9 +114,11 @@
     xdr))
 
 (defun mountd-null (peer xid)
-  (format t "mountd-null~%~%")
+  (if *mountd-debug* (format t "mountd-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (mountd-null-verf) xdr)))
+
+(defparameter *mounts* nil)
 
 ;; returns:
 ;; error code
@@ -124,7 +127,7 @@
 ;;  fhandle
 
 (defun mountd-mount (peer xid cbody)
-  (format t "mountd-mount~%")
+  (if *mountd-debug* (format t "mountd-mount~%"))
   (let ((oa (call-body-cred cbody))
         (dirpath (with-xdr-xdr ((call-body-params cbody) :name x)
 		   (xdr-string x)))
@@ -136,16 +139,36 @@
 	(rpc-send-auth-error-rejected-reply peer xid 2)))
     (setf au (xdr-opaque-auth-struct-to-auth-unix-struct oa))
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
-    (format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au))
+    (if *mountd-debug* 
+	(format t "mountd-mount ~A by ~A~%~%" dirpath (auth-unix-machinename au)))
     (setf rootpathname (locate-export dirpath))
     (with-successful-reply (res peer xid (mountd-null-verf))
-      (if rootpathname
-	  (progn
-	    (xdr-int res 0)
-	    (pathname-to-fhandle-with-xdr res rootpathname))
-	(xdr-int res 2))))) ;; No such file or directory
+      (if* rootpathname
+	 then
+	      (push (list (rpc-peer-addr peer) dirpath) *mounts*)
+	      (xdr-int res 0)
+	      (pathname-to-fhandle-with-xdr res rootpathname)
+	 else
+	      (xdr-int res 2))))) ;; No such file or directory
 
+(defun mountd-umount (peer xid cbody)
+  (let ((dirpath (with-xdr-xdr ((call-body-params cbody) :name x)
+		   (xdr-string x)))
+	(xdr (create-xdr :direction :build)))
+    (if *mountd-debug* (format t "mountd-umount(~A)~%" dirpath))
+    (setf *mounts* 
+      (remove (list (rpc-peer-addr peer) dirpath) 
+	      *mounts*
+	      :test #'equalp))
+    (send-successful-reply peer xid (mountd-null-verf) xdr)))
     
+(defun showmounts ()
+  (dolist (mnt *mounts*)
+    (format t "~A -> ~A~%"
+	    (socket:ipaddr-to-dotted (first mnt))
+	    (second mnt))))
+				     
+
 (defparameter *exports* nil)
   
 
@@ -157,7 +180,7 @@
       (pathname (second res)))))
 
 (defun mountd-export (peer xid)
-  (format t "mountd-export~%~%")
+  (if *mountd-debug* (format t "mountd-export~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (dolist (export *exports*)
       (xdr-int xdr 1) ;; indicate that data follows

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: util.cl,v 1.10 2002/09/19 18:16:34 dancy Exp $
+;; $Id: util.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
 
 (in-package :user)
 
@@ -117,19 +117,17 @@
 
 (defun createfile (filename)
   (setf filename (namestring filename))
-  (win:CreateFile 
-   filename 
-   win:GENERIC_WRITE 
-   0
-   0
-   win:OPEN_EXISTING
-   win:FILE_ATTRIBUTE_NORMAL
-   0))
+  (with-native-string (filename-native filename)
+    (win:CreateFile 
+     filename-native
+     win:GENERIC_WRITE 
+     0
+     0
+     win:OPEN_EXISTING
+     win:FILE_ATTRIBUTE_NORMAL
+     0)))
 
 (defun truncate-file (filename size)
-  (if (probe-file filename)
-      (format t "truncate-file: ~S is there, according to probe-file~%"
-	      filename))
   (let (hFile res err)
     (without-interrupts
       (setf hFile (createfile filename))

@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.39 2002/09/19 18:16:34 dancy Exp $
+;; $Id: nfs.cl,v 1.40 2002/09/19 20:21:32 dancy Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "1.0.34")
+(defvar *nfsd-version* "1.0.35")
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
@@ -164,13 +164,15 @@
     ;; sanity checks first
     (if* (not (= (call-body-prog cbody) *nfsprog*))
        then
-	    (format t "Sending program unavailable response for prog=~D~%"
-		    (call-body-prog cbody))
+	    (if *nfsdebug*
+		(format t "Sending program unavailable response for prog=~D~%"
+		    (call-body-prog cbody)))
 	    (rpc-send-prog-unavail peer (rpc-msg-xid msg) (nfsd-null-verf))
 	    (return-from nfsd-message-handler))
     (if* (not (= (call-body-vers cbody) *nfsvers*))
        then
-	    (write-line "Sending program version mismatch response")
+	    (if *nfsdebug*
+		(write-line "Sending program version mismatch response"))
 	    (rpc-send-prog-mismatch peer (rpc-msg-xid msg)
 				    (nfsd-null-verf) *nfsvers* *nfsvers*)
 	    (return-from nfsd-message-handler))
@@ -1066,6 +1068,8 @@ struct symlinkargs {
 		   };
 |#		  
 
+;; A lot of work just to ultimately say that the operation
+;; doesn't work.
 (defun nfsd-symlink (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name params)
     (let ((dir (xdr-fhandle-to-pathname params))
@@ -1078,8 +1082,9 @@ struct symlinkargs {
 		(xdr-int *nfsdxdr* NFSERR_STALE)
 	   else 
 		(let ((newpath (add-filename-to-dirname dir filename)))
-		  (format t "nfsd-symlink( ~A to ~A with attributes ~A~%"
-			  newpath to sattr)
+		  (if *nfsdebug*
+		      (format t "nfsd-symlink( ~A to ~A with attributes ~A~%"
+			      newpath to sattr))
 		  (if* (or (null newpath)
 			   (not (nfs-okay-to-write (call-body-cred cbody))))
 		     then

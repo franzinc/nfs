@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.15 2002/07/24 19:25:25 layer Exp $
+;; $Id: sunrpc.cl,v 1.16 2002/09/19 20:21:32 dancy Exp $
 
 (in-package :user)
 
@@ -42,6 +42,8 @@
 
 (defparameter *rpcgetmessagebuf*
     (make-array 65536 :element-type '(unsigned-byte 8)))
+
+(defparameter *debugrpc* nil)
 
 ;; returns an xdr
 (defun rpc-get-message (server)
@@ -64,7 +66,7 @@
 	    (case (stream-error-identifier c)
 	      (:connection-reset 
 	       (let ((stream (stream-error-stream c)))
-		 (format t "closing error socket ~S~%" stream)
+		 (if *debugrpc* (format t "closing error socket ~S~%" stream))
 		 (close stream)
 		 (setf clientlist (remove stream clientlist))
 		 nil))
@@ -74,8 +76,9 @@
 	;;(format t "readylist is ~A~%" readylist)
 	
 	(when (member tcpsock readylist)
-	  (format t "~
-Accepting new tcp connection and adding it to the client list.~%")
+	  (if *debugrpc* 
+	      (format t "~
+Accepting new tcp connection and adding it to the client list.~%"))
 	  (push (socket:accept-connection tcpsock) clientlist)
 	  (setf readylist (remove tcpsock readylist)))
 	
@@ -84,7 +87,8 @@ Accepting new tcp connection and adding it to the client list.~%")
 	      (handler-case (socket:receive-from udpsock 65536
 						 :buffer *rpcgetmessagebuf*)
 		(socket-error (c) 
-		  (format t "Ignoring error condition ~S~%" c)
+		  (if *debugrpc* 
+		      (format t "Ignoring error condition ~S~%" c))
 		  nil))
 	    (unless (null vec)
 	      (return-from rpc-get-message
@@ -98,13 +102,14 @@ Accepting new tcp connection and adding it to the client list.~%")
 	  (setf record (read-record s))
 	  (if (null record)
 	      (progn
-		(format t "Client ~s disconnected.~%" s)
+		(if *debugrpc* (format t "Client ~s disconnected.~%" s))
 		(close s)
 		(setf clientlist (remove s clientlist))
 		)
 	    (return-from rpc-get-message 
 	      (values (create-xdr :vec record)
-		      (make-rpc-peer :type :stream :socket s)
+		      (make-rpc-peer :type :stream :socket s
+				     :addr (socket:remote-host s))
 		      ))))))))
   
   
@@ -226,25 +231,26 @@ Accepting new tcp connection and adding it to the client list.~%")
   (let ((type (rpc-peer-type peer)))
     (cond
      ((eq type :stream)
-      (if *gather*
-	  (progn
-	    (let ((newxdr (create-xdr :direction :build
-				      :size (+ 4 (xdr-size xdr)))))
-	      (xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
-	      (xdr-xdr newxdr xdr) ;; slow
-	      (ignore-errors
-	       (write-sequence (xdr-get-complete-vec newxdr)
-			       (rpc-peer-socket peer)
-			       :end (xdr-size newxdr))
-	       (force-output (rpc-peer-socket peer)))))
-	(let ((sizexdr (create-xdr :direction :build :size 4)))
-	  (xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
-	  (ignore-errors
-	   (write-sequence (xdr-get-complete-vec sizexdr)
-			   (rpc-peer-socket peer))
-	   (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
-			   :end (xdr-size xdr))
-	   (force-output (rpc-peer-socket peer))))))
+      (if* *gather*
+	 then
+	      (let ((newxdr (create-xdr :direction :build
+					:size (+ 4 (xdr-size xdr)))))
+		(xdr-int newxdr (logior #x80000000 (xdr-size xdr)))
+		(xdr-xdr newxdr xdr) ;; slow
+		(ignore-errors
+		 (write-sequence (xdr-get-complete-vec newxdr)
+				 (rpc-peer-socket peer)
+				 :end (xdr-size newxdr))
+		 (force-output (rpc-peer-socket peer))))
+	 else
+	      (let ((sizexdr (create-xdr :direction :build :size 4)))
+		(xdr-int sizexdr (logior #x80000000 (xdr-size xdr)))
+		(ignore-errors
+		 (write-sequence (xdr-get-complete-vec sizexdr)
+				 (rpc-peer-socket peer))
+		 (write-sequence (xdr-get-complete-vec xdr) (rpc-peer-socket peer)
+				 :end (xdr-size xdr))
+		 (force-output (rpc-peer-socket peer))))))
      ((eq type :datagram)
       #-(version>= 6 1)
       (mp:wait-for-input-available (- 0 (socket::socket-fd

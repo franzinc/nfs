@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.10 2001/08/16 21:44:22 dancy Exp $
+;; $Id: portmap.cl,v 1.11 2002/09/19 20:21:32 dancy Exp $
 
 ;; portmapper
 
@@ -31,7 +31,6 @@
 (defconstant *pmapport* 111)
 (defconstant *pmapprog* 100000)
 (defconstant *pmapvers* 2)
-
 
 (defstruct mapping
   prog
@@ -45,6 +44,8 @@
 (defparameter *mappings* nil)
 (defparameter *pmap-tcp-socket* nil)
 (defparameter *pmap-udp-socket* nil)
+
+(defparameter *portmap-debug* nil)
 
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
@@ -83,7 +84,7 @@
   (let (msg cbody)
     (setf msg (create-rpc-msg xdr))
     (setf cbody (rpc-msg-cbody msg))
-    (write-line "")
+    (if *portmap-debug* (write-line ""))
     ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
@@ -109,13 +110,13 @@
     xdr))
 
 (defun portmap-null (peer xid)
-  (format t "portmap-null~%~%")
+  (if *portmap-debug* (format t "portmap-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
 
 (defun portmap-dump (peer xid)
-  (format t "portmap-dump~%~%")
+  (if *portmap-debug* (format t "portmap-dump~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (dolist (mapping *mappings*)
       (xdr-int xdr 1) ;; indicate that data follows
@@ -131,15 +132,17 @@
 	      (make-mapping-from-xdr params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
-    (format t "portmap-getport: ~A~%" m)
-    (if m2
-        (progn
-          (format t "Program found. Returning port ~D~%~%" 
-            (mapping-port m2))
-          (xdr-unsigned-int xdr (mapping-port m2)))
-      (progn
-        (format t "Program not found.  Returning 0~%~%")
-        (xdr-unsigned-int xdr 0)))
+    (if *portmap-debug* (format t "portmap-getport: ~A~%" m))
+    (if* m2
+       then
+	    (if *portmap-debug*
+		(format t "Program found. Returning port ~D~%~%" 
+			(mapping-port m2)))
+	    (xdr-unsigned-int xdr (mapping-port m2))
+       else
+	    (if *portmap-debug*
+		(format t "Program not found.  Returning 0~%~%"))
+	    (xdr-unsigned-int xdr 0))
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
 #|

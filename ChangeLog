@@ -1,6 +1,33 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2002-09-19    <dancy@CANDY2K>
+        * inc'd version.
+	
+	* mountd.cl: 
+	*  Added debugging control variable *mountd-debug* for mountd
+	operations.  And wrapped any debugging output w/ a test of this
+	variable.  
+	*  mountd now keeps track of mounts that are in use.  Added a
+	function (showmounts) which displays the list.  The list isn't
+	used for anything other than this.
+
+	* nfs.cl:
+	*  Made some output debugging-mode only.
+	*  nfs-setattr now checks the return status of (truncate-file).
+
+	* portmap.cl:
+	*  Added *portmap-debug* variable and wrapped some debugging
+	output w/ a test of this variable.
+
+	* sunrpc.cl:
+	*  Added *debugrpc* variable and wrapped some debugging output w/
+	a test of this variable.
+
+	* util.cl:
+	*   Fixed ascii/unicode string problem in createfile.  This was
+	preventing file truncation from working properly.
+	
 2002-07-24    <layer@HOBART>
 1.0.34
 
