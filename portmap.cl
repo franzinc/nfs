@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.13 2003/07/03 21:51:21 dancy Exp $
+;; $Id: portmap.cl,v 1.14 2004/02/03 19:28:39 dancy Exp $
 
 ;; portmapper
 
@@ -292,8 +292,13 @@
 	   (,verssym ,vers)
 	   (,portsym ,port)
 	   (,protosym ,proto))
+       ;; XXXX -- remove any existing mapping first..
+       ;; unsafe.. but helpful
+       (ignore-errors
+	(portmap-remove-program ,progsym ,verssym ,portsym ,protosym))
        (portmap-add-program ,progsym ,verssym ,portsym ,protosym)
        (unwind-protect
 	   (progn
 	     ,@body)
 	 (portmap-remove-program ,progsym ,verssym ,portsym ,protosym)))))
+

@@ -1,6 +1,12 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2004-02-03    <dancy@CANDY2K>
+
+	* mountd.cl: Don't care about authentication type in mountd.
+
+	* portmap.cl:  unset mappings before setting (questionable).
+	
 2004-01-20  Kevin Layer  <layer@gemini>
 
 	* binary-license.txt: updated
