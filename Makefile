@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.30 2004/02/19 23:16:31 dancy Exp $
+# $Id: Makefile,v 1.31 2004/02/20 23:14:28 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
-LISPDIR="/c/Program Files/acl62"
+LISPDIR=$(shell if test -d ../acl62; then echo ../acl62; else echo '"/c/Program Files/acl62"'; fi)
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
@@ -10,6 +10,8 @@ version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
 
 
 default: build
+
+all: clean dist demo-dist
 
 demo: build-demo
 
@@ -19,10 +21,11 @@ build-demo: build-prologue build-demo-cmd build-epilogue
 
 build-prologue:
 	rm -fr nfs
-	# Hack.. since the configure program shares some fasls
-	# with the nfs server.. but they're using incompatible
-	# lisps.
+# Hack.. since the configure program shares some fasls
+# with the nfs server.. but they're using incompatible
+# lisps.
 	rm -f *.fasl
+	rm -f b.tmp
 	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp
 	@echo '(load "loadem.cl")' >> b.tmp
 
@@ -34,7 +37,7 @@ build-demo-cmd:
 
 build-epilogue:
 	@echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +B +cn +s b.tmp
+	$(LISPEXE) +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 	#$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'

@@ -5,10 +5,10 @@
 (defpackage :common-graphics-user (:export) (:use :cl :excl :cg))
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "c:\\devel\\nfs\\xdr")
-                 (make-instance 'module :name "c:\\devel\\nfs\\sunrpc")
+  :modules (list (make-instance 'module :name "..\\xdr")
+                 (make-instance 'module :name "..\\sunrpc")
                  (make-instance 'module :name
-                                "c:\\devel\\nfs\\portmap")
+                                "..\\portmap")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
                  (make-instance 'module :name "ipaddr")

@@ -1,3 +1,10 @@
+2004-02-20    <layer@HOBART>
+
+	* Makefile: LISPDIR: check for ../acl62, the default to the
+	  Program Files location; -batch mode
+	* configure/Makefile: LISPDIR: default to ../../acl70pb
+	* configure/configure.lpr: make pathnames relative
+
 2004-02-19    <Ahmon Dancy@GOBY>
 
 	* Makefile (dists): added FORCE 
