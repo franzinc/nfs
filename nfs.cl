@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.14 2001/06/20 16:01:22 dancy Exp $
+;;; $Id: nfs.cl,v 1.15 2001/06/22 23:39:36 dancy Exp $
 
 (in-package :user)
 
@@ -792,11 +792,14 @@ struct readargs {
 	    (if (nfs-okay-to-write (call-body-cred cbody))
 		(progn
 		  (close-open-file newpath)
-		  (handler-case (delete-file newpath)
+		  (handler-case (excl::filesys-delete-file (namestring newpath))
 		    (file-error (c)
 		      (let ((errno (excl::file-error-errno c)))
 			(if (numberp errno)
 			    (cond
+			     ((= 2 errno)
+			      (format t "delete: no such file or directory~%")
+			      (xdr-int *nfsdxdr* NFSERR_NOENT))
 			     ((= 13 errno)
 			      (format t "delete: permission denied~%")
 			      (xdr-int *nfsdxdr* NFSERR_ACCES))
