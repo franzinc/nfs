@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.8 2005/01/31 20:48:45 layer Exp $
+; $Id: nfs.nsi,v 1.9 2005/03/09 17:42:23 layer Exp $
 
 ;SetCompressor bzip2
 SetCompressor lzma
@@ -351,6 +351,55 @@ SetCompressor lzma
 
 ;------------------------------------------------------------------------------
 
+; Author: Lilla (lilla@earthlink.net) 2003-06-13
+; function IsUserAdmin uses plugin \NSIS\PlusgIns\UserInfo.dll
+; This function is based upon code in \NSIS\Contrib\UserInfo\UserInfo.nsi
+; This function was tested under NSIS 2 beta 4 (latest CVS as of this writing).
+;
+; Usage:
+;   Call IsUserAdmin
+;   Pop $R0   ; at this point $R0 is "true" or "false"
+;
+Function IsUserAdmin
+Push $R0
+Push $R1
+Push $R2
+
+ClearErrors
+UserInfo::GetName
+IfErrors Win9x
+Pop $R1
+UserInfo::GetAccountType
+Pop $R2
+
+StrCmp $R2 "Admin" 0 Continue
+; Observation: I get here when running Win98SE. (Lilla)
+; The functions UserInfo.dll looks for are there on Win98 too, 
+; but just don't work. So UserInfo.dll, knowing that admin isn't required
+; on Win98, returns admin anyway. (per kichik)
+StrCpy $R0 "true"
+Goto Done
+
+Continue:
+; You should still check for an empty string because the functions
+; UserInfo.dll looks for may not be present on Windows 95. (per kichik)
+StrCmp $R2 "" Win9x
+StrCpy $R0 "false"
+Goto Done
+
+Win9x:
+; we don't work on win9x...
+StrCpy $R0 "false"
+
+Done:
+
+Pop $R2
+Pop $R1
+Exch $R0
+FunctionEnd
+
+;------------------------------------------------------------------------------
+
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
 !define VERBOSE_PROD "Allegro NFS Server for Windows"
 !define SHORT_PROD "Allegro NFS"
@@ -368,6 +417,26 @@ InstallDir "$PROGRAMFILES\${SHORT_PROD}"
 InstallDirRegKey HKLM "${REGKEY}" "Install_Dir"
 
 LicenseData binary-license.txt
+
+;--------------------------------
+
+Function .onInit
+  Call IsUserAdmin
+  Pop $R0   ; at this point $R0 is "true" or "false"
+  StrCmp $R0 "false" 0 IsAdmin
+     MessageBox MB_OK \
+        'You must be a member of the Administrators group to install.'
+     Abort
+ IsAdmin:
+
+  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "myMutex") i .r1 ?e'
+  Pop $R0
+ 
+  StrCmp $R0 0 +3
+    MessageBox MB_OK|MB_ICONEXCLAMATION "The installer is already running."
+    Abort
+
+FunctionEnd
 
 ;--------------------------------
 
@@ -478,6 +547,10 @@ SectionEnd
 ;--------------------------------
 
 ; Uninstaller
+
+Function un.onUninstSuccess
+    ExecShell "open" "http://nfsforwindows.com/uninstall"
+FunctionEnd
 
 Section Uninstall
 
