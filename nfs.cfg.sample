@@ -1,3 +1,5 @@
+;; Save this file as nfs.cfg after appropriate editing.
+
 (
  (*nfslocaluid* 1000) 
  (*nfslocalgid* 50)
