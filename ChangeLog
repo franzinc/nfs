@@ -16,8 +16,6 @@
 2002-09-20    <dancy@CANDY2K>
 1.0.36
 
-	* inc'd vrsion.
-
 	* fhandle.cl:  Added func remove-fhandle-by-pathname to remove
 	file handles for deleted files.
 
@@ -52,7 +50,7 @@
 	a test of this variable.
 
 	* util.cl:
-	*   Fixed ascii/unicode string problem in createfile.  This was
+	*  Fixed ascii/unicode string problem in createfile.  This was
 	preventing file truncation from working properly.
 	
 2002-07-24    <layer@HOBART>
