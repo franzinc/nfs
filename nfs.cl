@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.30 2001/08/16 21:44:22 dancy Exp $
+;; $Id: nfs.cl,v 1.31 2001/09/05 17:39:56 dancy Exp $
 
 ;; nfs
 
@@ -629,6 +629,8 @@ struct readargs {
 	  (if oldof
 	      (progn
 		(setf (openfile-lastaccess oldof) (get-universal-time))
+		(if (eq *nfsdebug* :verbose)
+		    (format t "returning cached open file ~S~%" oldof))
 		(openfile-stream oldof))
 	    (progn
 	      (setf (openfile-stream newof)
@@ -638,7 +640,8 @@ struct readargs {
 			:if-exists :overwrite)))
 	      (setf (openfile-lastaccess newof) (get-universal-time))
 	      (push newof *nfs-openfilelist*)
-	      ;;(format t "open file list has ~d entries now~%" (length *nfs-openfilelist*))
+	      (if (eq *nfsdebug* :verbose)
+		  (format t "cache miss.  opened file: ~S~%" newof))
 	      (openfile-stream newof)))))
     (file-error (c)
       (format t "get-open-file: condition: ~a" c) 
@@ -657,13 +660,15 @@ struct readargs {
 
 (defun close-open-file (p)
   (setf p (pathname p))
-  ;;(format t "close-open-file ~S~%" p)
+  (if (eq *nfsdebug* :verbose) 
+      (format t "close-open-file ~S~%" p))
   (mp:with-process-lock (*nfs-openfilelist-lock*)
     (let (of)
       (while (setf of (locate-open-file-any p))
 	     (setf (openfile-lastaccess of) 0)
-	     (format t "~
-close-open-file: Calling reap-open-files to effect a close~%")
+	     (if *nfsdebug*
+		 (format t "~
+close-open-file: Calling reap-open-files to effect a close~%"))
 	     (reap-open-files)))))
 	     
 
@@ -677,7 +682,9 @@ close-open-file: Calling reap-open-files to effect a close~%")
 	   else
 		(let* ((pathname (openfile-pathname of))
 		       (sb (lookup-statcache pathname)))
-		  ;;(format t "Closing ~S~%" (openfile-pathname of))
+		  (if *nfsdebug*
+		      (format t "reap-open-files Closing ~S~%" 
+			      (openfile-pathname of)))
 		  (close (openfile-stream of))
 		  (if (eq (openfile-direction of) :output)
 		      (set-file-time pathname
