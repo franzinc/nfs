@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.44 2003/03/13 17:35:43 dancy Exp $
+;; $Id: nfs.cl,v 1.45 2003/03/19 16:54:16 dancy Exp $
 
 ;; nfs
 
 (in-package :user)
 
-(defvar *nfsd-version* "1.1.2")
+(defvar *nfsd-version* "1.1.3")
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
@@ -77,9 +77,13 @@
 (defconstant NFSERR_WFLUSH 99)
 
 (defun map-errno-to-nfs-error-code (errno)
-  (cond
-   ((= errno 13) NFSERR_ACCES)
-   (t NFSERR_IO)))
+  (case errno
+    (2 NFSERR_NOENT)  ;; ENOENT
+    (5 NFSERR_IO)     ;; EIO
+    (13 NFSERR_ACCES) ;; EACCES
+    (22 NFSERR_ACCES) ;; ENFILE
+    (41 NFSERR_NOTEMPTY) ;; ENOTEMPTY
+    (t NFSERR_IO)))
     
     
 (defun make-nfsdsockets ()
@@ -669,7 +673,7 @@ struct readargs {
 	      (push newof *nfs-openfilelist*)
 	      (openfile-stream newof)))))
     (file-error (c)
-      (format t "get-open-file: condition: ~a" c) 
+      (format t "get-open-file: condition: ~a~%" c) 
       (values nil (excl::syscall-error-errno c)))))
 
 
@@ -722,6 +726,22 @@ close-open-file: Calling reap-open-files to effect a close~%"))
     (sleep *openfilereaptime*)
     (reap-open-files)))
 
+(defmacro with-nfs-err-handler ((xdr) &body body)
+  (let ((xdrsym (gensym))
+	(savepossym (gensym)))
+    `(let* ((,xdrsym ,xdr)
+	    (,savepossym (xdr-pos ,xdrsym)))
+       (handler-case (progn ,@body)
+	 (file-error (c)
+	   (setf (xdr-pos ,xdrsym) ,savepossym)
+	   (format t "Handling file error ~A~%" c)
+	   (xdr-int ,xdrsym (map-errno-to-nfs-error-code 
+			     (excl::syscall-error-errno c))))
+	 (t (c)
+	   (setf (xdr-pos ,xdrsym) ,savepossym)
+	   (format t "Handling unexpected error ~A~%" c)
+	   (xdr-int ,xdrsym NFSERR_IO))))))
+
 (defun nfsd-read (peer xid params)
   (with-xdr-xdr (params)
     (let* ((p (xdr-fhandle-to-pathname params))
@@ -732,24 +752,23 @@ close-open-file: Calling reap-open-files to effect a close~%"))
       (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf) :create nil)
 	(if (eq *nfsdebug* :verbose)
 	    (format t "nfsd-read(~A, offset=~D, count=~D)~%"  p offset count))
-	(if* (null p)
-	   then
-		(xdr-int *nfsdxdr* NFSERR_STALE)
-	   else
-		(multiple-value-bind (f errno)
-		    (get-open-file p :input)
-		  (if* (null f)
-		     then
-			  (xdr-int *nfsdxdr* 
-				   (map-errno-to-nfs-error-code errno))
-		     else
-			  (file-position f offset)
-			  (xdr-with-seek
-			   (*nfsdxdr* 72)
-			   (xdr-opaque-variable-from-stream *nfsdxdr* f count))
-			  (xdr-int *nfsdxdr* NFS_OK) 
-			  (update-stat-atime p)
-			  (update-fattr-from-pathname p *nfsdxdr*))))))))
+	(if (null p)
+	    (xdr-int *nfsdxdr* NFSERR_STALE)
+	  (with-nfs-err-handler (*nfsdxdr*)
+	    (multiple-value-bind (f errno)
+		(get-open-file p :input)
+	      (if* (null f)
+		 then
+		      (xdr-int *nfsdxdr* 
+			       (map-errno-to-nfs-error-code errno))
+		 else
+		      (file-position f offset)
+		      (xdr-with-seek
+		       (*nfsdxdr* 72)
+		       (xdr-opaque-variable-from-stream *nfsdxdr* f count))
+		      (xdr-int *nfsdxdr* NFS_OK) 
+		      (update-stat-atime p)
+		      (update-fattr-from-pathname p *nfsdxdr*)))))))))
 
 ;;; args:  fhandle dir, filename, sattr
 ;;; returns: status
@@ -777,7 +796,7 @@ close-open-file: Calling reap-open-files to effect a close~%"))
 		(let ((f (handler-case (open newpath :direction :output)
 			   (file-error (c)
 			     (cond 
-			      ((= (excl::syscall-error-errno c) 22)
+			      ((= (excl::syscall-error-errno c) 22) ;; ENFILE
 			       (xdr-int *nfsdxdr* NFSERR_ACCES)
 			       :err)
 			      (t (error c)))))))

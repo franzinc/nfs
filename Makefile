@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 2003/01/23 05:08:20 layer Exp $
+# $Id: Makefile,v 1.11 2003/03/19 16:54:16 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -34,7 +34,7 @@ dist: FORCE
 	cp -p nfs.cfg.sample nfs-$(version)
 	cp -p readme.txt nfs-$(version)
 	cp -p binary-license.txt nfs-$(version)
-	/c/winzip/wzzip.exe -ex -rP -yb $(binzip) nfs-$(version)
+	zip -r $(binzip) nfs-$(version)
 	rm -fr nfs-$(version)
 ### make source dist:
 	rm -f $(srczip)
@@ -43,7 +43,7 @@ dist: FORCE
 	cp -p $(nfs_source_files) nfs-$(version)-src
 	mkdir nfs-$(version)-src/ntservice
 	cp -p $(ntservice_source_files) nfs-$(version)-src/ntservice
-	/c/winzip/wzzip.exe -ex -rP -yb $(srczip) nfs-$(version)-src
+	zip -r $(srczip) nfs-$(version)-src
 	rm -fr nfs-$(version)-src
 
 clean: FORCE

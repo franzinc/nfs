@@ -1,6 +1,22 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-03-19    <dancy@DANCYSOFT>
+
+	* nfs.cl: Bumped versino to 1.1.3.
+
+	Added additional mappings to map-errno-to-nfs-error-code.
+
+	Added ~% to format string in get-open-file.
+
+	Added a with-nfs-err-handler macro to use as a generic error
+	handler around general operations.  Right now, it is only used for
+	nfsd-read.
+
+	Changed nfsd-read to use new with-nfs-err-handler.
+
+	* Makefile:  Updated to use cygwin zip.
+	
 2003-03-13  Ahmon Dancy  <dancy@dancy>
 
 	* util.cl: Fixed up the remaining foreign calls for case mode
