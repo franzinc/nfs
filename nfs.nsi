@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.5 2004/11/02 23:17:19 layer Exp $
+; $Id: nfs.nsi,v 1.6 2005/01/26 21:22:31 layer Exp $
 
 SetCompressor bzip2
 
@@ -390,10 +390,42 @@ Section "${VERBOSE_PROD}"
   ; Set output path to the installation directory.
   SetOutPath "$INSTDIR"
 
-  IfFileExists "$INSTDIR\nfs.exe" 0 +3
-      ExecWait '"$INSTDIR\nfs.exe" /stop /remove /quiet'
-      Sleep 3000 ;; allow time for Windows to let go
+;;;;;;; if the service is running, stop it
+  Push "running"
+  Push "nfs"
+  Push ""
+  Call Service
+  Pop $0 ;response
+  StrCmp $0 "true" 0 ServiceNotRunning
+     DetailPrint "Stopping NFS service..."
+     Push "stop"
+     Push "nfs"
+     Push ""
+     Call Service
+     Pop $0 ;response
+     MessageBox MB_OK "stop return value $0"
 
+ServiceNotRunning:
+
+;;;;;;; if the service is installed, delete it
+  Push "installed"
+  Push "nfs"
+  Push ""
+  Call Service
+  Pop $0 ;response
+  StrCmp $0 "true" 0 ServiceNotInstalled
+     DetailPrint "Deleting NFS service..."
+     Push "delete"
+     Push "nfs"
+     Push ""
+     Call Service
+     Pop $0 ;response
+     MessageBox MB_OK "delete return value $0"
+     Sleep 3000 ;; allow time for Windows to let go
+
+ServiceNotInstalled:
+
+;;;;;;; now install the files...
 
   File /r "nfs\*"
   File "binary-license.txt"
@@ -435,7 +467,9 @@ Section "Start Menu Shortcuts"
 SectionEnd
 
 Section "Install as a service"
-  ExecWait '"$INSTDIR\nfs.exe" /stop /remove /install /start /quiet'
+; don't need to give /stop /remove, since the service, if it was running
+; was already stopped and deleted above.
+  ExecWait '"$INSTDIR\nfs.exe" /install /start /quiet'
 SectionEnd
 
 Section "Run configuration program after install"
@@ -448,9 +482,9 @@ SectionEnd
 
 Section Uninstall
 
-;;; Don't execute "nfs.exe /stop /remove" to stop and remove services
-;;; because they might be running the demo version and it might be
-;;; expired!
+; Don't use "nfs.exe /stop /remove" to stop and remove services
+; because they might be running the demo version and it might be
+; expired.
 
   DetailPrint "Stopping NFS service..."
   Push "stop"

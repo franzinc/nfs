@@ -822,17 +822,17 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
       (setf (available widget) nil))
   t) ; Accept the new value
 
-
+(eval-when (eval load) (require :pprint))
 
 (defun write-config-file (filename)
   (setf filename (namestring filename))
-  (let ((tmpname (concatenate 'string filename ".new"))
-        (*print-pretty* t))
-    (with-open-file (f tmpname
-                       :direction :output
-                       :if-does-not-exist :create
-                       :if-exists :supersede)
-      (pprint (generate-config-expression) f))
+  (let ((tmpname (concatenate 'string filename ".new")))
+    (with-open-file (f tmpname :direction :output
+		     :if-does-not-exist :create
+		     :if-exists :supersede)
+      (let ((*print-right-margin* 55)
+	    (*print-pretty* nil))
+	(pprint (generate-config-expression) f)))
     (delete-file filename)
     (rename-file tmpname filename)))
 
