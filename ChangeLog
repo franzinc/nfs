@@ -1,6 +1,11 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+2003-12-03    <dancy@DANCYSOFT>
+
+	* nfs.cl: Fixed
+	dircache-out-of-date-after-creating-file-in-empty-directory bug.
+	
 2003-12-03    <layer@HOBART>
 
 	* Makefile: +B +cn args to lisp so it doesn't take the focus away

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.50 2003/12/03 21:03:44 dancy Exp $
+;; $Id: nfs.cl,v 1.51 2003/12/03 22:41:25 dancy Exp $
 
 ;; nfs
 
@@ -446,7 +446,8 @@
 	    (update-stat-atime p)))))))
 
 
-;; entries look like (dirlist . atime)
+;; entries look like (dirlist . atime).
+;; keys are strings, not pathnames.
 (defparameter *nfs-dircache* (make-hash-table :test #'equalp))
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
@@ -484,6 +485,7 @@
 (defun nfs-lookup-dir (dir)
   (mp:with-process-lock (*nfs-dircachelock*)
     (setf dir (canonicalize-dir dir))
+    ;; dir is now a string.
     (let ((dc (if* (= 0 *nfs-dircachereaptime*) 
 		 then
 		      (reap-dircache) ;; so it doesn't grow forever
@@ -511,8 +513,10 @@
 	      (setf (nth pos dirlist) file)))))))
 
 (defun set-nfs-dircache (file dir)
+  (setf dir (canonicalize-dir dir))
   (let ((dc (cons (list file) (get-universal-time))))
     (setf (gethash dir *nfs-dircache*) dc)))
+
 
 (defun nfs-remove-file-from-dircache (file dir)
   (mp:with-process-lock (*nfs-dircachelock*)
