@@ -14,7 +14,7 @@ clients.  Exports have several important parameters:
    not a requirement.
 
  * path: This is the local directory that will be shared by the
-   export.
+   export.  It can also be a UNC share (e.g., \\host\share).
 
  * uid: All files will appear to be owned by this user id.  NFS
    clients accessing with this user id will have read/write permission
@@ -136,9 +136,14 @@ IP addresses can be specified in several ways:
     output will be generated in the console window.  Be careful!
     Turning on NFS protocol debugging can generate lots of output.
 
+  * Use system portmapper: Possible values are auto, yes and no,
+    meaning auto-detect and use another running portmapper, always use
+    the system portmapper and always use the Allegro portmapper,
+    respectively.
+
 ----------------------------------------------------------------------------
 
-* Notes *
+* Misc *
 
 Exports should always grant at least read access to user id 0 (root)
 so that the root user on remote systems can successfully mount the
