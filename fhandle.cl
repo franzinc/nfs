@@ -1,8 +1,11 @@
 ;; file handle stuff
 
-;; $Id: fhandle.cl,v 1.4 2001/05/23 15:59:02 layer Exp $
+;; $Id: fhandle.cl,v 1.5 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
+
+(eval-when (compile)
+  (declaim (optimize (speed 3) (safety 1))))
 
 (defconstant *fhsize* 32)
 
@@ -40,10 +43,16 @@
 
 (defun pathname-to-fhandle (p)
   (let ((id (pathname-to-fhandle-id p))
-        (xdr (create-xdr :direction :build)))
+        (xdr (create-xdr :direction :build :size 32)))
     (dotimes (i (/ *fhsize* 4))
       (xdr-unsigned-int xdr id))
     (values (xdr-get-vec xdr) id xdr)))
+
+(defun pathname-to-fhandle-with-xdr (xdr p)
+  (let ((id (pathname-to-fhandle-id p)))
+    (dotimes (i (/ *fhsize* 4))
+      (xdr-unsigned-int xdr id))
+    id))
 
 
 (defun fhandle-id-to-pathname (id)
@@ -61,4 +70,11 @@
 (defun dump-fhandles ()
   (maphash #'(lambda (x y) (format t "~S -> ~S~%" x y))
 	   *fhandles*))
+
+;;; most of the time...  I want to take an xdr and get an pathname
+;;; out of it
+(defun xdr-fhandle-to-pathname (xdr)
+  (let ((id (xdr-int xdr)))
+    (xdr-advance xdr (- *fhsize* 4))
+    (values (fhandle-id-to-pathname id) id)))
 

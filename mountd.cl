@@ -1,5 +1,5 @@
 ;; mountd
-;; $Id: mountd.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
+;; $Id: mountd.cl,v 1.4 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
 
@@ -80,13 +80,14 @@
 (defun mountd-mount (peer xid cbody)
   (format t "mountd-mount~%")
   (let ((oa (call-body-cred cbody))
-        (dirpath (xdr-string (call-body-params cbody)))
+        (dirpath (with-xdr-xdr ((call-body-params cbody) :name x)
+		   (xdr-string x)))
         au
         rootpathname
         )
     (unless (= (opaque-auth-flavor oa) 1)
       (return-from mountd-mount (rpc-send-auth-error-rejected-reply peer xid 2)))
-    (setf au (xdr-auth-unix (opaque-auth-body oa)))
+    (setf au (xdr-opaque-auth-struct-to-auth-unix-struct oa))
     ;;(format t "Trying to mount w/ credetials: ~S~%" au)
     (format t "mountd-mount ~A by ~A~%" dirpath (auth-unix-machinename au))
     (setf rootpathname (locate-export dirpath))

@@ -1,27 +1,77 @@
-;; $Id: xdr.cl,v 1.6 2001/05/24 01:03:34 dancy Exp $
+;; $Id: xdr.cl,v 1.7 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
 
-(declaim (optimize (speed 3)))
+(eval-when (compile)
+  (declaim (optimize (speed 3) (safety 1))))
 
 (defstruct xdr
-  vec
-  size
+  (vec :type '(simple-array (unsigned-byte 8) (*)))
+  (size :type fixnum)			; build: maximum offset in vec (not necessarily the length of the vec)
   direction
-  pos 
-  )
+  (pos :type fixnum)) ;; current position in vec (extracting and building)
 
-(defparameter *xdrdefaultsize* 10000)
+(defparameter *xdrdefaultsize* 256)
 
 (eval-when (compile eval load)
-  (defmacro xdr-with-seek ((xdr pos) &body body)
+  (defmacro xdr-with-seek ((xdr pos &key absolute) &body body)
+    (let ((oldpos (gensym))
+	  (res (gensym)))
+      `(let ((,oldpos (xdr-pos ,xdr))
+	     ,res)
+	 (if ,absolute 
+	     (setf (xdr-pos ,xdr) ,pos)
+	   (incf (xdr-pos ,xdr) ,pos))
+	 (setf ,res (multiple-value-list (progn ,@body)))
+	 (setf (xdr-pos ,xdr) ,oldpos)
+	 (values-list ,res)
+	 ))))
+
+(eval-when (compile eval load)
+  (defmacro xdr-compute-bytes-added ((xdr) &body body)
     (let ((oldpos (gensym)))
       `(let ((,oldpos (xdr-pos ,xdr)))
-	 (incf (xdr-pos ,xdr) ,pos)
 	 ,@body
-	 (setf (xdr-pos ,xdr) ,oldpos)))))
+	 (- (xdr-pos ,xdr) ,oldpos)))))
 
-(defun create-xdr (&key (direction :extract) vec (size *xdrdefaultsize*))
+(eval-when (compile eval load)
+  (defmacro with-xdr-xdr ((pair &key name) &body body)
+    (let ((thexdr (gensym))
+	  (offset (gensym))
+	  (pairval (gensym)))
+      (if (null name)
+	  (setf name pair))
+      `(let* ((,pairval ,pair)
+	      (,thexdr (car ,pairval))
+	      (,offset (cdr ,pairval))
+	      (,name ,thexdr))
+	 ;;(format t "seeking to offset ~D~%" ,offset)
+	 (xdr-with-seek (,thexdr ,offset :absolute t)
+			;;(format t "offset is currently ~D~%" (xdr-pos ,thexdr))
+			 ,@body)))))
+
+;; used during extraction
+(defmacro xdr-advance (xdr size)
+  (let ((sizeval (gensym)))
+  `(let ((,sizeval ,size))
+     (incf (the fixnum (xdr-pos ,xdr)) (the fixnum ,sizeval)))))
+
+;; used during building... bumps the max size (xdr-size) value if 
+;; necessary
+(defmacro xdr-update-pos (xdr amount)
+  `(progn
+     (incf (the fixnum (xdr-pos ,xdr)) (the fixnum ,amount))
+     (if (> (the fixnum (xdr-pos ,xdr)) (the fixnum (xdr-size ,xdr)))
+	 (setf (the fixnum (xdr-size ,xdr)) (the fixnum (xdr-pos ,xdr))))))
+
+;; used during building.  This will not work correctly if used within
+;; a xdr-with-seek
+(defmacro xdr-backspace (xdr size)
+  `(progn
+     (decf (the fixnum (xdr-pos ,xdr)) (the fixnum ,size))
+     (decf (the fixnum (xdr-size ,xdr)) (the fixnum ,size))))
+
+(defun create-xdr (&key (direction :extract) vec size)
   (let ((xdr (make-xdr)))
     (setf (xdr-direction xdr) direction)
     (cond 
@@ -30,15 +80,23 @@
         (error "create-xdr: 'vec' parameter must be specified and must be a vector"))
       (setf (xdr-pos xdr) 0)
       (setf (xdr-vec xdr) vec)
-      (setf (xdr-size xdr) (length vec)))
+      (unless size
+	(setf size (length vec)))
+      (setf (xdr-size xdr) size))
      ((eq direction :build)
-      (setf (xdr-vec xdr) (make-vec size :init 0))
+      (unless size 
+	(setf size *xdrdefaultsize*))
+      (setf (xdr-vec xdr) (make-vec size 0))
       (setf (xdr-size xdr) 0)
       (setf (xdr-pos xdr) 0)
       )
      (t 
       (error "create-xdr: Unknown direction: ~A~%" direction)))
     xdr))
+
+(defun xdr-flush (xdr)
+  (setf (xdr-size xdr) 0)
+  (setf (xdr-pos xdr) 0))
 
 (defun xdr-get-vec (xdr)
   (subseq (xdr-vec xdr) 0 (xdr-size xdr)))
@@ -52,37 +110,41 @@
 	(format t "expanding xdr~%")
 	(setf (xdr-vec xdr) (concatenate '(vector (unsigned-byte 8)) (xdr-vec xdr) (make-vec (max *xdrdefaultsize* more)))))))
 
-(defun xdr-advance (xdr size)
-  (decf (xdr-size xdr) size)
-  (incf (xdr-pos xdr) size))
 
-(defun xdr-update-pos (xdr amount)
-  (incf (xdr-pos xdr) amount)
-  (if (> (xdr-pos xdr) (xdr-size xdr))
-      (setf (xdr-size xdr) (xdr-pos xdr))))
+
+(defun extract-uint-from-array (array offset)
+  (declare (type (simple-array (unsigned-byte 8) (*)) array)
+	   (type (mod 65563) offset))
+  (+ (aref array (+ offset 3))
+     (ash (aref array (+ offset 2)) 8)
+     (ash (aref array (+ offset 1)) 16)
+     (ash (aref array offset) 24)))
+
+(defun set-uint-in-array (uint array offset)
+  (declare (type (simple-array (unsigned-byte 8) (*)) array)
+	   (type (mod 65563) offset)
+	   (type (unsigned-byte 32) uint))
+  (setf (aref array offset) (ash uint -24))
+  (let ((uintfixnum (logand uint #x00ffffff)))
+    (declare (type fixnum uintfixnum))
+    (setf (aref array (+ offset 1)) (logand #xff (ash uintfixnum -16)))
+    (setf (aref array (+ offset 2)) (logand #xff (ash uintfixnum -8)))
+    (setf (aref array (+ offset 3)) (logand #xff uintfixnum))))
+  
 
 (defun xdr-unsigned-int (xdr &optional int)
-  (let ((direction (xdr-direction xdr)))
+  (declare (type (unsigned-byte 32) int))
+  (let ((direction (xdr-direction xdr))
+	res)
     (cond
      ((eq direction :extract)
-      (unless (>= (xdr-size xdr) 4)
-        (error "xdr-unsigned-int: No data left in this xdr!"))
-      (let ((res 0)
-            (shift 24))
-        (dotimes (i 4)
-          (incf res (ash (aref (xdr-vec xdr) (+ i (xdr-pos xdr))) shift))
-          (decf shift 8))
-	(xdr-advance xdr 4)
-        res))
+      (setf res (extract-uint-from-array (xdr-vec xdr) (xdr-pos xdr)))
+      (xdr-advance xdr 4)
+      res)
      ((eq direction :build)
       (xdr-expand-check xdr 4)
-      (let ((shifts -24)
-            (mask #xff000000))
-        (dotimes (i 4)
-          (setf (aref (xdr-vec xdr) (+ (xdr-pos xdr) i)) (ash (logand int mask) shifts))
-          (incf shifts 8)
-          (setf mask (ash mask -8)))
-	(xdr-update-pos xdr 4))))))
+      (set-uint-in-array int (xdr-vec xdr) (xdr-pos xdr))
+      (xdr-update-pos xdr 4)))))
 
 
 (defun xdr-int (xdr &optional int)
@@ -97,6 +159,7 @@
      ((eq direction :build)
       (xdr-unsigned-int xdr int)))))
 
+;; returns a vector
 (defun xdr-opaque-fixed (xdr &key vec len)
   (let ((direction (xdr-direction xdr))
         newvec
@@ -105,8 +168,6 @@
      ((eq direction :extract)
       (unless len
         (error "xdr-opaque-fixed: 'len' parameter is required"))
-      (if (> len (xdr-size xdr))
-          (error "xdr-opaque-fixed: Not enough data left!"))
       (setf newvec
 	(subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len)))
       (xdr-advance xdr (compute-padded-len len))
@@ -129,8 +190,6 @@
     (cond
      ((eq direction :extract)
       (setf len (xdr-int xdr))
-      (if (> len (xdr-size xdr))
-          (error "xdr-opaque-variable: Not enough data left!"))
       (xdr-opaque-fixed xdr :len len))
      ((eq direction :build)
       (unless vec
@@ -189,17 +248,22 @@
 ;; 3
 
 (defstruct opaque-auth
-  flavor ;; int
-  body) ;; variable up to 400 bytes  (xdr)
+  (flavor :type fixnum) ;; int
+  body-xdr
+  (body-offset :type fixnum))
 
 (defun xdr-opaque-auth (xdr &optional flavor body)
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
       (let ((oa (make-opaque-auth)))
+	;;(format t "xdr-opaque-auth:  current xdr pos is ~D~%" (xdr-pos xdr))
         (setf (opaque-auth-flavor oa) (xdr-int xdr))
-        ;;(format t "xdr-opaque-auth: auth-flavor is ~D~%" (opaque-auth-flavor oa))
-        (setf (opaque-auth-body oa) (create-xdr :vec (xdr-opaque-variable xdr)))
+	;;(format t "xdr-opaque-auth: auth-flavor is ~D~%" (opaque-auth-flavor oa))
+	(setf (opaque-auth-body-xdr oa) xdr)
+	(setf (opaque-auth-body-offset oa) (+ 4 (xdr-pos xdr))) ;; add 4 to skip the integer which contains the size of the body
+	(xdr-advance xdr (compute-variable-bytes-used xdr))
+	;;(format t "xdr-opaque-auth: new xdr pos is ~D~%" (xdr-pos xdr))
         oa))
      ((eq direction :build)
       (xdr-int xdr flavor)
@@ -241,16 +305,43 @@
       (xdr-int xdr (auth-unix-gid au))
       (xdr-array-variable xdr #'xdr-int (auth-unix-gids au))))))
 
+(defun xdr-opaque-auth-struct-to-auth-unix-struct (oa)
+  (let ((xdr (opaque-auth-body-xdr oa))
+	(au (make-auth-unix))
+	(pos (opaque-auth-body-offset oa)))
+    (xdr-with-seek (xdr pos :absolute t)
+		   (format t "seeked to position ~D within xdr~%" pos)
+		   (setf (auth-unix-stamp au) (xdr-int xdr))
+		   (format t "stamp is ~D~%" (auth-unix-stamp au))
+		   (setf (auth-unix-machinename au) (xdr-string xdr))
+		   (format t "machine name is ~A~%" (auth-unix-machinename au))
+		   (setf (auth-unix-uid au) (xdr-int xdr))
+		   (setf (auth-unix-gid au) (xdr-int xdr))
+		   (setf (auth-unix-gids au) (xdr-array-variable xdr #'xdr-int)))
+    au))
 
-(defun make-vec (size &key init)
+
+
+(defun make-vec (size &optional init)
+  (declare (optimize speed))
   (if init
-      (make-array size :element-type '(unsigned-byte 8) :initial-element init)
-    (make-array size :element-type '(unsigned-byte 8))))
+      (excl::.primcall 'sys::make-svector size init 98 init)
+    (make-array (list size) :element-type '(unsigned-byte 8))))
 
 (defun compute-padded-len (len)
   (let ((remainder (mod len 4)))
     (+ len (if (> remainder 0) (- 4 remainder) 0))))
 
+(defun compute-variable-bytes-used (xdr)
+  (let ((res))
+    ;;(format t "cvbu: before seek: ~D/~D~%" (xdr-pos xdr) (xdr-size xdr))
+    (setf res (xdr-with-seek (xdr 0)
+			     (let ((len (xdr-int xdr)))
+			       ;;(format t "cvbu: len is ~D~%" len)
+			       (+ 4 (compute-padded-len len)))))
+    ;;(format t "cvbu: after seek: ~D/~D~%" (xdr-pos xdr) (xdr-size xdr))
+    res))
+    
 (defun xdr-string (xdr &optional string)
   (let ((direction (xdr-direction xdr))
         len
@@ -259,9 +350,8 @@
     (cond 
      ((eq direction :extract)
       (setf len (xdr-int xdr))
+      ;;(format t "xdr-string: len is ~D~%" len)
       (setf newstring (make-string len))
-      (if (< (xdr-size xdr) len)
-          (error "xdr-string: Not enough data left!"))
       (dotimes (i len)
         (setf (schar newstring i) (code-char (aref (xdr-vec xdr) (+ i (xdr-pos xdr))))))
       (xdr-advance xdr (compute-padded-len len))
@@ -279,8 +369,7 @@
       
 
 (defun xdr-xdr (xdr &optional xdr2)
-  (let ((direction (xdr-direction xdr))
-        res)
+  (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :build)
       (unless xdr2
@@ -293,10 +382,7 @@
 	    (aref (xdr-vec xdr2) i)))
 	(xdr-update-pos xdr size)))
      ((eq direction :extract)
-      (setf res 
-	(create-xdr :vec (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) (xdr-size xdr)))))
-      (setf (xdr-pos xdr) (xdr-size xdr))
-      res))))
+      (cons xdr (xdr-pos xdr))))))
       
 
 (defun xdr-timeval (xdr &optional timeval)
@@ -309,4 +395,5 @@
         (error "xdr-timeval: 'timeval' parameter required"))
       (xdr-unsigned-int xdr (first timeval))
       (xdr-unsigned-int xdr (second timeval))))))
+
 

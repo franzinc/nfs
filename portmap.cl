@@ -1,5 +1,5 @@
 ;; portmapper
-;; $Id: portmap.cl,v 1.3 2001/05/23 15:59:02 layer Exp $
+;; $Id: portmap.cl,v 1.4 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
 
@@ -89,7 +89,8 @@
     (send-successful-reply peer xid (portmap-verf) xdr)))
 
 (defun portmap-getport (peer xid params)
-  (let* ((m (make-mapping-from-xdr params))
+  (let* ((m (with-xdr-xdr (params)
+	      (make-mapping-from-xdr params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
     (format t "portmap-getport: ~A~%" m)

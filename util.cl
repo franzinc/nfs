@@ -1,9 +1,6 @@
-;; $Id: util.cl,v 1.4 2001/05/24 01:03:34 dancy Exp $
+;; $Id: util.cl,v 1.5 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
-
-(defun directoryp (p)
-  (excl::probe-directory p))
 
 (ff:def-foreign-type stat
     (:struct
@@ -21,34 +18,37 @@
 
 (ff:def-foreign-call (stat "_stat") ((filename (* :char) string)
                                      (statbuf (* stat)))
-  :strings-convert t)
+  :strings-convert t
+  )
 
 (ff:def-foreign-type intholder
     (:struct
      (value :int)))
 
-(ff:def-foreign-call GetDiskFreeSpaceA ((root (* :char) string)
-                                       (spc (* :int) intholder)
-                                       (bps (* :int) intholder)
-                                       (fc (* :int) intholder)
-                                       (tc (* :int) intholder))
-  :strings-convert t)
+(ff:def-foreign-type large-integer 
+    (:struct
+     (lowpart :int)
+     (highpart :int)))
 
+(ff:def-foreign-call GetDiskFreeSpaceExA ((filename :foreign-address)
+					  (freebytes :foreign-address)
+					  (totalbytes :foreign-address)
+					  (realfreebytes :foreign-address)))
+
+  
 (defun diskfree (root)
-  (let ((spc (ff:allocate-fobject 'intholder))
-        (bps (ff:allocate-fobject 'intholder))
-        (fc (ff:allocate-fobject 'intholder))
-        (tc (ff:allocate-fobject 'intholder))
-        bpc)
-    (GetDiskFreeSpaceA (concatenate 'string (pathname-device root) ":")
-                       spc bps fc tc)
-    (setf spc (ff:fslot-value spc 'value))
-    (setf bps (ff:fslot-value bps 'value))
-    (setf fc (ff:fslot-value fc 'value))
-    (setf tc (ff:fslot-value tc 'value)) 
-    (setf bpc (* bps spc))
-    (values bpc fc tc)))
-
+  (with-native-string (nativestring (namestring root))
+    (let ((freebytes (ff:allocate-fobject 'large-integer))
+	  (totalbytes (ff:allocate-fobject 'large-integer))
+	  res)
+      (setf res (GetDiskFreeSpaceExA nativestring freebytes totalbytes 0))
+      (when (= 0 res)
+	(error "Call to GetDiskFreeSpaceExA failed"))
+      (values 
+       (+ (ash (ff:fslot-value freebytes :highpart) 32)
+	  (ff:fslot-value freebytes :lowpart))
+       (+ (ash (ff:fslot-value totalbytes :highpart) 32)
+	  (ff:fslot-value totalbytes :lowpart))))))
 
 (defun basename (p)
   (setf p (namestring p))

@@ -1,8 +1,9 @@
-;; $Id: sunrpc.cl,v 1.6 2001/05/24 01:03:34 dancy Exp $
+;; $Id: sunrpc.cl,v 1.7 2001/06/07 17:14:05 dancy Exp $
 
 (in-package :user)
 
-(declaim (optimize (speed 3)))
+(eval-when (compile)
+  (declaim (optimize (speed 3) (safety 1))))
 
 (defstruct rpc-peer
   type
@@ -15,6 +16,8 @@
   tcpsock
   udpsock
   tcpclientlist)
+
+(defparameter *rpcgetmessagebuf* (make-array 65536 :element-type '(unsigned-byte 8)))
 
 ;; returns an xdr
 (defun rpc-get-message (server)
@@ -42,14 +45,13 @@
 	
 	(when (member udpsock readylist)
 	  (multiple-value-bind (vec count addr port)
-	      (handler-case (socket:receive-from udpsock 65536 :extract t)
+	      (handler-case (socket:receive-from udpsock 65536 :buffer *rpcgetmessagebuf*)
 		(socket-error (c) 
 		  (format t "Ignoring error condition ~S~%" c)
 		  nil))
-	    (declare (ignore count))
 	    (unless (null vec)
 	      (return-from rpc-get-message
-		(values (create-xdr :vec vec)
+		(values (create-xdr :vec vec :size count)
 			(make-rpc-peer :type :datagram :socket udpsock
 				       :addr addr :port port))))
 	    (setf readylist (remove udpsock readylist))))
@@ -134,7 +136,9 @@
     (setf (call-body-prog cbody) (xdr-int xdr))
     (setf (call-body-vers cbody) (xdr-int xdr))
     (setf (call-body-proc cbody) (xdr-int xdr))
+    ;;(format t "create-call-body: Getting credentials~%")
     (setf (call-body-cred cbody) (xdr-opaque-auth xdr))
+    ;;(format t "create-call-body: Getting verifier~%")
     (setf (call-body-verf cbody) (xdr-opaque-auth xdr))
     (setf (call-body-params cbody) (xdr-xdr xdr))
     cbody))
@@ -209,8 +213,11 @@
 (defun send-successful-reply (peer xid verf results)
   (send-accepted-reply peer xid verf 0 results))
 
-(defmacro with-successful-reply ((xdr-name peer xid verf) &body body)
-  `(let ((,xdr-name (create-xdr :direction :build)))
+(defmacro with-successful-reply ((xdr-name peer xid verf &key (create t)) &body body)
+  `(let ((,xdr-name (if ,create (create-xdr :direction :build)  
+		      (progn
+			(xdr-flush ,xdr-name)
+			,xdr-name))))
      (xdr-int ,xdr-name ,xid)
      (xdr-int ,xdr-name 1) ;; REPLY
      (xdr-int ,xdr-name 0) ;; MSG_ACCEPTED

@@ -1,3 +1,7 @@
+2001-06-07    <dancy@SUCK>
+
+	* Many many changes that hopefully will improve performance
+
 2001-05-23    <dancy@SUCK>
 
 	* nfs.cl:  nfsd-getattr:  Added check for stale file handle.
@@ -41,11 +45,11 @@
 	hashing.  Also, added a function for dumping the file handle hash
 	table.
 
-	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* mountd.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 
-	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* mpsocketfix.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 
-	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* nfs.cl added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 	Added a function to make sure directory names end w/ a backslash.
 
 	Increased debugging info for nfs-readdir.
@@ -56,15 +60,15 @@
 	add a workaround for what I believe is a bug in the Linux NFS v2
 	client implementation w/ regard to readdir.
 
-	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* portmap.cl:  added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 
-	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* sunrpc.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 
-	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* utils.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 	added :strings-convert nil  to calls to def-foreign-call to remove
 	warnings. 
 
-	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.9 2001/05/23 21:02:58 dancy Exp $
+	* xdr.cl: added (in-package :user) and $Id: ChangeLog,v 1.10 2001/06/07 17:14:05 dancy Exp $
 
 	* nfs.cl: Send rpc PROC_UNAVAIL for procedures that we don't
 	handle.  This will prevent nfs clients from wedging.
