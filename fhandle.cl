@@ -1,6 +1,6 @@
 ;; file handle stuff
 
-;; $Id: fhandle.cl,v 1.7 2001/06/20 16:01:21 dancy Exp $
+;; $Id: fhandle.cl,v 1.8 2001/07/04 20:55:27 dancy Exp $
 
 (in-package :user)
 
@@ -59,6 +59,17 @@
      (type fixnum offset))
     (xdr-with-seek (xdr offset :absolute t)
 		   (xdr-fhandle-to-pathname xdr))))
+
+;;; from and to are pathnames.
+;;; need to update *fhandles* and *pathnames*
+(defun swap-fhandles (from to)
+  (let ((fromid (pathname-to-fhandle-id from))
+	(toid (pathname-to-fhandle-id to)))
+    (setf (gethash to *pathnames*) fromid) 
+    (setf (gethash from *pathnames*) toid)
+    (setf (gethash fromid *fhandles*) to)
+    (setf (gethash toid *fhandles*) from)))
+    
 
 ;;; for debugging
 (defun dump-fhandles ()
