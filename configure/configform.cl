@@ -758,11 +758,9 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 
 
 (defun init-func ()
-  (let* ((window (default-init-function))
-         (center-box (center-box-on-screen (width window) (height window))))
-    (setf 
-     (top window) (box-top center-box)
-     (left window) (box-left center-box))
+  (let ((window (default-init-function)))
+    (move-window window (box-top-left
+                         (center-box-on-screen (width window)(height window))))
     
     (setf *progpath* (first sys::*application-command-line-arguments*))
     (setf *configfile* (user::get-nfs-server-config-file))

@@ -1,14 +1,23 @@
 (in-package :cg-user)
 
+(eval-when (compile load eval)
+  (require :socket))
+
 (defstruct network-address
   network
   mask)
+
+(defun my-dotted-to-ipaddr (addr)
+  (if (not (match-regexp "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" addr))
+      (error "Invalid address specification"))
+  (socket:dotted-to-ipaddr addr))
 
 ;; Acceptable formats:
 ;; a.b.c.d
 ;; a.b.c.d/x
 ;; a.b.c.d/x.y.z.w
 ;; t  (shortcut for 0.0.0.0/0)
+
 (defun parse-addr (addr)
   ;; convenience
   (if (eq addr t)
@@ -17,17 +26,17 @@
   (if (string= addr "")
       (error "blank string passed to parse-addr"))
   (let* ((slashpos (position #\/ addr))
-	 (mask #xffffffff)
-	 (network (socket:dotted-to-ipaddr 
-		   (subseq addr 0 (or slashpos (length addr))))))
+         (mask #xffffffff)
+         (network (my-dotted-to-ipaddr 
+                   (subseq addr 0 (or slashpos (length addr))))))
     (if* slashpos
        then
-	    (setf addr (subseq addr (1+ slashpos)))
-	    (setf mask 
-	      (if (position #\. addr)
-		  (socket:dotted-to-ipaddr addr)
-		(masklength-to-mask addr)))
-	    (setf network (logand network mask)))
+            (setf addr (subseq addr (1+ slashpos)))
+            (setf mask 
+              (if (position #\. addr)
+                  (my-dotted-to-ipaddr addr)
+                (masklength-to-mask addr)))
+            (setf network (logand network mask)))
     (make-network-address
      :network network
      :mask mask)))
@@ -39,4 +48,4 @@
       (error "Invalid mask length: ~A" value))
   (- #xffffffff (1- (expt 2 (- 32 value)))))
 
-  
+

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.15 2004/02/03 20:58:13 dancy Exp $
+;; $Id: portmap.cl,v 1.16 2004/02/19 22:33:10 dancy Exp $
 
 ;; portmapper
 

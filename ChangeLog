@@ -1,3 +1,12 @@
+2004-02-19    <dancy@DANCYSOFT>
+
+	* Makefile: for 'dists' rule, build w/ two separate calls to make.
+
+	* configure/configform.cl: EOL convention change to deal w/ IDE weirdness.
+
+	* ipaddr.cl: Make address format checking more strict.  Attempt to
+	require the socket module since we use that.
+
 2004-02-19    <Ahmon Dancy@GOBY>
 
 	* configure/Makefile:  Remove ../*.fasl before building.

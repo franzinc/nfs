@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.28 2004/02/19 17:00:37 dancy Exp $
+# $Id: Makefile,v 1.29 2004/02/19 22:33:10 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -56,7 +56,12 @@ installer: installer-common
 installer-demo: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version)-demo nfs.nsi	
 
-dists: dist dist-demo
+# Each build runs in a separate make because there are some
+# shared dependencies.. and make will merge them .. and we don't
+# want that.
+dists: 
+	$(MAKE) dist
+	$(MAKE) dist-demo
 
 dist: build installer
 

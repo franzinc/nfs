@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.20 2004/02/03 23:20:06 dancy Exp $
+;; $Id: sunrpc.cl,v 1.21 2004/02/19 22:33:10 dancy Exp $
 
 (in-package :user)
 
