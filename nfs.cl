@@ -1,5 +1,5 @@
 ;;; nfs
-;;; $Id: nfs.cl,v 1.6 2001/05/23 18:17:00 dancy Exp $
+;;; $Id: nfs.cl,v 1.7 2001/05/23 20:22:38 layer Exp $
 
 (in-package :user)
 
@@ -598,7 +598,14 @@ struct readargs {
 (defun nfsd-write (peer xid cbody)
   (let* ((xdr (call-body-params cbody))
 	 (fhandle (xdr-opaque-fixed xdr :len *fhsize*))
-	 (p (fhandle-vec-to-pathname fhandle))
+	 (p (let ((p (fhandle-vec-to-pathname fhandle)))
+	      (when (null p)
+		(send-successful-reply 
+		 peer xid 
+		 (nfsd-null-verf) 
+		 (make-attrstat NFSERR_STALE nil))
+		(return-from nfsd-write))
+	      p))
 	 (beginoffset (xdr-unsigned-int xdr)) ;; not used
 	 (offset (xdr-unsigned-int xdr))
 	 (totalcount (xdr-unsigned-int xdr)) ;; not used
