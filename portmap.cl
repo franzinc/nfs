@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.12 2003/07/03 02:42:33 dancy Exp $
+;; $Id: portmap.cl,v 1.13 2003/07/03 21:51:21 dancy Exp $
 
 ;; portmapper
 
@@ -231,7 +231,7 @@
 	      (with-good-reply-msg (msg xid results)
 		(format t "   program vers proto   port~%")
 		(while (/= 0 (xdr-int results))
-		  (format t "~10d ~4d ~@5a ~6d~%" 
+		  (format t "~10d ~4d ~5@a ~6d~%" 
 			  (xdr-unsigned-int results)
 			  (xdr-unsigned-int results)
 			  (ecase (xdr-unsigned-int results)
