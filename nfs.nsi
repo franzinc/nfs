@@ -4,8 +4,6 @@
 ;; option to start service
 ;; install/uninstall: stop and remove service first.
 
-
-!define NFSVERS "1.1.5"
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
 !define VERBOSE_PROD "Allegro NFS Server for Windows"
 !define SHORT_PROD "Allegro NFS"
@@ -15,7 +13,7 @@ SetCompressor bzip2
 Name "${VERBOSE_PROD}"
 
 ; The installer program that will be created
-OutFile "dists\setup-nfs-${NFSVERS}.exe"
+OutFile "dists\setup-nfs-${VERSION}.exe"
 
 ; The default installation directory
 InstallDir "$PROGRAMFILES\${SHORT_PROD}"

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.23 2003/12/12 23:53:09 dancy Exp $
+;; $Id: loadem.cl,v 1.24 2003/12/15 22:33:04 dancy Exp $
 
 (in-package :user)
 
@@ -103,7 +103,9 @@
     (run-shell-command
      (format nil "~a -o nfs/nfs.exe +t ~s ~a"
 	     (truename "sys:bin;setcmd.exe")
-	     "Allegro NFSd"
+	     (if demo
+		 "Allegro NFS Server demo"
+	       "Allegro NFS Server")
 	     ;; In ACL 6.2, the "show the icon in the tray" bug has been
 	     ;; fixed, so don't show the console by default.  Before 6.2,
 	     ;; show it minimized.

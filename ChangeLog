@@ -3,6 +3,11 @@
 
 2003-12-15    <dancy@CANDY2K>
 
+	* Makefile:  Added rules for making demo distributions.  
+
+	* loadem.cl: Make the program name "Allegro NFS Server demo" or
+	"Allegro NFS Server".
+	
 	* nfs.nsi: If "install as service" option is used.. and there is
 	an existing nfs.cfg file, start the service after installing.  
 
