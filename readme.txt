@@ -54,7 +54,8 @@ Evaluate (create-service path) but replace 'path' with a string that
 contains the path to the nfs.exe that was created.  If your sources
 are in c:\devel\nfs, you'd specify:
 
-(create-service "c:\\devel\\nfs\\nfs\\nfs.exe") ;; Note the use of the double backslash.  
+;; Note the use of the double backslash:
+(create-service "c:\\devel\\nfs\\nfs\\nfs.exe")
 
 If create-service returns 1, you've successfully registered the
 program as a service.  To test it, make sure that no other NFS servers

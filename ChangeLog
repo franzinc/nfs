@@ -1,7 +1,12 @@
 *** Don't forget to increment the version number in nfs.cl for each commit
 *** [and leave this message at the top of the file]
 
+*******************************************************************************
+1.0.36 public release
+*******************************************************************************
+
 2002-09-20    <dancy@CANDY2K>
+1.0.36
 
 	* inc'd vrsion.
 
@@ -16,7 +21,7 @@
 	in the rename operation.
 
 2002-09-19    <dancy@CANDY2K>
-        * inc'd version.
+1.0.35
 	
 	* mountd.cl: 
 	*  Added debugging control variable *mountd-debug* for mountd
@@ -47,6 +52,10 @@
 
 	* Makefile: make 6.2 the default
 	* sunrpc.cl: *gather* -> nil; add force-output's in rpc-send
+
+*******************************************************************************
+1.0.33 public release
+*******************************************************************************
 
 2002-02-27    <layer@HOBART>
 1.0.33
