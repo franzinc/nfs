@@ -1,4 +1,4 @@
-;; $Id: sunrpc.cl,v 1.11 2001/08/10 18:07:55 dancy Exp $
+;; $Id: sunrpc.cl,v 1.12 2001/08/13 18:26:12 dancy Exp $
 
 (in-package :user)
 
@@ -92,18 +92,22 @@
 
 
 (defun read-record (stream)
-  (let ((size (read-int-from-stream stream)))
-    (if (null size)
-        (return-from read-record nil)) ;; indicate EOF
-    (when (= (logand size #x80000000) 0)
-      (error "read-record: Fragments aren't handled yet"))
-    (setf size (logand size #x7fffffff))
-    ;;(format t "Message is ~d bytes~%" size)
-    (let* ((buffer (make-array size :element-type '(unsigned-byte 8)))
-           (res (read-sequence buffer stream)))
-      (unless (= res size)
-        (error "read-record: read-sequence only returned ~D bytes" res))
-      buffer)))
+  (handler-case 
+      (let ((size (read-int-from-stream stream)))
+	(if (null size)
+	    (return-from read-record nil)) ;; indicate EOF
+	(when (= (logand size #x80000000) 0)
+	  (error "read-record: Fragments aren't handled yet"))
+	(setf size (logand size #x7fffffff))
+	;;(format t "Message is ~d bytes~%" size)
+	(let* ((buffer (make-array size :element-type '(unsigned-byte 8)))
+	       (res (read-sequence buffer stream)))
+	  (unless (= res size)
+	    (error "read-record: read-sequence only returned ~D bytes" res))
+	  buffer))
+    (t (c)
+      (format t "read-record got error ~A~%Returning nil~%" c)
+      nil)))
 
 (defstruct rpc-msg 
   xid
