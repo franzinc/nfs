@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 2003/03/19 16:54:16 dancy Exp $
+# $Id: Makefile,v 1.12 2003/03/20 16:00:31 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -19,6 +19,7 @@ compile: FORCE
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 
 version = $(shell grep nfsd-version nfs.cl | sed -e 's,.*"\([0-9.]*\)".*,\1,')
+nfs_bin_files = nfs.cfg.sample readme.txt binary-license.txt accesscontrol.txt
 nfs_source_files = Makefile ChangeLog *.cl *.txt nfs.cfg.sample nfs.ico
 ntservice_source_files = ntservice/ChangeLog ntservice/*.cl ntservice/*.txt
 
@@ -31,9 +32,7 @@ dist: FORCE
 	rm -fr nfs-$(version)
 	cp -rp nfs nfs-$(version)
 	rm -f nfs-$(version)/nfs.cfg
-	cp -p nfs.cfg.sample nfs-$(version)
-	cp -p readme.txt nfs-$(version)
-	cp -p binary-license.txt nfs-$(version)
+	cp -p $(nfs_bin_files) nfs-$(version)
 	zip -r $(binzip) nfs-$(version)
 	rm -fr nfs-$(version)
 ### make source dist:
