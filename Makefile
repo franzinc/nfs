@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 2003/12/03 21:33:20 dancy Exp $
+# $Id: Makefile,v 1.15 2003/12/03 22:23:20 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -26,7 +26,7 @@ build-demo-cmd:
 
 build-epilogue:
 	@echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +s b.tmp
+	$(LISPEXE) +B +cn +s b.tmp
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 
