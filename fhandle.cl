@@ -1,4 +1,7 @@
 ;; file handle stuff
+
+;; $Id: fhandle.cl,v 1.2 2001/05/22 21:15:17 dancy Exp $
+
 (defconstant *fhsize* 32)
 
 (defparameter *fhandles* nil)
@@ -14,7 +17,7 @@
 
 (defun get-existing-fhandle-id (p)
   (ensure-pathnames)
-  (gethash p *pathnames*))
+  (gethash (pathname p) *pathnames*))
 
 (defun get-unused-fhandle-id ()
   (ensure-fhandles)
