@@ -4,7 +4,7 @@
 2002-02-12  Kevin Layer  <layer@crikey>
 1.0.32 (because this is the 32nd changelog entry)
 
-	* (NEW) makefile
+	* (NEW) Makefile
 	* nfs.cl: add version number
 	* fixes.cl: require delete-directory patch for 5.0.1 and 6.0.
 	* (NEW) nfs.ico
