@@ -1,6 +1,8 @@
 #include <windows.h>
 
+#ifndef INVALID_SET_FILE_POINTER
 #define INVALID_SET_FILE_POINTER -1
+#endif
 
 /* Extra stuff that I can't do in lisp */
 
