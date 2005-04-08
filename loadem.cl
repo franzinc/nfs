@@ -22,9 +22,11 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.29 2005/01/26 00:23:49 layer Exp $
+;; $Id: loadem.cl,v 1.30 2005/04/08 18:23:32 layer Exp $
 
 (in-package :user)
+
+;;(pushnew :nfs-debug *features* :test #'eq)
 
 (eval-when (compile load eval)
 (defparameter *filelist*

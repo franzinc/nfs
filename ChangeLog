@@ -1,3 +1,10 @@
+2005-04-08    <layer@HOBART>
+
+	* loadem.cl: commented out :nfs-debug feature -- if defined it
+	  will give a stack trace at the point of error
+	* nfs.cl (define-nfs-proc): add code, under #+nfs-debug, that
+	  gives a stack trace on error
+
 2005-04-04    <Ahmon Dancy@GOBY>
 
 	* openfile.cl/attr.cl: Changed some equal hash tables back to eq

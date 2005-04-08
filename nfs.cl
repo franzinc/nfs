@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.64 2005/04/05 03:04:15 dancy Exp $
+;; $Id: nfs.cl,v 1.65 2005/04/08 18:23:32 layer Exp $
 
 ;; nfs
 
@@ -285,8 +285,8 @@
 	   (push (first pair) fhsyms)
 	   (push `(,(first pair) (xdr-fhandle params vers)) argdefs)
 	   (add-debug `(format t "~A" (if ,(first pair)
-					    (fh-pathname ,(first pair))
-					  "stale-handle"))))
+					  (fh-pathname ,(first pair))
+					"stale-handle"))))
 	  (string
 	   (push `(,(first pair) (xdr-string params)) argdefs)
 	   (add-debug `(format t "~A" ,(first pair))))
@@ -343,7 +343,31 @@
 					       ,host-access-check-fh 
 					       (rpc-peer-addr peer))
 		 (with-nfs-err-handler (*nfsdxdr* vers)
-		   ,@body)))))))))
+		   #+nfs-debug
+		   (handler-bind
+		       ((error
+			 (lambda (c)
+			   (when *nfs-debug*
+			     (with-standard-io-syntax
+			       (let ((*print-readably* nil)
+				     (*print-miser-width* 40)
+				     (*print-pretty* t)
+				     (tpl:*zoom-print-circle* t)
+				     (tpl:*zoom-print-level* nil)
+				     (tpl:*zoom-print-length* nil))
+				 (ignore-errors
+				  (format t "Error: ~a.~%" c))
+				 (ignore-errors ;prevent recursion
+				  (let* ((s *initial-terminal-io*)
+					 (*terminal-io* s)
+					 (*standard-output* s))
+				    (tpl:do-command "zoom"
+				      :brief t
+				      :from-read-eval-print-loop nil
+				      :count t :all t)))))))))
+		     ,@body)
+		   #-nfs-debug ,@body
+		   )))))))))
 
 (defmacro with-permission ((fh type) &body body)
   (let ((func (ecase type
