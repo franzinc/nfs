@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.29 2005/01/26 00:23:49 layer Exp $
+;; $Id: loadem.cl,v 1.29.4.1 2005/04/25 22:36:54 layer Exp $
 
 (in-package :user)
 
@@ -43,6 +43,8 @@
       "dir" 
       "openfile"
       "nfs"
+      "date/date"
+      #+nfs-demo "demoware/demoware"
       "main"))
 )
 
@@ -54,7 +56,7 @@
       (compile-file-if-needed (concatenate 'string file ".cl"))
       (load file))))
 
-(defun buildit (&key demo)
+(defun buildit ()
   ;; This will be fixed before 7.0 is released.  Remove then.
   #+(version>= 7)(progn
 		   (require :winapi)
@@ -66,8 +68,7 @@
     (generate-executable
      "nfs" 
      (append '(:sock :acldns :seq2 :foreign)  filelist)
-     :icon-file "nfs.ico"
-     :demo demo)
+     :icon-file "nfs.ico")
 
     ;; Set the command line flags.
     (run-shell-command
@@ -78,9 +79,8 @@
      (format nil 
 	     "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS\""
 	     (truename "sys:bin;setcmd.exe")
-	     (if demo
-		 "Allegro NFS Server demo"
-	       "Allegro NFS Server"))
+	     #+nfs-demo "Allegro NFS Server demo"
+	     #-nfs-demo "Allegro NFS Server")
 	     
      :show-window :hide)))
 

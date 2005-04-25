@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.8.4.2 2005/02/03 01:15:17 layer Exp $
+; $Id: nfs.nsi,v 1.8.4.3 2005/04/25 22:36:54 layer Exp $
 
 ;SetCompressor bzip2
 SetCompressor lzma
@@ -416,7 +416,11 @@ InstallDir "$PROGRAMFILES\${SHORT_PROD}"
 ; overwrite the old one automatically)
 InstallDirRegKey HKLM "${REGKEY}" "Install_Dir"
 
+!ifdef NFSDEMO
+LicenseData demo-license.txt
+!else
 LicenseData binary-license.txt
+!endif
 
 ;--------------------------------
 

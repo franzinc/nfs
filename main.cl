@@ -30,6 +30,8 @@
 	quiet)
     (setf *configfile* (merge-pathnames "nfs.cfg" exepath))
     (pop args) ;; program name
+
+    #+nfs-demo (demoware-setup)
     
     (if (member "/quiet" args :test #'string=)
 	(setf quiet t))

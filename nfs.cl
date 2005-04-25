@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.61 2005/01/31 23:02:30 layer Exp $
+;; $Id: nfs.cl,v 1.61.2.1 2005/04/25 22:36:54 layer Exp $
 
 ;; nfs
 
@@ -247,6 +247,7 @@
 	(error 
 	 "define-nfs-proc:  There must be at least one fhandle variable"))
     `(defun ,funcname (peer xid cbody)
+       #+nfs-demo (demoware-check)
        (with-xdr-xdr ((call-body-params cbody) :name params)
 	 (let (,@argdefs)
 	   (when *nfs-debug*
