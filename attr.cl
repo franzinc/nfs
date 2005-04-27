@@ -43,8 +43,10 @@
      *NFREG*)))
 
 (defun nfs-attr (fh)
+  #+nfs-debug (logit "nfs-attr: pathname=~s~%" (fh-pathname fh))
   (let ((s (stat (fh-pathname fh)))
 	(blocksize 512))
+    #+nfs-debug (logit "nfs-attr: stat returned ~s~%" s)
     (make-nfs-attr
      :type (stat-mode-to-type (stat-mode s))
      :mode (stat-mode s)
@@ -91,7 +93,7 @@
 (defun dump-attr-cache ()
   (mp:with-process-lock (*attr-cache-lock*)
     (maphash #'(lambda (key value)
-		 (format t "~S -> ~S~%" key value))
+		 (logit "~S -> ~S~%" key value))
 	     *nfs-attr-cache*)))
 
 (defun attr-cache-reaper ()

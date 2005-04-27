@@ -1,3 +1,22 @@
+2005-04-25    <layer@HOBART>
+
+	* attr.cl: format -> logit
+	* configure.cl: logging
+	* dir.cl: format -> logit
+	* loadem.cl:
+	- "main" needs to be before "nfs"
+	- added telnet module
+	* main.cl:
+	- format -> logit
+	- start telnet server (in debug mode only)
+	* mountd.cl: format -> logit
+	* nfs-shared.cl: logging to file support
+	* nfs.cl: format -> logit
+	* nfs.nsi: remove old compressor comment
+	* portmap.cl: format -> logit
+	* sunrpc.cl: format -> logit
+	* xdr.cl: format -> logit
+
 2005-04-08    <layer@HOBART>
 
 	* loadem.cl: commented out :nfs-debug feature -- if defined it

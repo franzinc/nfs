@@ -1,6 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
+;; Copyright (C) 2002-2005 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -21,16 +22,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.65 2005/04/08 18:23:32 layer Exp $
-
-;; nfs
+;; $Id: nfs.cl,v 1.66 2005/04/27 16:24:56 layer Exp $
 
 (in-package :user)
 
-(defvar *nfsd-version* "3.1")
+(defvar *nfsd-version* "3.99")
 
-(eval-when (compile)
-  (declaim (optimize (speed 3))))
+(eval-when (compile) (declaim (optimize (speed 3))))
 
 (defconstant *nfsprog* 100003)
 (defconstant *nfsport* 2049)
@@ -78,10 +76,10 @@
 
 
 (defun nfsd ()
-  (format t "Allegro NFS v~A started.~%" *nfsd-version*)
+  (logit "Allegro NFS v~A started.~%" *nfsd-version*)
   (setf *nfsd-start-time* (get-universal-time))
   (if* *nfs-gc-debug*
-     then (format t "~&Turning on memory management debugging.~%")
+     then (logit "~&Turning on memory management debugging.~%")
 	  (setf (sys:gsgc-switch :print) t)
 	  (setf (sys:gsgc-switch :stats) t)
 	  (setq excl:*global-gc-behavior* nil)
@@ -116,7 +114,7 @@
     ;; sanity checks first
     (when (not (= (call-body-prog cbody) *nfsprog*))
       (if *nfs-debug*
-	  (format t "Sending program unavailable response for prog=~D~%"
+	  (logit "Sending program unavailable response for prog=~D~%"
 		  (call-body-prog cbody)))
       (rpc-send-prog-unavail peer xid (nfsd-null-verf))
       (return-from nfsd-message-handler))
@@ -147,7 +145,7 @@
 	 (101 (nfsd-reload-configuration peer xid cbody))
 	 (t
 	  (rpc-send-proc-unavail peer xid (nfsd-null-verf))
-	  (format t "nfsv2: unhandled procedure ~D~%" proc))))
+	  (logit "nfsv2: unhandled procedure ~D~%" proc))))
       (3
        (case proc
 	 (0 (nfsd-null peer xid cbody))
@@ -177,7 +175,7 @@
 	 (101 (nfsd-reload-configuration peer xid cbody))
 	 (t
 	  (rpc-send-proc-unavail peer xid (nfsd-null-verf))
-	  (format t "nfsv3: unhandled procedure ~D~%" proc))))
+	  (logit "nfsv3: unhandled procedure ~D~%" proc))))
       (t
        (if *nfs-debug*
 	   (write-line "Sending program version mismatch response"))
@@ -224,8 +222,7 @@
 	     ,@body)
 	 (file-error (c)
 	   (setf (xdr-pos ,xdr) ,savepossym)
-	   (if *nfs-debug*
-	       (format t "Handling file error: ~A~%" c))
+	   (when *nfs-debug* (logit "Handling file error: ~A~%" c))
 	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
 			  (excl::syscall-error-errno c)))
 	   (if (= ,vers 3)
@@ -238,7 +235,7 @@
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (error (c)
 	   (setf (xdr-pos ,xdr) ,savepossym)
-	   (format t "Handling unexpected error: ~A~%" c)
+	   (logit "Handling unexpected error: ~A~%" c)
 	   (xdr-int ,xdr NFSERR_IO)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))))))
@@ -277,36 +274,36 @@
     (macrolet ((add-debug (expr)
 		 `(progn
 		    (if (not first)
-			(push '(format t ", ") debugs))
+			(push '(logit ", ") debugs))
 		    (push ,expr debugs))))
       (dolist (pair arglist)
 	(ecase (second pair)
 	  (fhandle 
 	   (push (first pair) fhsyms)
 	   (push `(,(first pair) (xdr-fhandle params vers)) argdefs)
-	   (add-debug `(format t "~A" (if ,(first pair)
+	   (add-debug `(logit "~A" (if ,(first pair)
 					  (fh-pathname ,(first pair))
 					"stale-handle"))))
 	  (string
 	   (push `(,(first pair) (xdr-string params)) argdefs)
-	   (add-debug `(format t "~A" ,(first pair))))
+	   (add-debug `(logit "~A" ,(first pair))))
 	  (unsigned
 	   (push `(,(first pair) (xdr-unsigned-int params)) argdefs)
-	   (add-debug `(format t "~D" ,(first pair))))
+	   (add-debug `(logit "~D" ,(first pair))))
 	  (uint64
 	   (push `(,(first pair) (xdr-unsigned-hyper params)) argdefs)
-	   (add-debug `(format t "~D" ,(first pair))))
+	   (add-debug `(logit "~D" ,(first pair))))
 	  (sattr
 	   (push `(,(first pair) (xdr-sattr-to-struct-sattr params vers)) 
 		 argdefs)
-	   (add-debug `(format t "~A" ,(first pair))))
+	   (add-debug `(logit "~A" ,(first pair))))
 	  (sattrguard3 
 	   (push `(,(first pair) 
 		   (if (xdr-bool params)
 		       (prog1 (unix-to-universal-time (xdr-unsigned-int params))
 			 (xdr-unsigned-int params))))
 		 argdefs)
-	   (add-debug `(format t "~A" ,(first pair))))
+	   (add-debug `(logit "~A" ,(first pair))))
 	  (createhow3 
 	   (push `(,(first pair) 
 		   (ecase (xdr-unsigned-int params)
@@ -317,13 +314,13 @@
 		     (2 ;; exclusive
 		      (list :exclusive (xdr-unsigned-hyper params)))))
 		 argdefs)
-	   (add-debug `(format t "~S" ,(first pair))))
+	   (add-debug `(logit "~S" ,(first pair))))
 	  (data
 	   (push `(,(first pair) (xdr-opaque-variable params)) argdefs)
-	   (add-debug `(format t "<data>"))))
+	   (add-debug `(logit "<data>"))))
 	(setf first nil)))
     (setf argdefs (reverse argdefs))
-    (push '(format t ")~%") debugs)
+    (push '(logit ")~%") debugs)
     (push '(finish-output) debugs)
     (setf debugs (reverse debugs))
     (setf host-access-check-fh (first fhsyms))
@@ -335,7 +332,7 @@
 	 (let* ((vers (call-body-vers cbody))
 		,@argdefs)
 	   (when *nfs-debug*
-	     (format t "(nfsv~d) ~A(" vers (quote ,name))
+	     (logit "(nfsv~d) ~A(" vers (quote ,name))
 	     ,@debugs)
 	   (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf))
 	     (with-non-stale-fh (*nfsdxdr* vers ,fhsyms)
@@ -356,9 +353,9 @@
 				     (tpl:*zoom-print-level* nil)
 				     (tpl:*zoom-print-length* nil))
 				 (ignore-errors
-				  (format t "Error: ~a.~%" c))
+				  (logit "Error: ~a.~%" c))
 				 (ignore-errors ;prevent recursion
-				  (let* ((s *initial-terminal-io*)
+				  (let* ((s *log-stream*)
 					 (*terminal-io* s)
 					 (*standard-output* s))
 				    (tpl:do-command "zoom"
@@ -375,7 +372,7 @@
 		(:write 'nfs-okay-to-write))))
     `(if* (not (,func ,fh (call-body-cred cbody)))
 	then
-	     (if *nfs-debug* (format t "permission denied~%") )
+	     (if *nfs-debug* (logit "permission denied~%") )
 	     (xdr-int *nfsdxdr* NFSERR_ACCES)
 	     (if (= vers 3)
 		 (nfs-xdr-wcc-data *nfsdxdr* nil nil))
@@ -405,7 +402,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun nfsd-null (peer xid cbody)
-  (if *nfs-debug*  (format t "nfsdv~d-null~%~%" (call-body-vers cbody)))
+  (if *nfs-debug*  (logit "nfsv~d-null~%" (call-body-vers cbody)))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (nfsd-null-verf) xdr)))
 
@@ -654,7 +651,7 @@
 		(xdr-unsigned-hyper xdr (dircache-id dc)))))
       
       (setf endindex (length dirlist))
-      ;;(format t "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
+      ;;(logit "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
 	
       (while (< index endindex)
 	(setf p (nth index dirlist))
@@ -665,21 +662,21 @@
 	  (incf totalbytesadded bytesadded)
 	  (when (> totalbytesadded max)
 	    (if (eq *nfs-debug* :verbose) 
-		(format t " [not added due to size overflow]~%"))
+		(logit " [not added due to size overflow]~%"))
 	    (if *nfs-debug* 
-		(format t "add-direntries: stopping at entry for ~A (no space)~%" p))
+		(logit "add-direntries: stopping at entry for ~A (no space)~%" p))
 	    (xdr-backspace xdr bytesadded)
 	    (setf complete nil)
 	    (return)) ;; break from loop
 	    
-	  (if (eq *nfs-debug* :verbose) (format t " [added]~%")))
+	  (if (eq *nfs-debug* :verbose) (logit " [added]~%")))
 	  
 	(incf index))
 	
       (xdr-int xdr 0) ;; no more entries
       (xdr-bool xdr complete)
       (if (and *nfs-debug* complete)
-	  (format t "Reached end of entries~%~%")))))
+	  (logit "Reached end of entries~%~%")))))
 
 
 #|
@@ -708,7 +705,7 @@ struct entry {
 			       :allow-dotnames t))
 	 (fileid (fh-id fh)))
     (when (eq *nfs-debug* :verbose)
-      (format t "~D: ~A fileid=~A next=~A" 
+      (logit "~D: ~A fileid=~A next=~A" 
 	      (1- cookie) filename fileid cookie))
     (with-xdr-compute-bytes-added (xdr)
       (xdr-int xdr 1) ;; indicate that data follows
@@ -804,7 +801,7 @@ struct entry {
       (with-xdr-seek (*nfsdxdr* 100)
 	(setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
       (if *nfs-debug*
-	  (format t " Read ~D bytes~%" got))
+	  (logit " Read ~D bytes~%" got))
       (update-attr-atime fh)
       (xdr-int *nfsdxdr* NFS_OK) 
       (nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -1296,9 +1293,6 @@ struct entry {
   (when (= (socket:dotted-to-ipaddr "127.0.0.1") (rpc-peer-addr peer))
     (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf)
 				      :create nil)
-      (format t "Reloading configuration file...~%")
+      (logit "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)
       (xdr-unsigned-int *nfsdxdr* 1))))
-      
-      
-      

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.22 2005/04/05 02:45:51 dancy Exp $
+;; $Id: sunrpc.cl,v 1.23 2005/04/27 16:24:56 layer Exp $
 
 (in-package :user)
 
@@ -94,25 +94,25 @@
 	    (push tcpsock waitlist))
 	(if udpsock
 	    (push udpsock waitlist))
-	;;(format t "waiting for input.~%")
-	;;(format t "waitlist is ~S~%" waitlist)
+	;;(logit "waiting for input.~%")
+	;;(logit "waitlist is ~S~%" waitlist)
 	(handler-case (setf readylist (mp:wait-for-input-available waitlist))
 	  (socket-error (c)
 	    (case (stream-error-identifier c)
 	      (:connection-reset 
 	       (let ((stream (stream-error-stream c)))
-		 (if *rpc-debug* (format t "closing error socket ~S~%" stream))
+		 (if *rpc-debug* (logit "closing error socket ~S~%" stream))
 		 (close stream)
 		 (setf clientlist (remove stream clientlist))
 		 nil))
 	      (t 
 	       (error c)))))
 	
-	;;(format t "readylist is ~A~%" readylist)
+	;;(logit "readylist is ~A~%" readylist)
 	
 	(when (member tcpsock readylist)
 	  (if *rpc-debug* 
-	      (format t "~
+	      (logit "~
 Accepting new tcp connection and adding it to the client list.~%"))
 	  (push (socket:accept-connection tcpsock) clientlist)
 	  (setf readylist (remove tcpsock readylist)))
@@ -122,7 +122,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	      (handler-case (socket:receive-from udpsock (length buffer) :buffer buffer)
 		(socket-error (c) 
 		  (if *rpc-debug* 
-		      (format t "Ignoring error condition ~S~%" c))
+		      (logit "Ignoring error condition ~S~%" c))
 		  nil))
 	    (when vec
 	      (return-from rpc-get-message 
@@ -137,7 +137,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	  (setf record (read-record s buffer))
 	  (if* (null record)
 	     then
-		  (if *rpc-debug* (format t "Client ~s disconnected.~%" s))
+		  (if *rpc-debug* (logit "Client ~s disconnected.~%" s))
 		  (ignore-errors (close s))
 		  (ignore-errors (close s :abort t))
 		  (setf clientlist (remove s clientlist))
@@ -175,10 +175,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(if (> size (length buffer))
 	    (error "read-record: Record is too big for the buffer! (~D > ~D)"
 		   size (length buffer)))
-	;;(format t "Message is ~d bytes~%" size)
+	;;(logit "Message is ~d bytes~%" size)
 	(read-complete-vector buffer stream size))
     (t (c)
-      (format t "read-record got error ~A~%Returning nil~%" c)
+      (logit "read-record got error ~A~%Returning nil~%" c)
       nil)))
 
 (defun read-complete-vector (vec stream end)
@@ -231,20 +231,20 @@ Accepting new tcp connection and adding it to the client list.~%"))
     (setf (call-body-prog cbody) (xdr-int xdr))
     (setf (call-body-vers cbody) (xdr-int xdr))
     (setf (call-body-proc cbody) (xdr-int xdr))
-    ;;(format t "create-call-body-from-xdr: Getting credentials~%")
+    ;;(logit "create-call-body-from-xdr: Getting credentials~%")
     (setf (call-body-cred cbody) (xdr-opaque-auth xdr))
-    ;;(format t "create-call-body-from-xdr: Getting verifier~%")
+    ;;(logit "create-call-body-from-xdr: Getting verifier~%")
     (setf (call-body-verf cbody) (xdr-opaque-auth xdr))
     (setf (call-body-params cbody) (xdr-xdr xdr))
     cbody))
 
 (defun pprint-cbody (cbody)
-  (format t "RPC Version: ~D~%" (call-body-rpcvers cbody))
-  (format t "Program: ~D~%" (call-body-prog cbody))
-  (format t "Program version: ~D~%" (call-body-vers cbody))
-  (format t "Program procedure: ~D~%" (call-body-proc cbody))
-  ;;(format t "Cred: ~S~%" (call-body-cred cbody))
-  ;;(format t "Verf: ~S~%" (call-body-verf cbody))
+  (logit "RPC Version: ~D~%" (call-body-rpcvers cbody))
+  (logit "Program: ~D~%" (call-body-prog cbody))
+  (logit "Program version: ~D~%" (call-body-vers cbody))
+  (logit "Program procedure: ~D~%" (call-body-proc cbody))
+  ;;(logit "Cred: ~S~%" (call-body-cred cbody))
+  ;;(logit "Verf: ~S~%" (call-body-verf cbody))
   )
 
 (defstruct reply-body

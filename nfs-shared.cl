@@ -59,3 +59,34 @@
 	       (cdr x)
 	       (car x)
 	       val)))))
+
+(defvar *log-stream* nil)
+
+(defun logit (format-string &rest format-args)
+  (when *log-stream*
+    (apply #'format *log-stream* format-string format-args)
+    (force-output *log-stream*)))
+
+(defvar *nfs-debug-stream* nil)
+
+(eval-when (compile eval load)
+  (require :streamc) ;; for make-broadcast-stream
+  )
+
+(defvar *log-file* "sys:nfsdebug.txt")
+
+(defun setup-logging (&optional reopen)
+  (when reopen
+    (when *nfs-debug-stream* (close *nfs-debug-stream*))
+    (setq *log-stream* nil))
+  
+  (when (null *log-stream*)
+    (setq *log-stream* *initial-terminal-io*)
+    (when *nfs-debug*
+      (setq *nfs-debug-stream*
+	(open *log-file* :direction :output :if-exists :append
+	      :if-does-not-exist :create))
+      (setq *log-stream*
+	(make-broadcast-stream *log-stream* *nfs-debug-stream*))
+      (logit "Log file: ~a~%"
+	     (translate-logical-pathname (pathname *log-file*))))))

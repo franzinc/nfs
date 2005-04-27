@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.16 2005/04/05 02:45:52 dancy Exp $
+;; $Id: xdr.cl,v 1.17 2005/04/27 16:24:56 layer Exp $
 
 (in-package :user)
 
@@ -66,9 +66,9 @@
 	      (,thexdr (car ,pairval))
 	      (,offset (cdr ,pairval))
 	      (,name ,thexdr))
-	 ;;(format t "seeking to offset ~D~%" ,offset)
+	 ;;(logit "seeking to offset ~D~%" ,offset)
 	 (with-xdr-seek (,thexdr ,offset :absolute t)
-	   ;;(format t "offset is currently ~D~%" (xdr-pos ,thexdr))
+	   ;;(logit "offset is currently ~D~%" (xdr-pos ,thexdr))
 	   ,@body)))))
 
 ;; used during extraction
@@ -438,13 +438,13 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
     (cond
      ((eq direction :extract)
       (let ((oa (make-opaque-auth)))
-	;;(format t "xdr-opaque-auth:  current xdr pos is ~D~%" (xdr-pos xdr))
+	;;(logit "xdr-opaque-auth:  current xdr pos is ~D~%" (xdr-pos xdr))
         (setf (opaque-auth-flavor oa) (xdr-int xdr))
-	;;(format t "xdr-opaque-auth: auth-flavor is ~D~%" (opaque-auth-flavor oa))
+	;;(logit "xdr-opaque-auth: auth-flavor is ~D~%" (opaque-auth-flavor oa))
 	(setf (opaque-auth-body-xdr oa) xdr)
 	(setf (opaque-auth-body-offset oa) (+ 4 (xdr-pos xdr))) ;; add 4 to skip the integer which contains the size of the body
 	(xdr-advance xdr (compute-variable-bytes-used xdr))
-	;;(format t "xdr-opaque-auth: new xdr pos is ~D~%" (xdr-pos xdr))
+	;;(logit "xdr-opaque-auth: new xdr pos is ~D~%" (xdr-pos xdr))
         oa))
      ((eq direction :build)
       (if (null body)
@@ -503,11 +503,11 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
      (type auth-unix au)
      (type fixnum pos))
     (with-xdr-seek (xdr pos :absolute t)
-      ;;(format t "seeked to position ~D within xdr~%" pos)
+      ;;(logit "seeked to position ~D within xdr~%" pos)
       (setf (auth-unix-stamp au) (xdr-int xdr))
-      ;;(format t "stamp is ~D~%" (auth-unix-stamp au))
+      ;;(logit "stamp is ~D~%" (auth-unix-stamp au))
       (setf (auth-unix-machinename au) (xdr-string xdr))
-      ;;(format t "machine name is ~A~%" (auth-unix-machinename au))
+      ;;(logit "machine name is ~A~%" (auth-unix-machinename au))
       (setf (auth-unix-uid au) (xdr-int xdr))
       (setf (auth-unix-gid au) (xdr-int xdr))
       (setf (auth-unix-gids au)

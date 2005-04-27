@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.19 2005/04/05 02:45:51 dancy Exp $
+;; $Id: portmap.cl,v 1.20 2005/04/27 16:24:56 layer Exp $
 
 ;; portmapper
 
@@ -84,7 +84,7 @@
   (when (eq *use-system-portmapper* :auto)
     (setf *use-system-portmapper* nil)
     (when (ping-portmapper)
-      (format t "Using system portmapper.~%")
+      (logit "Using system portmapper.~%")
       (setf *use-system-portmapper* t)
       (mp:open-gate *pmap-gate*)))
   
@@ -126,17 +126,17 @@
 	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
 	(t 
 	 ;; should send a negative response
-	 (format t "portmap: unhandled procedure ~D~%"
-		 (call-body-proc cbody)))))))
+	 (logit "portmap: unhandled procedure ~D~%"
+		(call-body-proc cbody)))))))
 
 (defun portmap-null (peer xid)
-  (if *portmap-debug* (format t "portmap-null~%~%"))
+  (if *portmap-debug* (logit "portmap-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
 
 
 (defun portmap-dump (peer xid)
-  (if *portmap-debug* (format t "portmap-dump~%~%"))
+  (if *portmap-debug* (logit "portmap-dump~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (dolist (mapping *mappings*)
       (xdr-int xdr 1) ;; indicate that data follows
@@ -152,16 +152,16 @@
 	      (xdr-portmap-mapping params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
-    (if *portmap-debug* (format t "portmap-getport: ~A~%" m))
+    (if *portmap-debug* (logit "portmap-getport: ~A~%" m))
     (if* m2
        then
 	    (if *portmap-debug*
-		(format t "Program found. Returning port ~D~%~%" 
+		(logit "Program found. Returning port ~D~%~%" 
 			(mapping-port m2)))
 	    (xdr-unsigned-int xdr (mapping-port m2))
        else
 	    (if *portmap-debug*
-		(format t "Program not found.  Returning 0~%~%"))
+		(logit "Program not found.  Returning 0~%~%"))
 	    (xdr-unsigned-int xdr 0))
     (send-successful-reply peer xid (null-verf) xdr)))
 
@@ -172,7 +172,7 @@
     (let ((prog (xdr-unsigned-int params))
 	  (vers (xdr-unsigned-int params))
 	  (proc (xdr-unsigned-int params)))
-      (format t "portmap-callit(~D, ~D, ~D, ...)~%~%" prog vers proc))))
+      (logit "portmap-callit(~D, ~D, ~D, ...)~%~%" prog vers proc))))
 |#
 
 (defun portmap-callit (peer xid params)
@@ -271,17 +271,17 @@
 		  :port *pmapport*
 		  :outproc 
 		  #'(lambda (xdr) (xdr-list xdr #'xdr-portmap-mapping)))))
-    (format t "   program vers proto   port~%")
+    (logit "   program vers proto   port~%")
     (dolist (m mappings)
-      (format t "~10d ~4d ~5@a ~6d~%" 
-	      (mapping-prog m)
-	      (mapping-vers m)
-	      (ecase (mapping-prot m)
-		(#.IPPROTO_TCP
-		 "tcp")
-		(#.IPPROTO_UDP
-		 "udp"))
-	      (mapping-port m)))))
+      (logit "~10d ~4d ~5@a ~6d~%" 
+	     (mapping-prog m)
+	     (mapping-vers m)
+	     (ecase (mapping-prot m)
+	       (#.IPPROTO_TCP
+		"tcp")
+	       (#.IPPROTO_UDP
+		"udp"))
+	     (mapping-port m)))))
 
 (defun portmap-set-client (mapping)
   (if (/= (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-set*

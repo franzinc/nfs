@@ -88,6 +88,6 @@
 ;; debugging
 (defun dump-nfsdircache ()
   (maphash #'(lambda (key value)
-	       (format t "~S -> ~S~%" key value))
+	       (logit "~S -> ~S~%" key value))
 	   *nfs-dircache*))
 

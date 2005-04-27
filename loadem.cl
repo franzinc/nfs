@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.30 2005/04/08 18:23:32 layer Exp $
+;; $Id: loadem.cl,v 1.31 2005/04/27 16:24:56 layer Exp $
 
 (in-package :user)
 
@@ -44,8 +44,10 @@
       "attr" 
       "dir" 
       "openfile"
+      "main" ;; needs to be before "nfs"
       "nfs"
-      "main"))
+      #+nfs-debug "telnet"
+      ))
 )
 
 (eval-when (compile load eval)

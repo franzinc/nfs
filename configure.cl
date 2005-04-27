@@ -26,5 +26,6 @@
 	    (apply #'define-export entry))
 	(t
 	 (set cmd (pop entry)))))
+    (setup-logging t)
     (finalize-exports)))
   

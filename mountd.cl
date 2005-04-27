@@ -21,9 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-
-;; mountd
-;; $Id: mountd.cl,v 1.18 2005/04/05 02:45:51 dancy Exp $
+;; $Id: mountd.cl,v 1.19 2005/04/27 16:24:56 layer Exp $
 
 (in-package :user)
 
@@ -90,20 +88,20 @@
       
       ;; sanity checks first
       (when (null cbody)
-	(format t "Invalid message from ~A~%" peer)
+	(logit "Invalid message from ~A~%" peer)
 	(return))
       
       (when (/= (call-body-prog cbody) *mountprog*)
-	(format t "Mountd: Sending program unavailable response for prog=~D to ~A~%"
-		(call-body-prog cbody)
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	(logit "Mountd: Sending program unavailable response for prog=~D to ~A~%"
+	       (call-body-prog cbody)
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
 	(return))
 
       (unless (<= 1 (call-body-vers cbody) 3)
-	(format t "Mountd: Sending program version mismatch response (requested version was ~D) to ~A~%" 
-		(call-body-vers cbody)
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	(logit "Mountd: Sending program version mismatch response (requested version was ~D) to ~A~%" 
+	       (call-body-vers cbody)
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) (null-verf) 1 3)
 	(return))
       
@@ -122,12 +120,12 @@
 	 (mountd-export peer (rpc-msg-xid msg)))
 	(t
 	 ;; should send a negative response
-	 (format t "mountd: unhandled procedure ~D requested by ~A~%"
-		 (call-body-proc cbody)
-		 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))))))
+	 (logit "mountd: unhandled procedure ~D requested by ~A~%"
+		(call-body-proc cbody)
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer))))))))
 
 (defun mountd-null (peer xid)
-  (if *mountd-debug* (format t "mountd-null~%~%"))
+  (if *mountd-debug* (logit "mountd-null~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
 
@@ -149,23 +147,23 @@
 	     (dirpath (xdr-string params))
 	     (exp (locate-export dirpath)))
 	(if *mountd-debug* 
-	    (format t "Mountd(v~D): ~A requests mount of ~A.~%"
-		    vers
-		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-		    dirpath))
+	    (logit "Mountd(v~D): ~A requests mount of ~A.~%"
+		   vers
+		   (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+		   dirpath))
 	(with-successful-reply (res peer xid (null-verf))
 	  (cond 
 	   ((null exp)
 	    (if *mountd-debug*
-		(format t "Mount request denied (no such export).~%"))
+		(logit "Mount request denied (no such export).~%"))
 	    (xdr-int res NFSERR_NOENT))
 	   ((not (export-host-access-allowed-p exp (rpc-peer-addr peer)))
 	    (if *mountd-debug* 
-		(format t "Mount request denied (host not allowed).~%"))
+		(logit "Mount request denied (host not allowed).~%"))
 	    (xdr-int res NFSERR_ACCES))
 	   (t
 	    (if *mountd-debug*
-		(format t "Mount request accepted.~%"))
+		(logit "Mount request accepted.~%"))
 	    (pushnew (list (rpc-peer-addr peer) dirpath) *mounts* 
 		     :test #'equalp)
 	    (xdr-int res NFS_OK)
@@ -178,8 +176,8 @@
 
 (defun mountd-dump (peer xid)
   (if *mountd-debug* 
-      (format t "Mountd: ~A mountd-dump.~%"
-	      (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+      (logit "Mountd: ~A mountd-dump.~%"
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (with-successful-reply (res peer xid (null-verf))
     (dolist (entry *mounts*)
       (xdr-int res 1) ;; data follows
@@ -192,9 +190,9 @@
 		   (xdr-string x)))
 	(xdr (create-xdr :direction :build)))
     (if *mountd-debug* 
-	(format t "Mountd: ~A requests unmount of ~A.~%"
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer))
-		dirpath))
+	(logit "Mountd: ~A requests unmount of ~A.~%"
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       dirpath))
     (setf *mounts* 
       (remove (list (rpc-peer-addr peer) dirpath) 
 	      *mounts*
@@ -204,14 +202,14 @@
 (defun mountd-umntall (peer xid)
   (let ((xdr (create-xdr :direction :build)))
     (if *mountd-debug* 
-	(format t "Mountd: ~A: umntall~%"
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+	(logit "Mountd: ~A: umntall~%"
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     (setf *mounts* 
       (remove (rpc-peer-addr peer) *mounts* :key #'first))
     (send-successful-reply peer xid (null-verf) xdr)))
 
 (defun mountd-export (peer xid)
-  (if *mountd-debug* (format t "mountd-export~%~%"))
+  (if *mountd-debug* (logit "mountd-export~%~%"))
   (let ((xdr (create-xdr :direction :build)))
     (dotimes (n (length *exports*))
       (xdr-int xdr 1) ;; indicate that data follows
@@ -223,6 +221,6 @@
 ;; debugging/informational.  No callers.
 (defun showmounts ()
   (dolist (mnt *mounts*)
-    (format t "~A -> ~A~%"
-	    (socket:ipaddr-to-dotted (first mnt))
-	    (second mnt))))
+    (logit "~A -> ~A~%"
+	   (socket:ipaddr-to-dotted (first mnt))
+	   (second mnt))))
