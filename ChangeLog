@@ -1,5 +1,7 @@
 2005-04-25    <layer@HOBART>
 
+    version changed to 3.99, in anticipation of the 4.0 release
+
 	* attr.cl: format -> logit
 	* configure.cl: logging
 	* dir.cl: format -> logit

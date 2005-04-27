@@ -76,6 +76,7 @@
 (defvar *log-file* "sys:nfsdebug.txt")
 
 (defun setup-logging (&optional reopen)
+  (declare (special *nfs-debug*))
   (when reopen
     (when *nfs-debug-stream* (close *nfs-debug-stream*))
     (setq *log-stream* nil))
