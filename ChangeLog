@@ -15,6 +15,7 @@
 	* nfs.nsi: remove old compressor comment
 	* portmap.cl: format -> logit
 	* sunrpc.cl: format -> logit
+	* (NEW) telnet.cl: telnet server
 	* xdr.cl: format -> logit
 
 2005-04-08    <layer@HOBART>
