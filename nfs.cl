@@ -22,11 +22,12 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.66 2005/04/27 16:24:56 layer Exp $
+;; $Id: nfs.cl,v 1.67 2005/04/28 17:16:32 layer Exp $
 
 (in-package :user)
 
 (defvar *nfsd-version* "3.99")
+(defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))
 
@@ -76,7 +77,7 @@
 
 
 (defun nfsd ()
-  (logit "Allegro NFS v~A started.~%" *nfsd-version*)
+  (logit "Allegro NFS Server version ~A started.~%" *nfsd-long-version*)
   (setf *nfsd-start-time* (get-universal-time))
   (if* *nfs-gc-debug*
      then (logit "~&Turning on memory management debugging.~%")

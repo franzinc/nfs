@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.7 2005/04/27 16:24:56 layer Exp $
+;; $Id: main.cl,v 1.8 2005/04/28 17:16:32 layer Exp $
 
 (in-package :user)
 
@@ -65,7 +65,7 @@
 
 (defun main (&rest args)
   (flet ((tnserver ()
-	   #+nfs-debug
+	   #+nfs-telnet-server
 	   (progn
 	     (logit "Starting telnet server on port 1234~%")
 	     (start-telnet-server :port 1234))))

@@ -22,11 +22,14 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.31 2005/04/27 16:24:56 layer Exp $
+;; $Id: loadem.cl,v 1.32 2005/04/28 17:16:32 layer Exp $
 
 (in-package :user)
 
+;;;;;; NONE OF THESE SHOULD BE ON IN AN PRODUCTION BUILD
 ;;(pushnew :nfs-debug *features* :test #'eq)
+(pushnew :nfs-profiling *features* :test #'eq)
+(pushnew :nfs-telnet-server *features* :test #'eq)
 
 (eval-when (compile load eval)
 (defparameter *filelist*
@@ -46,7 +49,7 @@
       "openfile"
       "main" ;; needs to be before "nfs"
       "nfs"
-      #+nfs-debug "telnet"
+      #+nfs-telnet-server "telnet"
       ))
 )
 
@@ -69,7 +72,14 @@
     
     (generate-executable
      "nfs" 
-     (append '(:sock :acldns :seq2 :foreign)  filelist)
+     (append '(:sock :acldns :seq2 :foreign
+	       #+nfs-profiling :prof
+	       #+nfs-profiling :pe ;; needed for prof:show-flat-profile
+	       #+nfs-debug :trace)
+	     filelist)
+     :runtime
+     #+nfs-profiling :partners
+     #-nfs-profiling :standard
      :icon-file "nfs.ico"
      :demo demo)
 

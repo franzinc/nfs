@@ -1,3 +1,10 @@
+2005-04-28    <layer@HOBART>
+
+	* loadem.cl: add :nfs-telnet-server and :nfs-profiling features to
+	  aid in debugging
+	* main.cl: #+nfs-debug -> #+nfs-telnet-server
+	* nfs.cl: version printing is more verbose
+
 2005-04-25    <layer@HOBART>
 
     version changed to 3.99, in anticipation of the 4.0 release
