@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.40 2005/03/09 17:42:23 layer Exp $
+# $Id: Makefile,v 1.41 2005/05/31 21:59:34 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -23,9 +23,6 @@ build-demo: build-prologue build-demo-cmd build-epilogue
 
 build-prologue:
 	rm -fr nfs
-# Hack.. since the configure program shares some fasls
-# with the nfs server.. but they're using incompatible
-# lisps.
 	rm -f *.fasl
 	rm -f b.tmp
 	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp

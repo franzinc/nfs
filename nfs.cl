@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.67 2005/04/28 17:16:32 layer Exp $
+;; $Id: nfs.cl,v 1.68 2005/05/31 21:59:34 dancy Exp $
 
 (in-package :user)
 
@@ -578,6 +578,7 @@
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (xdr-unsigned-int *nfsdxdr* 65536) ;; rtmax
   (xdr-unsigned-int *nfsdxdr* 65536) ;; rtpref
+  (xdr-unsigned-int *nfsdxdr* 512) ;; rtmult
   (xdr-unsigned-int *nfsdxdr* 65536) ;; wtmax
   (xdr-unsigned-int *nfsdxdr* 65536) ;; wtpref
   (xdr-unsigned-int *nfsdxdr* 512) ;; wtmult

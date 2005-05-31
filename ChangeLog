@@ -1,3 +1,12 @@
+2005-05-31    <dancy@CANDY2K>
+
+	* Makefile: Removed the hacks that were in place when the
+	configuration program was built using a different version of lisp
+	than the nfs server.
+
+	* nfs.cl: Fixed bug in the 'fsinfo' call.  A piece of return
+	information (rtmult) wasn't being added.
+	
 2005-04-28    <layer@HOBART>
 
 	* loadem.cl: add :nfs-telnet-server and :nfs-profiling features to
