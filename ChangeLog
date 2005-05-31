@@ -1,5 +1,11 @@
 2005-05-31    <dancy@CANDY2K>
 
+	* nfs.cl: access procedure: Don't return access bits that the
+	client didn't ask for.  This upsets Solaris 7.
+
+	* nfs.cl: pathconf procedure: Return file attributes the right
+	way (post-op-attrs).
+
 	* Makefile: Removed the hacks that were in place when the
 	configuration program was built using a different version of lisp
 	than the nfs server.

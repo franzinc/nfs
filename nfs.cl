@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.68 2005/05/31 21:59:34 dancy Exp $
+;; $Id: nfs.cl,v 1.69 2005/05/31 23:45:04 dancy Exp $
 
 (in-package :user)
 
@@ -777,6 +777,11 @@ struct entry {
 	(setf res (logior res #x1 #x2 #x20)))
     (if (nfs-okay-to-write fh cred)
 	(setf res (logior res #x4 #x8 #x10)))
+
+    ;; Some clients (Solaris 7 in particular) get upset if we return
+    ;; more detailed access information than requested, so use logand
+    ;; to only supply the requested bits.
+    (setf res (logand res access))
     (xdr-unsigned-int *nfsdxdr* res)))
 
 ;; readargs: fhandle, offset, count, totalcount
@@ -1211,7 +1216,7 @@ struct entry {
 
 (define-nfs-proc pathconf ((fh fhandle)) 
   (xdr-int *nfsdxdr* NFS_OK)
-  (nfs-xdr-fattr *nfsdxdr* fh 3)
+  (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (xdr-unsigned-int *nfsdxdr* 1) ;; linkmax
   (xdr-unsigned-int *nfsdxdr* 255) ;; name_max
   (xdr-bool *nfsdxdr* t) ;; no_trunc
