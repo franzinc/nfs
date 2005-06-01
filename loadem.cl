@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.32 2005/04/28 17:16:32 layer Exp $
+;; $Id: loadem.cl,v 1.33 2005/06/01 16:24:58 layer Exp $
 
 (in-package :user)
 
@@ -33,8 +33,7 @@
 
 (eval-when (compile load eval)
 (defparameter *filelist*
-    '("ntservice/ntservice"
-      "nfs-common" 
+    '("nfs-common" 
       "nfs-shared" 
       "xdr" 
       "sunrpc" 

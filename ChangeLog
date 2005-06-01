@@ -1,3 +1,8 @@
+2005-06-01    <layer@HOBART>
+
+	* loadem.cl: ntservice is a patch now, so it's not needed
+	* main.cl: require :ntservice
+
 2005-05-31    <dancy@CANDY2K>
 
 	* nfs.cl: access procedure: Don't return access bits that the
