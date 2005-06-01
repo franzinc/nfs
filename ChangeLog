@@ -5,6 +5,10 @@
 
 2005-06-01    <dancy@CANDY2K>
 
+	* nfs.cl: write3 procedure: honor stable-how parameter (via fsync).
+
+	* nfs.cl: commit procedure: Actually do something now (via fsync).
+
 	* nfs.cl: setattr3 procedure: Compare the guard time against
 	pre-op-attrs-ctime instead of file-write-date.
 

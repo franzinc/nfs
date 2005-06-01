@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.71 2005/06/01 16:49:09 layer Exp $
+;; $Id: nfs.cl,v 1.72 2005/06/01 20:23:03 dancy Exp $
 
 (in-package :user)
 
@@ -799,7 +799,7 @@ struct entry {
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
 ;; XXX should check that the file handle is a regular file handle,
-;; not a directory.  IF it is a directory, return NFSERR_INVAL.
+;; not a directory.  If it is a directory, return NFSERR_INVAL.
 (define-nfs-proc read3 ((fh fhandle) (offset uint64) (count unsigned))
   (with-permission (fh :read)
     (let ((f (get-open-file fh :input))
@@ -807,8 +807,7 @@ struct entry {
       (file-position f offset)
       (with-xdr-seek (*nfsdxdr* 100)
 	(setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
-      (if *nfs-debug*
-	  (logit " Read ~D bytes~%" got))
+      #+ignore(if *nfs-debug* (logit " Read ~D bytes~%" got))
       (update-attr-atime fh)
       (xdr-int *nfsdxdr* NFS_OK) 
       (nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -988,8 +987,6 @@ struct entry {
       };
       |#
 
-;; XXX We do not heed the stable-how parameter.  This is a protocol
-;; violation.
 (define-nfs-proc write3 ((fh fhandle) 
 			 (offset uint64)
 			 (count unsigned)
@@ -1007,14 +1004,13 @@ struct entry {
 			 :end (+ (second data) count))
 	   (second data)))
       (update-attr-times-and-size f fh)
+      (if (> stable-how 0) 
+	  (fsync f))
       (xdr-int *nfsdxdr* NFS_OK)
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
       (xdr-unsigned-int *nfsdxdr* wrote)
-      ;; Report our lack of protocol compliance to the client.
-      ;; If this makes clients get upset, we may need to lie.
-      ;; (in which case, just return the same value that the
-      ;; client specified)
-      (xdr-unsigned-int *nfsdxdr* 0) ;; stable_how
+      ;; Lie about commitment to stable storage
+      (xdr-unsigned-int *nfsdxdr* stable-how) 
       ;;  typedef opaque writeverf3[NFS3_WRITEVERFSIZE];
       ;; NFS3_WRITEVERFSIZE 8
       (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*))))
@@ -1024,7 +1020,7 @@ struct entry {
 ;; of the entire file.
 (define-nfs-proc commit ((fh fhandle) (offset uint64) (count unsigned))
   (with-permission (fh :write)
-    ;; Pretend that we did something
+    (fsync (get-open-file fh :output))
     (xdr-unsigned-int *nfsdxdr* NFS_OK)
     (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs fh) fh)
     (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*))) ;;verf
