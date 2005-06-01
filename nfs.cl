@@ -22,11 +22,11 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.70 2005/06/01 16:33:20 dancy Exp $
+;; $Id: nfs.cl,v 1.71 2005/06/01 16:49:09 layer Exp $
 
 (in-package :user)
 
-(defvar *nfsd-version* "3.99")
+(defvar *nfsd-version* "4.0")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))

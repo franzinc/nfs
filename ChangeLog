@@ -1,3 +1,8 @@
+2005-06-01    <layer@HOBART>
+4.0, rc1
+
+	* nfs.cl: version 4.0
+
 2005-06-01    <dancy@CANDY2K>
 
 	* nfs.cl: setattr3 procedure: Compare the guard time against
