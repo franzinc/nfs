@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.69 2005/05/31 23:45:04 dancy Exp $
+;; $Id: nfs.cl,v 1.70 2005/06/01 16:33:20 dancy Exp $
 
 (in-package :user)
 
@@ -988,7 +988,7 @@ struct entry {
       };
       |#
 
-;; XXX We do not need the stable-how parameter.  This is a protocol
+;; XXX We do not heed the stable-how parameter.  This is a protocol
 ;; violation.
 (define-nfs-proc write3 ((fh fhandle) 
 			 (offset uint64)
@@ -1001,10 +1001,11 @@ struct entry {
 	  wrote)
       (file-position f offset)
       (setf wrote 
-	(write-vector (xdr-vec (first data))
-		      f
-		      :start (second data)
-		      :end (+ (second data) count)))
+	(- (write-vector (xdr-vec (first data))
+			 f
+			 :start (second data)
+			 :end (+ (second data) count))
+	   (second data)))
       (update-attr-times-and-size f fh)
       (xdr-int *nfsdxdr* NFS_OK)
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
@@ -1094,7 +1095,7 @@ struct entry {
     (let ((pre-op-attrs (get-pre-op-attrs fh))
 	  (p (fh-pathname fh)))
       (close-open-file fh)
-      (if* (and guard (/= (file-write-date p) guard))
+      (if* (and guard (/= guard (pre-op-attrs-ctime pre-op-attrs)))
 	 then
 	      (xdr-int *nfsdxdr* NFSERR_NOT_SYNC)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)

@@ -1,3 +1,10 @@
+2005-06-01    <dancy@CANDY2K>
+
+	* nfs.cl: setattr3 procedure: Compare the guard time against
+	pre-op-attrs-ctime instead of file-write-date.
+
+	* nfs.cl: write3 procedure:  Compute the 'wrote' count correctly.
+	
 2005-06-01    <layer@HOBART>
 
 	* loadem.cl: ntservice is a patch now, so it's not needed

@@ -90,6 +90,10 @@
 	  (nfs-attr-mtime attrs) 
 	  (nfs-attr-ctime attrs))))
 
+(defun pre-op-attrs-ctime (pre-op-attrs)
+  (third pre-op-attrs))
+
+
 (defun dump-attr-cache ()
   (mp:with-process-lock (*attr-cache-lock*)
     (maphash #'(lambda (key value)
