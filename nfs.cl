@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.72 2005/06/01 20:23:03 dancy Exp $
+;; $Id: nfs.cl,v 1.73 2005/06/06 20:53:40 dancy Exp $
 
 (in-package :user)
 
@@ -788,7 +788,7 @@ struct entry {
 (define-nfs-proc read ((fh fhandle) (offset unsigned) (count unsigned)
 				    (totalcount unsigned))
   (with-permission (fh :read)
-    (let ((f (get-open-file fh :input)))
+    (with-nfs-open-file (f fh :input)
       (file-position f offset)
       ;; 72 = sizeof(fattr)+sizeof(NFS_OK)
       ;; 72 =       68     +   4
@@ -802,17 +802,16 @@ struct entry {
 ;; not a directory.  If it is a directory, return NFSERR_INVAL.
 (define-nfs-proc read3 ((fh fhandle) (offset uint64) (count unsigned))
   (with-permission (fh :read)
-    (let ((f (get-open-file fh :input))
-	  got)
-      (file-position f offset)
-      (with-xdr-seek (*nfsdxdr* 100)
-	(setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
-      #+ignore(if *nfs-debug* (logit " Read ~D bytes~%" got))
-      (update-attr-atime fh)
-      (xdr-int *nfsdxdr* NFS_OK) 
-      (nfs-xdr-post-op-attr *nfsdxdr* fh)
-      (xdr-unsigned-int *nfsdxdr* got)
-      (xdr-bool *nfsdxdr* (= (file-position f) (file-length f))))))
+    (with-nfs-open-file (f fh :input)
+      (let (got)
+	(file-position f offset)
+	(with-xdr-seek (*nfsdxdr* 100)
+	  (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
+	(update-attr-atime fh)
+	(xdr-int *nfsdxdr* NFS_OK) 
+	(nfs-xdr-post-op-attr *nfsdxdr* fh)
+	(xdr-unsigned-int *nfsdxdr* got)
+	(xdr-bool *nfsdxdr* (= (file-position f) (file-length f)))))))
 
 
 ;; args: fhandle dir, filename, sattr 
@@ -969,7 +968,7 @@ struct entry {
 				     (totalcount unsigned)
 				     (data data))
   (with-permission (fh :write)
-    (let ((f (get-open-file fh :output)))
+    (with-nfs-open-file (f fh :output)
       (file-position f offset)
       (write-sequence (xdr-vec (first data))
 		      f
@@ -993,37 +992,37 @@ struct entry {
 			 (stable-how unsigned)
 			 (data data))
   (with-permission (fh :write)
-    (let ((pre-op-attrs (get-pre-op-attrs fh))
-	  (f (get-open-file fh :output))
-	  wrote)
-      (file-position f offset)
-      (setf wrote 
-	(- (write-vector (xdr-vec (first data))
-			 f
-			 :start (second data)
-			 :end (+ (second data) count))
-	   (second data)))
-      (update-attr-times-and-size f fh)
-      (if (> stable-how 0) 
-	  (fsync f))
-      (xdr-int *nfsdxdr* NFS_OK)
-      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
-      (xdr-unsigned-int *nfsdxdr* wrote)
-      ;; Lie about commitment to stable storage
-      (xdr-unsigned-int *nfsdxdr* stable-how) 
-      ;;  typedef opaque writeverf3[NFS3_WRITEVERFSIZE];
-      ;; NFS3_WRITEVERFSIZE 8
-      (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*))))
+    (with-nfs-open-file (f fh :output)
+      (let ((pre-op-attrs (get-pre-op-attrs fh))
+	    wrote)
+	(file-position f offset)
+	(setf wrote 
+	  (- (write-vector (xdr-vec (first data))
+			   f
+			   :start (second data)
+			   :end (+ (second data) count))
+	     (second data)))
+	(update-attr-times-and-size f fh)
+	(if (> stable-how 0) 
+	    (fsync f))
+	(xdr-int *nfsdxdr* NFS_OK)
+	(nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
+	(xdr-unsigned-int *nfsdxdr* wrote)
+	(xdr-unsigned-int *nfsdxdr* stable-how) 
+	;;  typedef opaque writeverf3[NFS3_WRITEVERFSIZE];
+	;; NFS3_WRITEVERFSIZE 8
+	(xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*)))))
 
 
 ;; if offset=0 and count=0, then client is requesting a commit
 ;; of the entire file.
 (define-nfs-proc commit ((fh fhandle) (offset uint64) (count unsigned))
   (with-permission (fh :write)
-    (fsync (get-open-file fh :output))
-    (xdr-unsigned-int *nfsdxdr* NFS_OK)
-    (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs fh) fh)
-    (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*))) ;;verf
+    (with-nfs-open-file (f fh :output)
+      (fsync f)
+      (xdr-unsigned-int *nfsdxdr* NFS_OK)
+      (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs fh) fh)
+      (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*)))) ;;verf
 	  
 
 ;; args: fhandle, sattr

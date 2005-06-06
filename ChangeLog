@@ -1,3 +1,13 @@
+2005-06-06    <dancy@CANDY2K>
+
+	* openfile.cl: Added macro with-nfs-open-file which holds
+	*open-file-cache-lock* for the duration of the body.  This should
+	prevent the open file reaper from closing files that are still
+	being processed.
+
+	* nfs.cl: Changed all instances of get-open-file to
+	with-nfs-open-file.
+
 2005-06-01    <layer@HOBART>
 4.0, rc1
 

@@ -45,22 +45,27 @@
 	 ,ofvar))))
 
 
+;; Should be called with *open-file-cache-lock* held.
 (defun get-open-file (fh direction)
-  (mp:with-process-lock (*open-file-cache-lock*)
-    (let ((of (locate-open-file fh direction)))
-      (when (null of)
-	;; no entry found.. make a new one.
-	(setf of (make-openfile :direction direction))
-	(setf (openfile-stream of)
-	  (if (eq direction :input)
-	      (open (fh-pathname fh) :direction :input)
-	    (open (fh-pathname fh) :direction :output
-		  :if-exists :overwrite)))
-	(put-open-file fh of))
-      ;; common
-      (setf (openfile-lastaccess of) (excl::cl-internal-real-time))
-      (openfile-stream of))))
-	
+  (let ((of (locate-open-file fh direction)))
+    (when (null of)
+      ;; no entry found.. make a new one.
+      (setf of (make-openfile :direction direction))
+      (setf (openfile-stream of)
+	(if (eq direction :input)
+	    (open (fh-pathname fh) :direction :input)
+	  (open (fh-pathname fh) :direction :output
+		:if-exists :overwrite)))
+      (put-open-file fh of))
+    ;; common
+    (setf (openfile-lastaccess of) (excl::cl-internal-real-time))
+    (openfile-stream of)))
+
+(defmacro with-nfs-open-file ((var fh direction) &body body) 
+  `(mp:with-process-lock (*open-file-cache-lock*)
+     (let ((,var (get-open-file ,fh ,direction)))
+       ,@body)))
+
 (defun close-open-file (fh)
   (mp:with-process-lock (*open-file-cache-lock*)
     (let (of)
