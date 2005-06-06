@@ -43,10 +43,10 @@
      *NFREG*)))
 
 (defun nfs-attr (fh)
-  #+nfs-debug (logit "nfs-attr: pathname=~s~%" (fh-pathname fh))
+  ;;#+nfs-debug (logit "nfs-attr: pathname=~s~%" (fh-pathname fh))
   (let ((s (stat (fh-pathname fh)))
 	(blocksize 512))
-    #+nfs-debug (logit "nfs-attr: stat returned ~s~%" s)
+    ;;#+nfs-debug (logit "nfs-attr: stat returned ~s~%" s)
     (make-nfs-attr
      :type (stat-mode-to-type (stat-mode s))
      :mode (stat-mode s)

@@ -22,12 +22,12 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.33 2005/06/01 16:24:58 layer Exp $
+;; $Id: loadem.cl,v 1.34 2005/06/06 21:02:17 layer Exp $
 
 (in-package :user)
 
 ;;;;;; NONE OF THESE SHOULD BE ON IN AN PRODUCTION BUILD
-;;(pushnew :nfs-debug *features* :test #'eq)
+(pushnew :nfs-debug *features* :test #'eq)
 (pushnew :nfs-profiling *features* :test #'eq)
 (pushnew :nfs-telnet-server *features* :test #'eq)
 
