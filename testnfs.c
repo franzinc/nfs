@@ -1,4 +1,6 @@
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.2 2005/06/03 23:22:30 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.3 2005/06/06 20:51:50 dancy Exp $ */
+
+/* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -306,7 +308,8 @@ void test_readdir(char *workdir) {
 	/* make a bunch of test files */
 	
 	for(i=0; i<TESTFILES; i++) {
-		sprintf(filename, "%s/dirent%d", workdir, i);
+		snprintf(filename, sizeof(filename), "%s/dirent%d", 
+			 workdir, i);
 		fd=open(filename, O_WRONLY|O_CREAT, 0666);
 		if (fd < 0) {
 			printf("Failed to open %s for writing: %s\n",
@@ -327,7 +330,14 @@ void test_readdir(char *workdir) {
 	}
 	
 	/* tests modifying the directory while readdiring it */
+	errno=0;
 	while ((de=readdir(dirp))) {
+		/* printf("%s\n", de->d_name); */
+		if (!strncmp(de->d_name, "rent", 4)) {
+			printf("readdir is returning truncated directory entries.  This is a C library or building bug.  Aborting.\n");
+			exit(1);
+		}
+
 		if (sscanf(de->d_name, "dirent%d", &direntnum)==1) {
 			seen[direntnum]=1;
 			sprintf(filename, "%s/%s", workdir, de->d_name);
@@ -338,8 +348,9 @@ void test_readdir(char *workdir) {
 			}
 			
 		}
+		errno=0;
 	}
-#if 0
+#if 1
 	if (errno) {
 		perror("readdir");
 		exit(1);
