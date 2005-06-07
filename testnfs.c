@@ -1,4 +1,4 @@
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.4 2005/06/07 17:07:47 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.5 2005/06/07 18:32:19 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -507,7 +507,7 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
 
 void usage(char *prg) {
 	printf("Usage: %s\n", prg);
-	printf("\t[-o skipread] [-o skipwrite] [-t tmpdir-on-nfshost]\n");
+	printf("\t[-o skipread] [-o skipwrite] [-o skipdir ] [-t tmpdir-on-nfshost]\n");
 	printf("\t[-l local-test-dir] [-f test-filename] nfshost mountpoint\n");
 	printf("\n");
 	printf("    tmpdir-on-nfshost defaults to '%s'\n", DEFAULT_HOSTTEMP);
@@ -521,7 +521,7 @@ int main(int argc, char **argv) {
   char workdir[1024];
   char workdirbasename[1024];
   char *nfsdir, *nfshost, *hosttemp=DEFAULT_HOSTTEMP, c;
-  int skipread=0, skipwrite=0;
+  int skipread=0, skipwrite=0, skipdir=0;
 
   while (1) {
     c=getopt(argc, argv, "o:t:l:f:");
@@ -530,27 +530,29 @@ int main(int argc, char **argv) {
 
     switch(c) {
     case '?':
-      usage(argv[0]);
-      /* notreached */
-    case 'o':
-      if (!strcmp(optarg, "skipread")) {
-	skipread=1;
-      } else if (!strcmp(optarg, "skipwrite")) {
-	skipwrite=1;
-      } else {
-	printf("Unrecognized -o option: %s\n", optarg);
 	usage(argv[0]);
-      }
-      break;
+	/* notreached */
+    case 'o':
+	if (!strcmp(optarg, "skipread")) {
+	    skipread=1;
+	} else if (!strcmp(optarg, "skipwrite")) {
+	    skipwrite=1;
+	} else if (!strcmp(optarg, "skipdir")) {
+	    skipdir=1;
+	} else {
+	    printf("Unrecognized -o option: %s\n", optarg);
+	    usage(argv[0]);
+	}
+	break;
     case 't':
-      hosttemp=strdup(optarg);
-      break;
+	hosttemp=strdup(optarg);
+	break;
     case 'l':
-      localtemp=strdup(optarg);
-      break;
+	localtemp=strdup(optarg);
+	break;
     case 'f':
-      testfile=strdup(optarg);
-      break;
+	testfile=strdup(optarg);
+	break;
     }
   }
   
@@ -584,8 +586,9 @@ int main(int argc, char **argv) {
 	  test_write(workdir, nfshost, hosttemp, workdirbasename);
 
   test_rename(workdir);
-  
-  test_readdir(workdir);
+
+  if (!skipdir)
+      test_readdir(workdir);
   
   test_remove(workdir);
   
