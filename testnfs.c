@@ -1,4 +1,4 @@
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.5 2005/06/07 18:32:19 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.6 2005/06/08 16:00:02 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -6,13 +6,24 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
 #ifdef __FreeBSD__
 #include <sys/param.h>
 #include <sys/mount.h>
-#else
+#endif
+
+#if !defined(__hpux) && !defined(__FreeBSD__)
 #include <sys/statfs.h>
+#endif
+
+#ifndef __FreeBSD__
 #include <malloc.h>
 #endif
+
+#ifdef __hpux
+#include <sys/vfs.h>
+#endif
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
