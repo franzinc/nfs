@@ -1,3 +1,10 @@
+2005-06-08    <layer@HOBART>
+4.0, rc2
+
+	* loadem.cl: turn off debugging stuff
+	* Makefile: remove references to `ntservice' since it's now a
+	  module in ACL
+
 2005-06-06    <layer@HOBART>
 
 	* attr.cl: remove debugging logit's

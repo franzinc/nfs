@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.41 2005/05/31 21:59:34 dancy Exp $
+# $Id: Makefile,v 1.42 2005/06/08 23:03:22 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -85,7 +85,6 @@ nightly: dist-demo update_demo_cobweb
 
 nfs_source_files = Makefile ChangeLog *.cl *.txt \
 		nfs.cfg.default nfs.ico nfs.nsi
-ntservice_source_files = ntservice/ChangeLog ntservice/*.cl ntservice/*.txt
 configure_source_files = configure/Makefile configure/*.cl \
 			configure/*.txt configure/configure.lpr \
 			configure/*.bil 
@@ -96,16 +95,14 @@ srcdist: FORCE
 	rm -f $(srczip)
 	rm -fr nfs-$(version)-src
 	mkdir nfs-$(version)-src \
-	 nfs-$(version)-src/ntservice \
 	 nfs-$(version)-src/configure
 	cp -p $(nfs_source_files) nfs-$(version)-src
-	cp -p $(ntservice_source_files) nfs-$(version)-src/ntservice
 	cp -p $(configure_source_files) nfs-$(version)-src/configure
 	zip -r $(srczip) nfs-$(version)-src
 	rm -fr nfs-$(version)-src
 
 clean: FORCE
-	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~ ntservice/testapp
+	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 	$(MAKE) -C configure clean
 
 # Assumes cygwin mounted c:\ on /c
