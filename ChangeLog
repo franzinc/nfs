@@ -1,3 +1,9 @@
+2005-06-18    <layer@HOBART>
+4.0, rc3
+
+	* nfs.cl: bind *print-structure* and *print-array* to nil so
+	  errlog doesn't grow so fast.
+
 2005-06-08    <layer@HOBART>
 4.0, rc2
 

@@ -22,11 +22,11 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.73 2005/06/06 20:53:40 dancy Exp $
+;; $Id: nfs.cl,v 1.74 2005/06/18 15:50:47 layer Exp $
 
 (in-package :user)
 
-(defvar *nfsd-version* "4.0")
+(defvar *nfsd-version* "4.0, rc3")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))
@@ -207,6 +207,8 @@
 		  (let ((*print-readably* nil)
 			(*print-miser-width* 40)
 			(*print-pretty* t)
+			(*print-structure* nil)
+			(*print-array* nil)
 			(tpl:*zoom-print-circle* t)
 			(tpl:*zoom-print-level* nil)
 			(tpl:*zoom-print-length* nil)
@@ -350,6 +352,8 @@
 			       (let ((*print-readably* nil)
 				     (*print-miser-width* 40)
 				     (*print-pretty* t)
+				     (*print-structure* nil)
+				     (*print-array* nil)
 				     (tpl:*zoom-print-circle* t)
 				     (tpl:*zoom-print-level* nil)
 				     (tpl:*zoom-print-length* nil))
