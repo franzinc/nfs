@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.77 2005/06/21 17:46:03 layer Exp $
+;; $Id: nfs.cl,v 1.78 2005/06/21 18:37:29 layer Exp $
 
 (in-package :user)
 
@@ -223,17 +223,17 @@
        (handler-case
 	   (with-backtrace-on-non-file-error ()
 	     ,@body)
+	 (illegal-filename-error (c)
+	   (declare (ignore c))
+	   (setf (xdr-pos ,xdr) ,savepossym)
+	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
+	   (if (= ,vers 3)
+	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (file-error (c)
 	   (setf (xdr-pos ,xdr) ,savepossym)
 	   (when *nfs-debug* (logit "Handling file error: ~A~%" c))
 	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
 			  (excl::syscall-error-errno c)))
-	   (if (= ,vers 3)
-	       (nfs-xdr-wcc-data ,xdr nil nil)))
-	 (illegal-filename-error (c)
-	   (declare (ignore c))
-	   (setf (xdr-pos ,xdr) ,savepossym)
-	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (error (c)

@@ -1,6 +1,8 @@
 2005-06-21    <layer@HOBART>
 4.0, rc4
 
+	* nfs.cl: in with-nfs-err-handler, move illegal-filename-error
+	  clause above file-error one
 	* fhandle.cl: make illegal-filename-error a subclass of
 	  file-error, so clients get a good error message and the errlog
 	  file doesn't get a log of these types of errors.
