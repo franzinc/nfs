@@ -1,3 +1,10 @@
+2005-06-21    <layer@HOBART>
+4.0, rc4
+
+	* fhandle.cl: make illegal-filename-error a subclass of
+	  file-error, so clients get a good error message and the errlog
+	  file doesn't get a log of these types of errors.
+
 2005-06-18    <layer@HOBART>
 4.0, rc3
 

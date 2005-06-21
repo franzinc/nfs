@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.14 2005/04/05 03:11:36 dancy Exp $
+;; $Id: fhandle.cl,v 1.15 2005/06/21 17:46:03 layer Exp $
 
 ;; file handle stuff
 
@@ -95,7 +95,7 @@
 	    (setf (gethash (fh-id fh) *fhandles*) fh)
 	    (setf (gethash path *export-roots*) fh))))
 
-(define-condition illegal-filename-error () ())
+(define-condition illegal-filename-error (file-error) ())
 
 (defun sanity-check-filename (filename &key allow-dotnames)
   (if (or 
