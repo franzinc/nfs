@@ -1,3 +1,15 @@
+2005-06-22    <dancy@DANCYSOFT>
+
+	* fhandle.cl: Removed some type checks for production.  Changed
+	xdr-fhandle extraction mode so that it does not generate errors
+	(since the calls to this function are not wrapped in an error
+	handler).  
+
+	* nfs.cl: Changed with-non-stale-fh to with-valid-fh.  This new
+	macro now checks for invalid file handles as well as stale
+	handles.  An appropriate error code is returned to the client for
+	each scenario (depending on NFS protocol version).
+
 2005-06-21    <layer@HOBART>
 4.0, rc4
 

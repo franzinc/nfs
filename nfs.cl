@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.78 2005/06/21 18:37:29 layer Exp $
+;; $Id: nfs.cl,v 1.79 2005/06/22 23:14:27 dancy Exp $
 
 (in-package :user)
 
@@ -244,22 +244,27 @@
 	       (nfs-xdr-wcc-data ,xdr nil nil)))))))
     
 
-(defmacro with-non-stale-fh ((xdr vers fh) &body body)
-  (if (listp fh)
-      `(if* (some #'null (list ,@fh))
-	  then
-	       (xdr-int ,xdr NFSERR_STALE)
-	       (if (= ,vers 3)
-		   (nfs-xdr-wcc-data ,xdr nil nil))
-	  else
-	       ,@body)
-    `(if* ,fh
-	then
-	     ,@body
-	else
-	     (xdr-int ,xdr NFSERR_STALE)
-	     (if (= ,vers 3)
-		 (nfs-xdr-wcc-data ,xdr nil nil)))))
+(defmacro with-valid-fh ((xdr vers fhs) &body body)
+  (let ((block (gensym))
+	(fh (gensym)))
+    `(block ,block
+       (dolist (,fh (list ,@fhs))
+	 (case ,fh
+	   (:inval
+	    (ecase ,vers
+	      (2 
+	       (xdr-int ,xdr NFSERR_STALE))
+	      (3 
+	       (xdr-int ,xdr NFSERR_BADHANDLE)
+	       (nfs-xdr-wcc-data ,xdr nil nil)))
+	    (return-from ,block))
+	   (:stale
+	    (xdr-int ,xdr NFSERR_STALE)
+	    (if (= ,vers 3)
+		(nfs-xdr-wcc-data ,xdr nil nil))
+	    (return-from ,block))))
+       ,@body)))
+
 
 (defmacro with-allowed-host-access ((vers xdr fh addr) &body body)
   `(if* (export-host-access-allowed-p (fh-export ,fh) ,addr)
@@ -284,9 +289,9 @@
 	  (fhandle 
 	   (push (first pair) fhsyms)
 	   (push `(,(first pair) (xdr-fhandle params vers)) argdefs)
-	   (add-debug `(logit "~A" (if ,(first pair)
-					  (fh-pathname ,(first pair))
-					"stale-handle"))))
+	   (add-debug `(logit "~A" (if (fh-p ,(first pair))
+				       (fh-pathname ,(first pair))
+				     ,(first pair)))))
 	  (string
 	   (push `(,(first pair) (xdr-string params)) argdefs)
 	   (add-debug `(logit "~A" ,(first pair))))
@@ -338,7 +343,7 @@
 	     (logit "(nfsv~d) ~A(" vers (quote ,name))
 	     ,@debugs)
 	   (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf))
-	     (with-non-stale-fh (*nfsdxdr* vers ,fhsyms)
+	     (with-valid-fh (*nfsdxdr* vers ,fhsyms)
 	       (with-allowed-host-access (vers *nfsdxdr* 
 					       ,host-access-check-fh 
 					       (rpc-peer-addr peer))

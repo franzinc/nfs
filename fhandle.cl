@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.15 2005/06/21 17:46:03 layer Exp $
+;; $Id: fhandle.cl,v 1.16 2005/06/22 23:14:27 dancy Exp $
 
 ;; file handle stuff
 
@@ -155,10 +155,10 @@
 
 
 (defun xdr-fhandle (xdr vers &optional fh)
-  (declare ;;(optimize (speed 3) (safety 0))
+  (declare (optimize (speed 3) (safety 0))
 	   (type fixnum vers))
-  (check-type xdr xdr)
-  (check-type vers number)
+  ;;(check-type xdr xdr)
+  ;;(check-type vers number)
   (ecase (xdr-direction xdr)
     (:build
      (if (null fh)
@@ -178,29 +178,38 @@
 	 (setf value (ash value -32)))))
         
     (:extract
-     (let ((id 0)
-	   (shift 0)
-	   words)
-       ;; Can't trust client not to fool with the file handle
-       ;; so can't declare this.
-       ;;(declare (type fixnum id))   
-       (ecase vers
-	 (2
-	  (setf words *fhsizewords2*))
-	 (3 
-	  (setf words (/ (xdr-unsigned-int xdr) 4))
-	  ;; sanity check.
-	  (if (/= words *fhsizewords3*)
-	      (error "xdr-fhandle: Invalid file handle size (~D words)" words))))
-       (dotimes (i words)
-	 (declare (type fixnum words shift i))
-	 (setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
-	 (incf shift 32))
-       (if (not (fixnump id))
-	   (error "xdr-fhandle: Invalid id (non-fixnum) ~D" id))
-       (without-interrupts
-	 (gethash id *fhandles*))))))
-
+     (block nil
+       (let ((id 0)
+	     (shift 0)
+	     words)
+	 ;; Can't trust client not to fool with the file handle
+	 ;; so can't declare this.
+	 ;;(declare (type fixnum id))   
+	 (case vers
+	   (2
+	    (setf words *fhsizewords2*))
+	   (3 
+	    (setf words (/ (xdr-unsigned-int xdr) 4))
+	    ;; sanity check.
+	    (when (/= words *fhsizewords3*)
+	      (logit "Invalid file handle size (~D words)" words)
+	      (return :inval)))
+	   (t 
+	    (logit "Invalid file handle version: ~D" vers)
+	    (return :inval)))
+	 (dotimes (i words)
+	   (declare (type fixnum words shift i))
+	   (setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
+	   (incf shift 32))
+	 (when (not (fixnump id))
+	   (logit "Invalid file handle (non-fixnum) ~D" id)
+	   (return :inval))
+	 (without-interrupts
+	   (let ((fh (gethash id *fhandles*)))
+	     (if (null fh)
+		 :stale
+	       fh))))))))
+  
 ;; To be used with file deletion (or deletion as a side effect
 ;; of renaming onto an existing file).
 (defun remove-fhandle (fh filename)
