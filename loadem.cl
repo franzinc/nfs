@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.35 2005/06/08 23:03:22 layer Exp $
+;; $Id: loadem.cl,v 1.36 2005/06/23 20:59:42 dancy Exp $
 
 (in-package :user)
 
@@ -35,6 +35,7 @@
 (defparameter *filelist*
     '("nfs-common" 
       "nfs-shared" 
+      "sunrpc-common"
       "xdr" 
       "sunrpc" 
       "ipaddr" 

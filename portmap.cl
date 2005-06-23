@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.20 2005/04/27 16:24:56 layer Exp $
+;; $Id: portmap.cl,v 1.21 2005/06/23 20:59:42 dancy Exp $
 
 ;; portmapper
 
@@ -58,13 +58,16 @@
 
 (defparameter *use-system-portmapper* :auto)
 
+;; XXX -- Don't use reuse-address on Windows.
+
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
     (setf *pmap-tcp-socket*   
       (socket:make-socket :type :hiper
                           :connect :passive
                           :local-port *pmapport*
-                          :reuse-address t)))
+                          ;;:reuse-address t
+			  )))
   (unless *pmap-udp-socket*
     (setf *pmap-udp-socket*
       (socket:make-socket :type :datagram

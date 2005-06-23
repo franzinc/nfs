@@ -89,6 +89,7 @@
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-gc-debug* nil)
+(defparameter *nfs-debug-timestamps* nil)
 
 (defun map-errno-to-nfs-error-code (errno)
   (case errno

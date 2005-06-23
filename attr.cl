@@ -73,12 +73,12 @@
       (if* attr-cache
 	 then
 	      ;; update access time
-	      (setf (nfs-attr-cache-atime attr-cache) (get-universal-time)) 
+	      (setf (nfs-attr-cache-atime attr-cache) (excl::cl-internal-real-time)) 
 	 else ;; new cache entry
 	      (setf attr-cache 
 		(make-nfs-attr-cache 
 		 :attr (nfs-attr fh)
-		 :atime (get-universal-time)))
+		 :atime (excl::cl-internal-real-time)))
 	      (setf (gethash fh *nfs-attr-cache*) attr-cache))
       ;; return results
       (nfs-attr-cache-attr attr-cache))))
@@ -113,7 +113,7 @@
   (mp:with-process-lock (*attr-cache-lock*)
     (maphash
      #'(lambda (key attr-cache)
-	 (if (> (- (get-universal-time) 
+	 (if (> (- (excl::cl-internal-real-time) 
 		   (nfs-attr-cache-atime attr-cache))
 		*attr-cache-reap-time*)
 	     (remhash key *nfs-attr-cache*)))

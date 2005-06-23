@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.23 2005/04/27 16:24:56 layer Exp $
+;; $Id: sunrpc.cl,v 1.24 2005/06/23 20:59:42 dancy Exp $
 
 (in-package :user)
 
@@ -68,14 +68,11 @@
   addr
   port)
 
-;; Use 64K since that's the maximum UDP packet size.
-(defconstant *rpc-buffer-size* (* 64 1024))
-
 (defstruct rpc-server
   tcpsock
   udpsock
   tcpclientlist
-  (buffer (make-array *rpc-buffer-size* :element-type '(unsigned-byte 8))))
+  (buffer (make-array #.*rpc-buffer-size* :element-type '(unsigned-byte 8))))
 
 (defparameter *rpc-debug* nil)
  
@@ -370,7 +367,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 
 (defmacro with-successful-reply ((xdr-name peer xid verf) &body body)
   (let ((xdrbuf (gensym)))
-    `(let* ((,xdrbuf (make-array *rpc-buffer-size* 
+    `(let* ((,xdrbuf (make-array #.*rpc-buffer-size* 
 				 :element-type '(unsigned-byte 8)))
 	    (,xdr-name (create-xdr :direction :build :vec ,xdrbuf)))
        (declare 
@@ -443,7 +440,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 ;; returns xdr
 (defun rpc-get-reply (peer &key buffer)
   (when (null buffer)
-    (setf buffer (make-array *rpc-buffer-size* 
+    (setf buffer (make-array #.*rpc-buffer-size* 
 			     :element-type '(unsigned-byte 8))))
   
   (create-rpc-msg

@@ -35,6 +35,7 @@
   (mp:with-process-lock (*nfs-dircachelock*)
     (let ((dc (gethash dir *nfs-dircache*)))
       (when (null dc)
+	#+ignore(format t "Refreshing dircache for ~A~%" dir)
 	(setf dc (make-dircache :entries (augmented-directory dir)
 				:id (incf *nfs-dircache-id*)))
 	(setf (gethash dir *nfs-dircache*) dc))

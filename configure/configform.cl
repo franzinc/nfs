@@ -7,6 +7,7 @@
 (in-package :common-graphics-user)
 
 (defparameter *nfs-debug* nil)
+(defparameter *nfs-debug-timestamps* nil)
 (defparameter *nfs-gc-debug* nil)
 (defparameter *mountd-debug* nil)
 
@@ -82,6 +83,7 @@
     
     ;; parameters
     (push `(*nfs-debug* ,*nfs-debug*) config)
+    (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
     (push `(*mountd-debug* ,*mountd-debug*) config)
     (push `(user::*use-system-portmapper* ,user::*use-system-portmapper*)
@@ -112,6 +114,8 @@
 (defun populate-form (form)
   (setf (value (my-find-component :nfs-debug-checkbox form))
     *nfs-debug*)
+  (setf (value (my-find-component :nfs-debug-timestamps-checkbox form))
+    *nfs-debug-timestamps*)
   (setf (value (my-find-component :gc-debug-checkbox form))
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
@@ -841,21 +845,30 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-debug* new-value)
-  (format t "~&NFS debugging: ~a.~%" new-value)
+  #+ignore(format t "~&NFS debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
+
+(defun configform-nfs-debug-timestamps-checkbox-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *nfs-debug-timestamps* new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
 
 (defun configform-mountd-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *mountd-debug* new-value)
-  (format t "~&Mountd debugging: ~a.~%" new-value)
+  #+ignore(format t "~&Mountd debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
-  (format t "~&Memory management debugging: ~a.~%" new-value)
+  #+ignore(format t "~&Memory management debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -867,7 +880,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
      elseif (eq :yes new-value)
        then t
        else nil))
-  (format t "~&Use system portmapper: ~s~%." user::*use-system-portmapper*)
+  #+ignore(format t "~&Use system portmapper: ~s~%." user::*use-system-portmapper*)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 

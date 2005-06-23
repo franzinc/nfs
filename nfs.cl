@@ -22,11 +22,11 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.79 2005/06/22 23:14:27 dancy Exp $
+;; $Id: nfs.cl,v 1.80 2005/06/23 20:59:42 dancy Exp $
 
 (in-package :user)
 
-(defvar *nfsd-version* "4.0rc4")
+(defvar *nfsd-version* "4.0rc5")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))
@@ -42,13 +42,18 @@
 (defparameter *socketbuffersize* (* 128 1024))
 (defparameter *nfsd-start-time* nil)
 
+
+;; XXX -- Commented out reuse-address since Windows allows
+;; multiple sockets to be bound to the same local port.
+
 (defun make-nfsdsockets ()
   (unless *nfsd-tcp-socket*
     (setf *nfsd-tcp-socket*
       (socket:make-socket :type :hiper
                           :connect :passive
                           :local-port *nfsport*
-                          :reuse-address t))
+                          ;;:reuse-address t
+			  ))
     (socket:set-socket-options *nfsd-tcp-socket*
 			       :receive-buffer-size *socketbuffersize*
 			       :send-buffer-size *socketbuffersize*))
@@ -56,7 +61,8 @@
     (setf *nfsd-udp-socket*
       (socket:make-socket :type :datagram
 			  :local-port *nfsport*
-			  :reuse-address t))
+			  ;;:reuse-address t
+			  ))
     (socket:set-socket-options *nfsd-udp-socket*
 			       :receive-buffer-size *socketbuffersize*
 			       :send-buffer-size *socketbuffersize*)))
@@ -275,6 +281,15 @@
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil))))
 
+(eval-when (compile load eval)
+  (if (/= 1000 internal-time-units-per-second)
+      (error "internal-time-units-per-second is not 1000.  define-nfs-proc macro will need to be adjusted since it assumes millisecond resolution")))
+
+(defun nfs-log-time ()
+  (multiple-value-bind (sec min hour) 
+      (get-decoded-time)
+    (logit "~2,'0d:~2,'0d:~2,'0d " hour min sec)))
+	   
 (defmacro define-nfs-proc (name arglist &body body)
   (let ((funcname (intern (format nil "~A-~A" 'nfsd name)))
 	(first t)
@@ -328,8 +343,7 @@
 	   (add-debug `(logit "<data>"))))
 	(setf first nil)))
     (setf argdefs (reverse argdefs))
-    (push '(logit ")~%") debugs)
-    (push '(finish-output) debugs)
+    (push '(logit ")") debugs)
     (setf debugs (reverse debugs))
     (setf host-access-check-fh (first fhsyms))
     (if (null host-access-check-fh)
@@ -338,10 +352,15 @@
     `(defun ,funcname (peer xid cbody)
        (with-xdr-xdr ((call-body-params cbody) :name params)
 	 (let* ((vers (call-body-vers cbody))
+		procedure-start-time
 		,@argdefs)
 	   (when *nfs-debug*
+	     (if *nfs-debug-timestamps*
+		 (nfs-log-time))
 	     (logit "(nfsv~d) ~A(" vers (quote ,name))
-	     ,@debugs)
+	     ,@debugs
+	     (if *nfs-debug-timestamps*
+		 (setf procedure-start-time (get-internal-real-time))))
 	   (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf))
 	     (with-valid-fh (*nfsdxdr* vers ,fhsyms)
 	       (with-allowed-host-access (vers *nfsdxdr* 
@@ -374,7 +393,14 @@
 				      :count t :all t)))))))))
 		     ,@body)
 		   #-nfs-debug ,@body
-		   )))))))))
+		   (when *nfs-debug*
+		     (if *nfs-debug-timestamps*
+			 (logit " ==> ~dms~%" 
+				(- (get-internal-real-time) 
+				   procedure-start-time))
+		       (logit "~%"))))))))))))
+
+		   
 
 (defmacro with-permission ((fh type) &body body)
   (let ((func (ecase type

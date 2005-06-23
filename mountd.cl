@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.19 2005/04/27 16:24:56 layer Exp $
+;; $Id: mountd.cl,v 1.20 2005/06/23 20:59:42 dancy Exp $
 
 (in-package :user)
 
@@ -32,13 +32,11 @@
 
 (defparameter *mountd-debug* nil)
 
-
 (defun make-mountdsockets ()
   (unless *mountd-tcp-socket*
     (setf *mountd-tcp-socket*
       (socket:make-socket :type :hiper
-                          :connect :passive
-                          :reuse-address t)))
+                          :connect :passive)))
   (unless *mountd-udp-socket*
     (setf *mountd-udp-socket*
       (socket:make-socket :type :datagram))))

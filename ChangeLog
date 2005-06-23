@@ -1,3 +1,37 @@
+2005-06-23    <dancy@CANDY2K>
+4.0, rc5:
+	
+	* attr.cl: Use excl::cl-internal-real-time instead of
+	get-universal-time in a few places to reduce consing.
+
+	* dir.cl: #+ignore some debugging
+
+	* sunrpc-common.c: New.  Used to hold a constant that is used in
+	both xdr.cl and sunrpc.cl
+	
+	* loadem.cl:  Added sunrpc-common
+
+	* mountd.c: Don't use :reuse-address in call to make-socket.  We
+	don't specify a specific local port number so it is not necessary.
+	
+	* nfs-common.cl: Added *nfs-debug-timestamps* parameter.
+
+	* nfs.cl: For the time being (and maybe forever?) don't use
+	:reuse-address when making sockets.  This is so that conflicts with
+	other installed NFS server products will be made apparent.
+
+	Added support for timestamping on some of the debugging output.
+
+	* portmap.cl: Don't use :reuse-address when making the sockets.
+	This is to make conflicts more apparent.
+
+	* sunrpc.cl:  Moved *rpc-buffer-size* constant to sunrpc-common.cl.  
+
+	Use #. before all uses of *rpc-buffer-size* so that dynamic extent
+	arrays can be optimized.
+
+	* configure/*: Added checkbox for timestamping debugging output.
+
 2005-06-22    <dancy@DANCYSOFT>
 
 	* fhandle.cl: Removed some type checks for production.  Changed
