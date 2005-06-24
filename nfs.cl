@@ -22,11 +22,11 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.80 2005/06/23 20:59:42 dancy Exp $
+;; $Id: nfs.cl,v 1.81 2005/06/24 18:57:11 dancy Exp $
 
 (in-package :user)
 
-(defvar *nfsd-version* "4.0rc5")
+(defvar *nfsd-version* "4.0rc6")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))
@@ -232,6 +232,7 @@
 	 (illegal-filename-error (c)
 	   (declare (ignore c))
 	   (setf (xdr-pos ,xdr) ,savepossym)
+	   (when *nfs-debug* (logit "Illegal filename~%"))
 	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
@@ -257,6 +258,7 @@
        (dolist (,fh (list ,@fhs))
 	 (case ,fh
 	   (:inval
+	    (when *nfs-debug* (logit " Invalid file handle~%"))
 	    (ecase ,vers
 	      (2 
 	       (xdr-int ,xdr NFSERR_STALE))
@@ -265,6 +267,7 @@
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	    (return-from ,block))
 	   (:stale
+	    (when *nfs-debug* (logit " Stale file handle~%"))
 	    (xdr-int ,xdr NFSERR_STALE)
 	    (if (= ,vers 3)
 		(nfs-xdr-wcc-data ,xdr nil nil))
@@ -277,6 +280,7 @@
       then
 	   ,@body
       else
+	   (when *nfs-debug* (logit " Host access denied~%"))
 	   (xdr-int ,xdr NFSERR_ACCES)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil))))
@@ -408,7 +412,7 @@
 		(:write 'nfs-okay-to-write))))
     `(if* (not (,func ,fh (call-body-cred cbody)))
 	then
-	     (if *nfs-debug* (logit "permission denied~%") )
+	     (if *nfs-debug* (logit " permission denied~%") )
 	     (xdr-int *nfsdxdr* NFSERR_ACCES)
 	     (if (= vers 3)
 		 (nfs-xdr-wcc-data *nfsdxdr* nil nil))
@@ -423,17 +427,20 @@
 	  then
 	       ,@body
 	  else
+	       (when *nfs-debug* (logit " Not a directory~%"))
 	       (xdr-int *nfsdxdr* NFSERR_NOTDIR)
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
 
 (defmacro nfs-unsupported ()
-  `(ecase vers
-     (2 
-      (xdr-int *nfsdxdr* NFSERR_IO))
-     (3
-      (xdr-int *nfsdxdr* NFSERR_NOTSUPP)
-      (nfs-xdr-wcc-data *nfsdxdr* nil nil))))
+  `(progn
+     (when *nfs-debug* (logit " Unsupported~%"))
+     (ecase vers
+       (2 
+	(xdr-int *nfsdxdr* NFSERR_IO))
+       (3
+	(xdr-int *nfsdxdr* NFSERR_NOTSUPP)
+	(nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -534,6 +541,7 @@
 	(ignore-errors (get-filesystem-free-space (fh-pathname fh)))
       (if* (null non-priv-free)
 	 then
+	      (when *nfs-debug* (logit " I/O error~%"))
 	      (xdr-int *nfsdxdr* NFSERR_IO)
 	 else
 	      ;; Convert to "blocks"
@@ -573,6 +581,7 @@
       (ignore-errors (get-filesystem-free-space (fh-pathname fh)))
     (if* (null non-priv-free)
        then
+	    (when *nfs-debug* (logit " I/O error~%"))
 	    (xdr-int *nfsdxdr* NFSERR_IO)
 	    (nfs-xdr-wcc-data *nfsdxdr* nil nil)
        else
@@ -667,11 +676,17 @@
     (let ((index startindex)
 	  (totalbytesadded 8)
 	  (complete t)
+	  (entries 0)
 	  bytesadded
 	  endindex
 	  p)
-
-      (when (and (= vers 3) (/= startindex 0) (/= verf (dircache-id dc)))
+      (declare (fixnum entries totalbytesadded index))
+      
+      ;; HP-UX doesn't do the cookie verifier properly so don't
+      ;; complain if we get a verifier of 0.
+      (when (and (= vers 3) (/= startindex 0) (/= verf 0)
+		 (/= verf (dircache-id dc)))
+	(when *nfs-debug* (logit " Bad cookie~%"))
 	(xdr-int xdr NFSERR_BAD_COOKIE)
 	(nfs-xdr-post-op-attr xdr dirfh)
 	(return-from add-direntries))
@@ -700,20 +715,20 @@
 	  (when (> totalbytesadded max)
 	    (if (eq *nfs-debug* :verbose) 
 		(logit " [not added due to size overflow]~%"))
-	    (if *nfs-debug* 
-		(logit "add-direntries: stopping at entry for ~A (no space)~%" p))
 	    (xdr-backspace xdr bytesadded)
 	    (setf complete nil)
 	    (return)) ;; break from loop
-	    
+
+	  (incf entries)
 	  (if (eq *nfs-debug* :verbose) (logit " [added]~%")))
 	  
 	(incf index))
 	
       (xdr-int xdr 0) ;; no more entries
       (xdr-bool xdr complete)
+      (when *nfs-debug* (logit " ~d entries" entries))
       (if (and *nfs-debug* complete)
-	  (logit "Reached end of entries~%~%")))))
+	  (logit " EOF~%")))))
 
 
 #|
@@ -842,6 +857,7 @@ struct entry {
 	(file-position f offset)
 	(with-xdr-seek (*nfsdxdr* 100)
 	  (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
+	(if *nfs-debug* (logit " (read ~d bytes)" got))
 	(update-attr-atime fh)
 	(xdr-int *nfsdxdr* NFS_OK) 
 	(nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -882,6 +898,7 @@ struct entry {
 	 (close (open newpath :direction :output :if-exists :error)))
 	(:exclusive
 	 ;; We don't do this.
+	 (when *nfs-debug* (logit " exclusive mode not supported~%"))
 	 (setf res NFSERR_NOTSUPP)))
       (if* (= res NFS_OK) 
 	 then
@@ -1127,6 +1144,7 @@ struct entry {
       (close-open-file fh)
       (if* (and guard (/= guard (pre-op-attrs-ctime pre-op-attrs)))
 	 then
+	      (when *nfs-debug* (logit " Guard time out of sync~%"))
 	      (xdr-int *nfsdxdr* NFSERR_NOT_SYNC)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
 	 else
@@ -1168,6 +1186,7 @@ struct entry {
       then
 	   ,@body
       else
+	   (when *nfs-debug* (logit " Not same export~%"))
 	   (ecase vers
 	     (2
 	      (xdr-int *nfsdxdr* NFSERR_ACCES))
@@ -1291,6 +1310,7 @@ struct entry {
       (2
        (nfs-unsupported))
       (3
+       (when *nfs-debug* (logit " unsupported~%"))
        (xdr-int *nfsdxdr* NFSERR_NOTSUPP)
        (nfs-xdr-post-op-attr *nfsdxdr* fh)
        (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs destdirfh) destdirfh)))))

@@ -1,3 +1,12 @@
+2005-06-24    <dancy@CANDY2K>
+4.0, rc6:
+	
+	* nfs.cl: Work around bugs in HP-UX NFS v3 implementation.  It
+	violates NFSv3 readdir protocol (doesn't supply the cookie
+	verifier on subsequent calls to readdir).
+
+	Adjusted/ some debugging output.  
+
 2005-06-23    <dancy@CANDY2K>
 4.0, rc5:
 	
