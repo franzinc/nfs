@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.20 2005/06/23 20:59:42 dancy Exp $
+;; $Id: mountd.cl,v 1.21 2005/06/28 16:49:09 dancy Exp $
 
 (in-package :user)
 
@@ -33,14 +33,21 @@
 (defparameter *mountd-debug* nil)
 
 (defun make-mountdsockets ()
-  (unless *mountd-tcp-socket*
-    (setf *mountd-tcp-socket*
-      (socket:make-socket :type :hiper
-                          :connect :passive)))
-  (unless *mountd-udp-socket*
-    (setf *mountd-udp-socket*
-      (socket:make-socket :type :datagram))))
-
+  (handler-case 
+      (progn
+	(unless *mountd-tcp-socket*
+	  (setf *mountd-tcp-socket*
+	    (socket:make-socket :type :hiper
+				:connect :passive)))
+	(unless *mountd-udp-socket*
+	  (setf *mountd-udp-socket*
+	    (socket:make-socket :type :datagram))))
+    (error (c)
+      (bailout "
+Unexpected error while creating a mountd socket: ~a~%" c)))
+  (logit "Mountd using UDP port ~d~%" (socket:local-port *mountd-udp-socket*))
+  (logit "Mountd using TCP port ~d~%" (socket:local-port *mountd-tcp-socket*)))
+    
 (defun close-mountdsockets ()
   (when *mountd-tcp-socket*
     (close *mountd-tcp-socket*)

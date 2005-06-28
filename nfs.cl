@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.82 2005/06/28 16:31:45 layer Exp $
+;; $Id: nfs.cl,v 1.83 2005/06/28 16:49:09 dancy Exp $
 
 (in-package :user)
 
@@ -36,7 +36,6 @@
 (defconstant *maxdata* 8192)
 (defconstant *maxpathlen* 1024)
 (defconstant *maxnamlen* 255)
-(defconstant *cookiesize* 4) ;; 8 bytes in v3
 (defparameter *nfsd-tcp-socket* nil)
 (defparameter *nfsd-udp-socket* nil)
 (defparameter *socketbuffersize* (* 128 1024))
@@ -48,21 +47,35 @@
 
 (defun make-nfsdsockets ()
   (unless *nfsd-tcp-socket*
-    (setf *nfsd-tcp-socket*
-      (socket:make-socket :type :hiper
-                          :connect :passive
-                          :local-port *nfsport*
-                          ;;:reuse-address t
-			  ))
+    (handler-case 
+	(setf *nfsd-tcp-socket*
+	  (socket:make-socket :type :hiper
+			      :connect :passive
+			      :local-port *nfsport*
+			      ;;:reuse-address t
+			      ))
+      (socket-error (c)
+	(if (eq (stream-error-identifier c) :address-in-use)
+	    (bailout "Cannot start nfsd.  Address already in use.~%")
+	  (bailout "~
+Unexpected error while creating nfsd tcp socket: ~A~%" c)))
+      (error (c)
+	(bailout "~
+Unexpected error while creating nfsd tcp socket: ~A~%" c)))
+
     (socket:set-socket-options *nfsd-tcp-socket*
 			       :receive-buffer-size *socketbuffersize*
 			       :send-buffer-size *socketbuffersize*))
+  
   (unless *nfsd-udp-socket*
-    (setf *nfsd-udp-socket*
-      (socket:make-socket :type :datagram
-			  :local-port *nfsport*
-			  ;;:reuse-address t
-			  ))
+    (handler-case 
+	(setf *nfsd-udp-socket*
+	  (socket:make-socket :type :datagram
+			      :local-port *nfsport*))
+      (error (c)
+	(bailout "~
+Unexpected error while creating nfsd udp socket: ~A~%" c)))
+    
     (socket:set-socket-options *nfsd-udp-socket*
 			       :receive-buffer-size *socketbuffersize*
 			       :send-buffer-size *socketbuffersize*)))

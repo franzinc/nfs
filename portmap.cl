@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.21 2005/06/23 20:59:42 dancy Exp $
+;; $Id: portmap.cl,v 1.22 2005/06/28 16:49:09 dancy Exp $
 
 ;; portmapper
 
@@ -62,17 +62,31 @@
 
 (defun make-pmap-sockets ()
   (unless *pmap-tcp-socket*
-    (setf *pmap-tcp-socket*   
-      (socket:make-socket :type :hiper
-                          :connect :passive
-                          :local-port *pmapport*
-                          ;;:reuse-address t
-			  )))
+    (handler-case 
+	(setf *pmap-tcp-socket*   
+	  (socket:make-socket :type :hiper
+			      :connect :passive
+			      :local-port *pmapport*
+			      ;;:reuse-address t
+			      ))
+      (socket-error (c)
+	(if (eq (stream-error-identifier c) :address-in-use)
+	    (bailout "Cannot start portmapper.  Address already in use.~%")
+	  (bailout "~
+Unexpected error while creating portmapper tcp socket: ~a~%" c)))
+      (error (c)
+	(bailout "~
+Unexpected error while creating portmapper tcp socket: ~a~%" c))))
+  
   (unless *pmap-udp-socket*
-    (setf *pmap-udp-socket*
-      (socket:make-socket :type :datagram
-                          :local-port *pmapport*))))
-      
+    (handler-case
+	(setf *pmap-udp-socket*
+	  (socket:make-socket :type :datagram
+			      :local-port *pmapport*))
+      (error (c) 
+	(bailout "~
+Unexpected error while creating portmapper udp socket: ~a~%" c)))))
+
 
 (defun close-pmap-sockets ()
   (when *pmap-tcp-socket*

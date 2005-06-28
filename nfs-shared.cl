@@ -1,5 +1,9 @@
-
 (in-package :user)
+
+;; $Id: nfs-shared.cl,v 1.4 2005/06/28 16:49:09 dancy Exp $
+
+;; This file contains stuff that is shared between the nfs server code
+;; and the configuration app code.
 
 (eval-when (compile eval load)
   (require :regexp2)

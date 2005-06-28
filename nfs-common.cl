@@ -115,3 +115,10 @@
 ;;; given a particular blocksize
 (defun howmany (value blocksize)
   (/ (roundup value blocksize) blocksize))
+
+(defmacro bailout (format &rest format-args)
+  `(progn
+     (logit ,format ,@format-args)
+     (console-control :close t)
+     (exit 1)))
+
