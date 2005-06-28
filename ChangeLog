@@ -2,7 +2,9 @@
 
 2005-06-28    <dancy@CANDY2K>
 
-	* portmap, mountd, nfsd:  Added handler-cases around socket creation code to catch any errors and to make them apparent to the user.  
+	* portmap, mountd, nfsd:  Added handler-cases around socket
+	  creation code to catch any errors and to make them apparent to
+	  the user.
 
 	* mountd.cl: Report the udp and tcp port numbers that are being
 	used for mountd so folks who want to poke holes in their firewalls
