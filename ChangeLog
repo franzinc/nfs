@@ -1,4 +1,11 @@
+
 ************** 4.0 release
+
+	2005-07-20    <dancy@DANCYSOFT>
+
+	* nsm.cl: New.  
+
+	* xdr.cl: xdr-opaque-fixed.  Adjusted API.
 
 2005-06-28    <dancy@CANDY2K>
 

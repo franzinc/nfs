@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.24 2005/06/23 20:59:42 dancy Exp $
+;; $Id: sunrpc.cl,v 1.25 2005/07/20 17:03:42 dancy Exp $
 
 (in-package :user)
 
@@ -482,6 +482,9 @@ Accepting new tcp connection and adding it to the client list.~%"))
     (xdr-xdr xdr rest)
     xdr))
 
+;; On success, returns the results of the remote procedure call, post-
+;; processed by 'outproc' (if provided).  If 'outproc' is not provided
+;; then an xdr struct is returned.
 (defun callrpc (host prognum versnum procnum proto inproc in
 		&key (retries 3)
 		     (timeout 5)

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.17 2005/04/27 16:24:56 layer Exp $
+;; $Id: xdr.cl,v 1.18 2005/07/20 17:03:42 dancy Exp $
 
 (in-package :user)
 
@@ -324,8 +324,10 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 
 
-;; returns a vector
-(defun xdr-opaque-fixed (xdr &key vec len)
+;; If make-vec is true, return a new vector.
+;; Otherwise, return enough information to efficiently
+;; get that the data from the xdr vector later.
+(defun xdr-opaque-fixed (xdr &key vec len make-vec)
   (declare
    (type xdr xdr))
   (ecase (xdr-direction xdr)
@@ -333,7 +335,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
      (unless len
        (error "xdr-opaque-fixed: 'len' parameter is required"))
      (prog1 
-	 (list xdr (xdr-pos xdr) len)
+	 (if make-vec
+	     (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len))
+	   (list xdr (xdr-pos xdr) len))
        (xdr-advance xdr (compute-padded-len len))))
     (:build
      (unless vec
