@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.36 2005/06/23 20:59:42 dancy Exp $
+;; $Id: loadem.cl,v 1.37 2005/07/28 16:41:41 dancy Exp $
 
 (in-package :user)
 
@@ -44,6 +44,8 @@
       "portmap" 
       "fhandle" 
       "mountd" 
+      "nsm"
+      "nlm"
       "attr" 
       "dir" 
       "openfile"

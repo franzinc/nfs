@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.18 2005/07/20 17:03:42 dancy Exp $
+;; $Id: xdr.cl,v 1.19 2005/07/28 16:41:41 dancy Exp $
 
 (in-package :user)
 
@@ -357,13 +357,13 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 
  ;;; extract:  returns (xdr offset length)
-(defun xdr-opaque-variable (xdr &key vec len)
+(defun xdr-opaque-variable (xdr &key vec len make-vec)
   (declare 
    (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
-      (xdr-opaque-fixed xdr :len (xdr-int xdr)))
+      (xdr-opaque-fixed xdr :len (xdr-int xdr) :make-vec make-vec))
      ((eq direction :build)
       (unless vec
         (error "xdr-opaque-variable: 'vec' parameter is required"))
@@ -615,6 +615,87 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (funcall typefunc xdr thing))
      (xdr-unsigned-int xdr 0))))
 
+;;;;;;;;;;;;;;;;;
 
+(defun xdr-prepend-xdr (sym)
+  (intern (concatenate 'string (symbol-name 'xdr) "-" (symbol-name sym))))
 
+(defun xdr-struct-accessor (structname slot)
+  (intern (concatenate 'string (symbol-name structname) "-"
+		       (symbol-name slot))))
 
+(defmacro defxdrstruct (structname members)
+  (let* ((maker (intern (concatenate 'string (symbol-name 'make) "-"
+				     (symbol-name structname))))
+	 extractions)
+    (dolist (member members)
+      (let ((type (first member))
+	    (member (second member)))
+	(setf extractions (append extractions
+				  (list (intern member :keyword) 
+					`(,(xdr-prepend-xdr type) xdr))))))
+      
+    `(progn
+       (defstruct ,structname
+	 ,@(mapcar #'second members))
+       
+       (defun ,(xdr-prepend-xdr structname) (xdr &optional arg)
+	 (ecase (xdr-direction xdr)
+	   (:build
+	    ,@(mapcar #'(lambda (member)
+			  (let* ((type (first member))
+				 (member (second member))
+				 (accessor (xdr-struct-accessor structname member)))
+			    `(,(xdr-prepend-xdr type) xdr (,accessor arg))))
+		      members))
+	   (:extract
+	    (,maker 
+	     ,@extractions)))))))
+			   
+(defmacro defxdrunion (type discrim arms)
+  (let* ((maker (intern (concatenate 'string (symbol-name 'make) "-"
+				     (symbol-name type))))
+	 (discrim-type (first discrim))
+	 (discrim-slot (second discrim))
+	 (discrim-accessor (xdr-struct-accessor type discrim-slot))
+	 slots
+	 builds
+	 extractions)
+    (dolist (arm arms)
+      (let ((case (first arm))
+	    (slot-type (second arm))
+	    (slot-name (third arm)))
+	(push slot-name slots)
+	(push `((eql discrim ,case)
+		(,(xdr-prepend-xdr slot-type) 
+		 xdr (,(xdr-struct-accessor type slot-name) arg)))
+	      builds)
+	(push `((eql discrim ,case)
+		(setf (,(xdr-struct-accessor type slot-name) res) 
+		  (,(xdr-prepend-xdr slot-type) xdr)))
+	      extractions)))
+    
+    (setf slots (nreverse slots))
+    (setf builds (nreverse builds))
+    (setf extractions (nreverse extractions))
+    
+    `(progn
+       (defstruct ,type 
+	 ,(second discrim)
+	 ,@slots)
+       
+       (defun ,(xdr-prepend-xdr type) (xdr &optional arg)
+	 (ecase (xdr-direction xdr)
+	   (:build
+	    (let ((discrim (,discrim-accessor arg)))
+	      (,(xdr-prepend-xdr discrim-type) xdr discrim)
+	      (cond
+	       ,@builds)))
+	   (:extract
+	    (let* ((discrim (,(xdr-prepend-xdr discrim-type) xdr))
+		   (res (,maker)))
+	      (setf (,discrim-accessor res) discrim)
+	      (cond
+	       ,@extractions)
+	      res)))))))
+	    

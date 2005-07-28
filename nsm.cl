@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.1 2005/07/20 17:03:42 dancy Exp $
+;; $Id: nsm.cl,v 1.2 2005/07/28 16:41:41 dancy Exp $
 
 (in-package :user)
 
@@ -80,8 +80,8 @@
     (error (c)
       (bailout "
 Unexpected error while creating a nsm socket: ~a~%" c)))
-  (logit "NSM using UDP port ~d~%" (socket:local-port *nsm-udp-socket*))
-  (logit "NSM using TCP port ~d~%" (socket:local-port *nsm-tcp-socket*)))
+  (logit "NSM: Using UDP port ~d~%" (socket:local-port *nsm-udp-socket*))
+  (logit "NSM: Using TCP port ~d~%" (socket:local-port *nsm-tcp-socket*)))
 
 (defun close-nsm-sockets ()
   (when *nsm-tcp-socket*
@@ -116,6 +116,7 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 	  (declare (dynamic-extent buffer server))
 	  (nsm-load-state) 
 	  (advance-state)
+	  (nsm-save-state)
 	  (nsm-notify-peers) ;; Let folks know that we're back.
 	  (loop
 	    (multiple-value-bind (xdr peer)
@@ -141,7 +142,7 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
 	(return))
 
-      (unless (= 1 (call-body-vers cbody) *smvers*)
+      (unless (= (call-body-vers cbody) *smvers*)
 	(logit "NSM: Sending program version mismatch response (requested version was ~D) to ~A~%" 
 	       (call-body-vers cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))

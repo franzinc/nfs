@@ -1,7 +1,15 @@
+2005-07-28    <dancy@DANCYSOFT>
 
-************** 4.0 release
+	* nlm.cl: New. Network Lock Manager protocol.
 
-	2005-07-20    <dancy@DANCYSOFT>
+	* loadem.cl: Load nsm and nlm modules.
+
+	* sunrpc.cl: Added beginnings of a easy rpc service processor.
+
+	* xdr.cl: Added :make-vec arg for xdr-opaque-variable.  Added some
+	macros to make it easy to deal with xdr structures.
+
+2005-07-20    <dancy@DANCYSOFT>
 
 	* nsm.cl: New.  
 
