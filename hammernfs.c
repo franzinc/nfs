@@ -43,15 +43,14 @@ int main(int argc, char **argv) {
   unsigned long long total=0;
   time_t starttime, now;
   double kbps;
+  char *host=argv[1];
 
-  auth=authunix_create("localhost", 0, 0, 0, NULL);
-
-  if (argc != 2) {
-    printf("Usage: %s protocolversion\n", argv[0]);
+  if (argc != 3) {
+    printf("Usage: %s host protocolversion\n", argv[0]);
     exit(1);
   }
-  
-  vers=atoi(argv[1]);
+
+  vers=atoi(argv[2]);
   
   if (vers != 2 && vers != 3) {
     printf("protocol version must be 2 or 3\n");
@@ -63,7 +62,9 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  callrpc("localhost", MOUNTPROG, vers, MOUNTPROC_MNT,
+  auth=authunix_create("localhost", 0, 0, 0, NULL);
+
+  callrpc(host, MOUNTPROG, vers == 2 ? 1 : vers, MOUNTPROC_MNT,
 	  xdr_string, &EXPORTNAME, xdr_fhstatus, &fhstatus);
   
   if (fhstatus.fhs_status != 0) {
@@ -75,7 +76,7 @@ int main(int argc, char **argv) {
   print_fh(fhstatus.fhstatus_u.fhs_fhandle, vers);
   printf("\n");
   
-  clnt=clnt_create("localhost", 100003, vers, "udp");
+  clnt=clnt_create(host, 100003, vers, "udp");
   if (!clnt) {
     printf("clnt_create failed\n");
     exit(1);
