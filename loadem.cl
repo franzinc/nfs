@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.37 2005/07/28 16:41:41 dancy Exp $
+;; $Id: loadem.cl,v 1.38 2005/08/03 20:56:34 dancy Exp $
 
 (in-package :user)
 
@@ -38,14 +38,15 @@
       "sunrpc-common"
       "xdr" 
       "sunrpc" 
+      "portmap" 
+      "sunrpc-service"
       "ipaddr" 
       "export"
       "configure"
-      "portmap" 
       "fhandle" 
       "mountd" 
-      "nsm"
-      "nlm"
+      ;;"nsm"
+      ;;"nlm"
       "attr" 
       "dir" 
       "openfile"

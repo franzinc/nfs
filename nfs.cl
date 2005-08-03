@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.83 2005/06/28 16:49:09 dancy Exp $
+;; $Id: nfs.cl,v 1.84 2005/08/03 20:56:34 dancy Exp $
 
 (in-package :user)
 
@@ -127,7 +127,6 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	 (xid (rpc-msg-xid msg))
 	 (vers (call-body-vers cbody))
 	 (proc (call-body-proc cbody)))
-    ;;(pprint-cbody cbody)
     (when (/= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
     
@@ -445,6 +444,32 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
 
+;; fh must be a non-stale file handle
+(defmacro with-non-dir-fh ((fh) &body body)
+  (let ((attr (gensym)))
+    `(let ((,attr (lookup-attr ,fh)))
+       (if* (/= (nfs-attr-type ,attr) *NFDIR*)
+	  then
+	       ,@body
+	  else
+	       (when *nfs-debug* (logit " Not allowed to be a directory~%"))
+	       (xdr-int *nfsdxdr* NFSERR_PERM)
+	       (if (= vers 3)
+		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
+
+(defmacro with-same-export ((fh1 fh2) &body body)
+  `(if* (eq (fh-export ,fh1) (fh-export ,fh2))
+      then
+	   ,@body
+      else
+	   (when *nfs-debug* (logit " Not same export~%"))
+	   (ecase vers
+	     (2
+	      (xdr-int *nfsdxdr* NFSERR_ACCES))
+	     (3
+	      (xdr-int *nfsdxdr* NFSERR_XDEV)
+	      (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
+
 (defmacro nfs-unsupported ()
   `(progn
      (when *nfs-debug* (logit " Unsupported~%"))
@@ -463,14 +488,10 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     (send-successful-reply peer xid (nfsd-null-verf) xdr)))
 
 
-;; For v3, the allowable error codes are:
-;; NFS3ERR_IO
-;; NFS3ERR_STALE
-;; NFS3ERR_BADHANDLE
-;; NFS3ERR_SERVERFAULT
-;; In particular, NFSERR_ACCESS is not in the list, so we don't
-;; check for read permission here anymore.  The file itself
-;; is not being read so that's okay.
+;; For v3, the allowable error codes are: NFS3ERR_IO NFS3ERR_STALE
+;; NFS3ERR_BADHANDLE NFS3ERR_SERVERFAULT In particular, NFSERR_ACCESS
+;; is not in the list, so we don't check for read permission here
+;; anymore.  The file itself is not being read so that's okay.
 
 (define-nfs-proc getattr ((fh fhandle))
   (xdr-int *nfsdxdr* NFS_OK)
@@ -640,15 +661,15 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
   (xdr-unsigned-int *nfsdxdr* 65536) ;; wtpref
   (xdr-unsigned-int *nfsdxdr* 512) ;; wtmult
   (xdr-unsigned-int *nfsdxdr* 65536) ;; dtpref
-  ;; the lisp limit, not necessarily the filesystem limit
-  (xdr-unsigned-hyper *nfsdxdr* #.(1- (ash 1 31))) ;; maxfilesize
+  (xdr-unsigned-hyper *nfsdxdr* #.(1- (ash 1 63))) ;; maxfilesize
   ;; time_delta.  Indicate that we only keep time to the nearest
   ;; two seconds which is the case for FAT filesystems.  NTFS
   ;; is 10 milliseconds.  
   (xdr-unsigned-int *nfsdxdr* 2) (xdr-unsigned-int *nfsdxdr* 0)
-  ;; properties bitmask.  We don't support hard or symbolic links.
-  ;; filesystem is homogeneous and can set file times.
-  (xdr-unsigned-int *nfsdxdr* #x18))
+  ;; Can set time on files
+  ;; homogeneous (all files have same pathconf information)
+  ;; hard links supported
+  (xdr-unsigned-int *nfsdxdr* #x19))
 
 
 ;;; readdirargs:  fhandle dir, cookie, count
@@ -861,21 +882,20 @@ struct entry {
       (update-attr-atime fh)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
-;; XXX should check that the file handle is a regular file handle,
-;; not a directory.  If it is a directory, return NFSERR_INVAL.
 (define-nfs-proc read3 ((fh fhandle) (offset uint64) (count unsigned))
   (with-permission (fh :read)
-    (with-nfs-open-file (f fh :input)
-      (let (got)
-	(file-position f offset)
-	(with-xdr-seek (*nfsdxdr* 100)
-	  (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
-	(if *nfs-debug* (logit " (read ~d bytes)" got))
-	(update-attr-atime fh)
-	(xdr-int *nfsdxdr* NFS_OK) 
-	(nfs-xdr-post-op-attr *nfsdxdr* fh)
-	(xdr-unsigned-int *nfsdxdr* got)
-	(xdr-bool *nfsdxdr* (= (file-position f) (file-length f)))))))
+    (with-non-dir-fh (fh)
+      (with-nfs-open-file (f fh :input)
+	(let (got)
+	  (file-position f offset)
+	  (with-xdr-seek (*nfsdxdr* 100)
+	    (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
+	  (if *nfs-debug* (logit " (read ~d bytes)" got))
+	  (update-attr-atime fh)
+	  (xdr-int *nfsdxdr* NFS_OK) 
+	  (nfs-xdr-post-op-attr *nfsdxdr* fh)
+	  (xdr-unsigned-int *nfsdxdr* got)
+	  (xdr-bool *nfsdxdr* (= (file-position f) (file-length f))))))))
 
 
 ;; args: fhandle dir, filename, sattr 
@@ -924,6 +944,29 @@ struct entry {
 	      (xdr-int *nfsdxdr* res))
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
   
+
+(define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
+  ;; Many sanity checks to prevent corruption
+  (with-permission (destdirfh :write)
+    (with-same-export (fh destdirfh)
+      (with-non-dir-fh (fh)
+	(with-dirfh (destdirfh)
+	  (sanity-check-filename destfilename)
+	  (let* ((newpath 
+		  (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
+		 (pre-op-attrs (get-pre-op-attrs destdirfh)))
+	    (link (fh-pathname fh) newpath)
+	    (link-fh-in-dir fh destdirfh destfilename)
+	    (update-atime-and-mtime destdirfh)
+	    (nfs-add-file-to-dir destfilename (fh-pathname destdirfh))
+	    (incf-cached-nlinks fh)
+	    ;; need to incf nlinks for the original file handle (which should
+	    ;; affect all links).  One easy thing would be to just 
+	    ;; de-cache fh attrs.. but that's excessive.
+	    (xdr-int *nfsdxdr* NFS_OK)
+	    (when (= vers 3)
+	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
+	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs destdirfh))))))))
 
 
 #|
@@ -1015,8 +1058,11 @@ struct entry {
 	(fh (nfs-probe-file dirfh filename)))
     (with-permission (dirfh :write)
       (close-open-file fh)
-      (delete-file (fh-pathname fh))
+      ;; Don't use (fh-pathname fh) since we may be dealing with 
+      ;; a hard link.  Use the filename provided instead.
+      (delete-file (add-filename-to-dirname (fh-pathname dirfh) filename))
       (update-atime-and-mtime dirfh)
+      ;; Update dircache.
       (nfs-remove-file-from-dir filename (fh-pathname dirfh))
       (remove-fhandle fh filename)
       (uncache-attr fh)
@@ -1194,19 +1240,6 @@ struct entry {
 ;; for NFSv3, we'd return NFSERR_XDEV.  
 ;; for NFSv2, we return NFSERR_ACCES (ala Linux)
 
-(defmacro with-same-export ((fh1 fh2) &body body)
-  `(if* (eq (fh-export ,fh1) (fh-export ,fh2))
-      then
-	   ,@body
-      else
-	   (when *nfs-debug* (logit " Not same export~%"))
-	   (ecase vers
-	     (2
-	      (xdr-int *nfsdxdr* NFSERR_ACCES))
-	     (3
-	      (xdr-int *nfsdxdr* NFSERR_XDEV)
-	      (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
-
 (define-nfs-proc rename ((fromdirfh fhandle) 
 			 (fromfilename string)
 			 (todirfh fhandle)
@@ -1280,7 +1313,7 @@ struct entry {
 (define-nfs-proc pathconf ((fh fhandle)) 
   (xdr-int *nfsdxdr* NFS_OK)
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
-  (xdr-unsigned-int *nfsdxdr* 1) ;; linkmax
+  (xdr-unsigned-int *nfsdxdr* 1023) ;; linkmax (NTFS limit)
   (xdr-unsigned-int *nfsdxdr* 255) ;; name_max
   (xdr-bool *nfsdxdr* t) ;; no_trunc
   (xdr-bool *nfsdxdr* t) ;; chown_restricted;
@@ -1316,17 +1349,6 @@ struct entry {
 (define-nfs-proc mknod ((dirfh fhandle) (filename string))
   (with-permission (dirfh :write)
     (nfs-unsupported)))
-
-(define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
-  (with-permission (destdirfh :write)
-    (ecase vers
-      (2
-       (nfs-unsupported))
-      (3
-       (when *nfs-debug* (logit " unsupported~%"))
-       (xdr-int *nfsdxdr* NFSERR_NOTSUPP)
-       (nfs-xdr-post-op-attr *nfsdxdr* fh)
-       (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs destdirfh) destdirfh)))))
 
 ;; dir, cookie, cookieverf, dircount, maxcount
 (define-nfs-proc readdirplus ((dirfh fhandle))

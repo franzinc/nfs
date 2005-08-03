@@ -50,7 +50,8 @@
     (make-nfs-attr
      :type (stat-mode-to-type (stat-mode s))
      :mode (stat-mode s)
-     :nlinks 1 ;; simulated.  Perhaps at least '2' should be reported for directories.
+     :nlinks (let ((nlink (stat-nlink s)))
+	       (if (= nlink 0) 1 nlink))
      :uid (stat-uid s)
      :gid (stat-gid s)
      :size (stat-size s)
@@ -169,4 +170,5 @@
     (setf (nfs-attr-mtime attr) mtime)
     (update-attr-ctime fh)))
 
-
+(defun incf-cached-nlinks (fh)
+  (incf (nfs-attr-nlinks (lookup-attr fh))))

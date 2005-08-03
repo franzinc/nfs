@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.16 2005/06/22 23:14:27 dancy Exp $
+;; $Id: fhandle.cl,v 1.17 2005/08/03 20:56:34 dancy Exp $
 
 ;; file handle stuff
 
@@ -49,10 +49,10 @@
 (defstruct fh
   pathname
   id
+  (refs 0)
   export
   parent ;; nil if root
   children) ;; hash of basenames of directory children. values are fh's
-
 
 (defun add-filename-to-dirname (dir filename)
   (if (char= (schar dir (1- (length dir))) #\\)
@@ -61,7 +61,8 @@
 
 ;; File handle ids are chosen randomly to prevent
 ;; the search from taking linearly-increasing time.
-;; caller should use without-interrupts.
+;; caller should use without-interrupts.  Callers are 
+;; all contained within this file.
 (defun make-fhandle (dirfh filename &key root-export)
   (let ((id (random #.most-positive-fixnum)))
     (while (gethash id *fhandles*)
@@ -110,6 +111,11 @@
 	     :format-control "Illegal filename: ~S" 
 	     :format-arguments (list filename))))
 
+(defun link-fh-in-dir (fh dirfh filename)
+  (declare (optimize (speed 3) (safety 0)))
+  (incf (fh-refs fh))
+  (setf (gethash filename (fh-children dirfh)) fh))
+
 ;; Put a fhandle into the hash.. and make sure the 
 ;; parent has a child entry.
 (defun insert-fhandle (fh filename)
@@ -120,10 +126,8 @@
     ;; Create a fresh entry
     (if (not (fh-children parent))
 	(setf (fh-children parent) (make-hash-table :test #'equalp)))
-    (setf (gethash filename (fh-children parent)) fh)))
+    (link-fh-in-dir fh parent filename)))
       
-
-
 (defun lookup-fh-in-dir (dirfh filename &key create allow-dotnames)
   (block nil
     (without-interrupts 
@@ -153,6 +157,69 @@
       ;; Create a fresh entry
       (insert-fhandle (make-fhandle dirfh filename) filename))))
 
+;; To be used with file deletion (or deletion as a side effect
+;; of renaming onto an existing file).
+(defun remove-fhandle (fh filename)
+  (without-interrupts
+    (if (= (decf (fh-refs fh)) 0)
+	(remhash (fh-id fh) *fhandles*))
+    ;; remove entry from parent directory.
+    (let ((parent (fh-parent fh)))
+      (if (null parent)
+	  (error "remove-fhandle: ~S has no parent" fh))
+      (remhash filename (fh-children parent)))))
+
+;; Caller is expected to remove todir/tofilename beforehand.
+;; Updates the pathname slot of the fhandle.
+(defun rename-fhandle (fh fromfilename todir tofilename)
+  (without-interrupts
+    ;; remove from current parent.
+    (let ((parent (fh-parent fh)))
+      (if (null parent)
+	  (error "rename-fhandle: ~S has no parent" fh))
+      (remhash fromfilename (fh-children parent)))
+    ;; update parent
+    (setf (fh-parent fh) todir)
+    ;; add to destination parent.
+    (insert-fhandle fh tofilename)
+    ;; change pathname
+    (setf (fh-pathname fh) 
+      (add-filename-to-dirname (fh-pathname todir) tofilename))))
+
+;; If body runs to completion, the filehandle will be saved,
+;; otherwise, it will be removed.
+(defmacro with-potential-fhandle ((fhvar dirfh filename &key allow-dotnames) 
+				  &body body)
+  (let ((successvar (gensym))
+	(dirfhvar (gensym))
+	(filenamevar (gensym))
+	(allow-dotnamesvar (gensym)))
+    `(let* ((,dirfhvar ,dirfh)
+	    (,filenamevar ,filename)
+	    (,allow-dotnamesvar ,allow-dotnames)
+	    (,fhvar (lookup-fh-in-dir ,dirfhvar ,filenamevar :create t 
+				      :allow-dotnames ,allow-dotnamesvar))
+	    (,successvar nil))
+       (unwind-protect 
+	   (multiple-value-prog1 (progn ,@body) (setf ,successvar t))
+	 (when (not ,successvar)
+	   (remove-fhandle ,fhvar ,filenamevar))))))
+
+(defun invalidate-fhandles (fh)
+  (remhash (fh-id fh) *fhandles*)
+  (let ((children (fh-children fh)))
+    (when children
+      (maphash #'(lambda (key value) 
+		   (declare (ignore key))
+		   (invalidate-fhandles value))
+	       children))))
+
+(defun invalidate-export-fhandles (exp)
+  (let ((fh (get-export-fhandle exp)))
+    (invalidate-fhandles fh)
+    (remhash (nfs-export-path exp) *export-roots*)))
+
+;; XDR
 
 (defun xdr-fhandle (xdr vers &optional fh)
   (declare (optimize (speed 3) (safety 0))
@@ -210,63 +277,3 @@
 		 :stale
 	       fh))))))))
   
-;; To be used with file deletion (or deletion as a side effect
-;; of renaming onto an existing file).
-(defun remove-fhandle (fh filename)
-  (without-interrupts
-    (remhash (fh-id fh) *fhandles*)
-    ;; remove entry from parent directory.
-    (let ((parent (fh-parent fh)))
-      (if (null parent)
-	  (error "remove-fhandle: ~S has no parent" fh))
-      (remhash filename (fh-children parent)))))
-
-;; Caller is expected to remove todir/tofilename beforehand.
-;; Updates the pathname slot of the fhandle.
-(defun rename-fhandle (fh fromfilename todir tofilename)
-  (without-interrupts
-    ;; remove from current parent.
-    (let ((parent (fh-parent fh)))
-      (if (null parent)
-	  (error "rename-fhandle: ~S has no parent" fh))
-      (remhash fromfilename (fh-children parent)))
-    ;; update parent
-    (setf (fh-parent fh) todir)
-    ;; add to destination parent.
-    (insert-fhandle fh tofilename)
-    ;; change pathname
-    (setf (fh-pathname fh) 
-      (add-filename-to-dirname (fh-pathname todir) tofilename))))
-
-;; If body runs to completion, the filehandle will be saved,
-;; otherwise, it will be removed.
-(defmacro with-potential-fhandle ((fhvar dirfh filename &key allow-dotnames) 
-				  &body body)
-  (let ((successvar (gensym))
-	(dirfhvar (gensym))
-	(filenamevar (gensym))
-	(allow-dotnamesvar (gensym)))
-    `(let* ((,dirfhvar ,dirfh)
-	    (,filenamevar ,filename)
-	    (,allow-dotnamesvar ,allow-dotnames)
-	    (,fhvar (lookup-fh-in-dir ,dirfhvar ,filenamevar :create t 
-				      :allow-dotnames ,allow-dotnamesvar))
-	    (,successvar nil))
-       (unwind-protect 
-	   (multiple-value-prog1 (progn ,@body) (setf ,successvar t))
-	 (when (not ,successvar)
-	   (remove-fhandle ,fhvar ,filenamevar))))))
-
-(defun invalidate-fhandles (fh)
-  (remhash (fh-id fh) *fhandles*)
-  (let ((children (fh-children fh)))
-    (when children
-      (maphash #'(lambda (key value) 
-		   (declare (ignore key))
-		   (invalidate-fhandles value))
-	       children))))
-
-(defun invalidate-export-fhandles (exp)
-  (let ((fh (get-export-fhandle exp)))
-    (invalidate-fhandles fh)
-    (remhash (nfs-export-path exp) *export-roots*)))

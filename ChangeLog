@@ -1,3 +1,22 @@
+2005-08-03    <dancy@DANCYSOFT>
+
+	* attr.cl/fhandle.cl/nfs.cl: hard link support, if the filesystem
+	(such as NTFSv5) supports it.  It works but it could be better.
+	One problem is that 'stat' on Windows doesn't return real link
+	counts.  Another problem is that information about hard links is
+	not preserved across server restarts.  Hard links that were not
+	created via NFS during a given session are considered to be
+	separate files (and, as a result, are given separate file
+	handles).  Despite these issues, it'll probably be okay for
+	programs that use hard links to make locks.  
+
+	Large files are supported now (by virtue of building on a patched
+	acl 7.0)
+
+	* sunrpc-service.cl:  Extracted from sunrpc.cl.
+
+	* loadem: Comment out nlm and nsm for the time being.
+
 2005-07-28    <dancy@DANCYSOFT>
 
 	* nlm.cl: New. Network Lock Manager protocol.
