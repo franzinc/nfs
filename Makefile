@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.44 2005/06/22 23:14:27 dancy Exp $
+# $Id: Makefile,v 1.45 2005/08/04 16:40:20 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -110,5 +110,29 @@ install: FORCE
 	-mv /c/nfs /c/nfs.old
 	mkdir /c/nfs
 	cp -rp nfs/*.* /c/nfs
+
+hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c \
+			hammernfs-libs/nfs_prot_clnt.c
+	cc -o hammernfs hammernfs.c hammernfs-libs/mount_xdr.c \
+					hammernfs-libs/nfs_prot_clnt.c \
+					hammernfs-libs/nfs_prot_xdr.c \
+			-lrpc 
+
+hammernfs-libs: 
+
+hammernfs-libs-dir:
+	mkdir -p hammernfs-libs
+
+hammernfs-libs/mount.x: hammernfs-libs-dir
+	ln -sdf /usr/include/rpcsvc/mount.x hammernfs-libs/mount.x
+
+hammernfs-libs/nfs_prot.x: hammernfs-libs-dir
+	ln -sdf /usr/include/rpcsvc/nfs_prot.x hammernfs-libs/nfs_prot.x
+
+hammernfs-libs/mount_clnt.c: hammernfs-libs/mount.x
+	(cd hammernfs-libs && rpcgen mount.x)
+
+hammernfs-libs/nfs_prot_clnt.c: hammernfs-libs/nfs_prot.x
+	(cd hammernfs-libs && rpcgen nfs_prot.x)
 
 FORCE:
