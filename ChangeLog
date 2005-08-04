@@ -1,3 +1,5 @@
+******** 4.0 release ***********
+
 2005-08-03    <dancy@DANCYSOFT>
 
 	* attr.cl/fhandle.cl/nfs.cl: hard link support, if the filesystem
@@ -42,7 +44,7 @@
 
 	* mountd.cl: Report the udp and tcp port numbers that are being
 	used for mountd so folks who want to poke holes in their firewalls
-	will have succifient information on what ports to use.  A future
+	will have sufficient information on what ports to use.  A future
 	release may allow the operator to specify which port number should
 	be used (defaulting to auto).
 
