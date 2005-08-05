@@ -1,4 +1,8 @@
 ******** 4.0 release ***********
+2005-08-05    <dancy@CANDY2K>
+
+	* sunrpc-common.cl: Bump *rpc-buffer-size* to 70KB so that 64KB
+	NFS read/writes will work properly.
 
 2005-08-03    <dancy@DANCYSOFT>
 

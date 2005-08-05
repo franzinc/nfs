@@ -23,8 +23,9 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc-common.cl,v 1.1 2005/06/23 20:59:42 dancy Exp $
+;; $Id: sunrpc-common.cl,v 1.2 2005/08/05 18:32:35 dancy Exp $
 
-;; Use 64K since that's the maximum UDP packet size.
-(defconstant *rpc-buffer-size* (* 64 1024))
+;; Large enough to allow for 64KB read/writes in NFS V3.
+(defconstant *rpc-buffer-size* (* 70 1024))
+
 
