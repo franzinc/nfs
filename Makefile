@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.46 2005/08/08 22:16:22 layer Exp $
+# $Id: Makefile,v 1.47 2005/08/08 22:33:22 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -13,8 +13,13 @@ version = $(shell grep 'defvar .nfsd-version' nfs.cl | sed -e 's,.*"\([a-z0-9.]*
 
 default: build
 
-all: clean dists # use `dists' because ``dist dist-demo'' does not work
-                 # ...see comment below `dists' for why...
+# use `dists' because ``dist dist-demo'' does not work.. see comment below
+# near `dists' for why.
+all: prereqs clean dists
+
+prereqs: FORCE
+	@if test ! -d date; then cvs co -r acl70 date; fi
+	@if test ! -d demoware; then cvs co demoware; fi
 
 build: FORCE
 	@$(MAKE) $(MFLAGS) do_build
