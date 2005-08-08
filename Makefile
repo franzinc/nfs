@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.45 2005/08/04 16:40:20 dancy Exp $
+# $Id: Makefile,v 1.46 2005/08/08 22:16:22 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 ### IMPORTANT: the nightly builds the product need to use a local copy and
 ###	       and not one in /c/Program Files/...  only change the ../aclxxx
 ###	       when the build machine's copy is updated.
-LISPDIR := $(shell if test -d ../acl70pf; then echo ../acl70pf; else echo '"/c/Program Files/acl70"'; fi)
+LISPDIR := $(shell if test -d ../acl70; then echo ../acl70; else echo '"/c/Program Files/acl70"'; fi)
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
@@ -13,29 +13,25 @@ version = $(shell grep 'defvar .nfsd-version' nfs.cl | sed -e 's,.*"\([a-z0-9.]*
 
 default: build
 
-all: clean dist demo-dist
+all: clean dists # use `dists' because ``dist dist-demo'' does not work
+                 # ...see comment below `dists' for why...
 
-demo: build-demo
+build: FORCE
+	@$(MAKE) $(MFLAGS) do_build
 
-build: build-prologue build-normal-cmd build-epilogue
+build-demo: FORCE
+	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
-build-demo: build-prologue build-demo-cmd build-epilogue
-
-build-prologue:
-	rm -fr nfs
-	rm -f *.fasl
-	rm -f b.tmp
-	@echo '(setq excl::*break-on-warnings* t)' >> b.tmp
-	@echo '(load "loadem.cl")' >> b.tmp
-
-build-normal-cmd:
-	@echo '(buildit)' >> b.tmp
-
-build-demo-cmd:
-	@echo '(buildit :demo 30)' >> b.tmp
-
-build-epilogue:
-	@echo '(exit 0)' >> b.tmp
+do_build: FORCE
+# make sure the demo and non-demo versions do not share fasls:
+	rm -fr nfs *.fasl b.tmp
+	echo '(setq excl::*break-on-warnings* t)' >> b.tmp
+ifdef DEMOWARE
+	echo '(push :nfs-demo *features*)' >> b.tmp
+endif
+	echo '(load "loadem.cl")' >> b.tmp
+	echo '(buildit)' >> b.tmp
+	echo '(exit 0)' >> b.tmp
 	$(LISPEXE) +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
@@ -46,7 +42,7 @@ configure: FORCE
 	@rm -fr configure/configure
 	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
-installer-common:
+installer-common: FORCE
 	rm -f nfs/nfs.cfg
 	rm -fr nfs/configure
 	cp -pr configure/configure nfs
@@ -55,14 +51,15 @@ installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
 
 installer-demo: installer-common
-	$(MAKENSIS) /V1 /DVERSION=$(version)-demo nfs.nsi	
+	$(MAKENSIS) /V1 /DNFSDEMO=true /DVERSION=$(version)-demo nfs.nsi
 
 # Each build runs in a separate make because there are some
 # shared dependencies.. and make will merge them .. and we don't
-# want that.
+# want that.  Specifically, ``installer-common'' will be run once
+# instead of twice.
 dists: FORCE
-	$(MAKE) dist
-	$(MAKE) dist-demo
+	$(MAKE) $(MFLAGS) dist
+	$(MAKE) $(MFLAGS) dist-demo
 
 dist: build installer
 
@@ -82,6 +79,10 @@ update_demo_cobweb: FORCE
 ## version that expires 30 days into the future.  See nightly.bat.
 nightly: dist-demo update_demo_cobweb
 
+###############################################################################
+## source distribution
+###############################################################################
+
 nfs_source_files = Makefile ChangeLog *.cl *.txt \
 		nfs.cfg.default nfs.ico nfs.nsi
 configure_source_files = configure/Makefile configure/*.cl \
@@ -100,9 +101,7 @@ srcdist: FORCE
 	zip -r $(srczip) nfs-$(version)-src
 	rm -fr nfs-$(version)-src
 
-clean: FORCE
-	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
-	$(MAKE) -C configure clean
+###############################################################################
 
 # Assumes cygwin mounted c:\ on /c
 install: FORCE
@@ -110,6 +109,9 @@ install: FORCE
 	-mv /c/nfs /c/nfs.old
 	mkdir /c/nfs
 	cp -rp nfs/*.* /c/nfs
+
+###############################################################################
+# testing
 
 hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c \
 			hammernfs-libs/nfs_prot_clnt.c
@@ -134,5 +136,12 @@ hammernfs-libs/mount_clnt.c: hammernfs-libs/mount.x
 
 hammernfs-libs/nfs_prot_clnt.c: hammernfs-libs/nfs_prot.x
 	(cd hammernfs-libs && rpcgen nfs_prot.x)
+
+###############################################################################
+# misc
+
+clean: FORCE
+	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
+	$(MAKE) -C configure clean
 
 FORCE:

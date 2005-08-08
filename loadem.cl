@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.38 2005/08/03 20:56:34 dancy Exp $
+;; $Id: loadem.cl,v 1.39 2005/08/08 22:16:22 layer Exp $
 
 (in-package :user)
 
@@ -53,6 +53,9 @@
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"
+      "date/date"
+      #+nfs-demo "demoware/demoware"
+      "main"
       ))
 )
 
@@ -64,7 +67,7 @@
       (compile-file-if-needed (concatenate 'string file ".cl"))
       (load file))))
 
-(defun buildit (&key demo)
+(defun buildit ()
   ;; This will be fixed before 7.0 is released.  Remove then.
   #+(version>= 7)(progn
 		   (require :winapi)
@@ -83,8 +86,7 @@
      :runtime
      #+nfs-profiling :partners
      #-nfs-profiling :standard
-     :icon-file "nfs.ico"
-     :demo demo)
+     :icon-file "nfs.ico")
 
     ;; Set the command line flags.
     (run-shell-command
@@ -95,9 +97,8 @@
      (format nil 
 	     "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS\""
 	     (truename "sys:bin;setcmd.exe")
-	     (if demo
-		 "Allegro NFS Server demo"
-	       "Allegro NFS Server"))
+	     #+nfs-demo "Allegro NFS Server demo"
+	     #-nfs-demo "Allegro NFS Server")
 	     
      :show-window :hide)))
 

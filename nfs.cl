@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.84 2005/08/03 20:56:34 dancy Exp $
+;; $Id: nfs.cl,v 1.85 2005/08/08 22:16:22 layer Exp $
 
 (in-package :user)
 
@@ -366,6 +366,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	(error 
 	 "define-nfs-proc:  There must be at least one fhandle variable"))
     `(defun ,funcname (peer xid cbody)
+       #+nfs-demo (demoware-check)
        (with-xdr-xdr ((call-body-params cbody) :name params)
 	 (let* ((vers (call-body-vers cbody))
 		procedure-start-time
