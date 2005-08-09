@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.50 2005/08/09 22:21:10 layer Exp $
+# $Id: Makefile,v 1.51 2005/08/09 22:35:49 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -17,9 +17,25 @@ default: build
 # near `dists' for why.
 all: clean dists
 
+CVS_BRANCH_ARG := $(shell cvstag.sh .)
+DATE_CVS_BRANCH_ARG := $(shell cvstag.sh date)
+DEMOWARE_CVS_BRANCH_ARG := $(shell cvstag.sh demoware)
+
 prereqs: FORCE
-	@if test ! -d date; then cvs co -r acl70 date; fi
-	@if test ! -d demoware; then cvs co demoware; fi
+	@if test ! -d date; then \
+	    echo Checking out date module; \
+	    cvs co $(CVS_BRANCH_ARG) date; \
+	elif test "$(CVS_BRANCH_ARG)" != "$(DATE_CVS_BRANCH_ARG)"; then \
+	    echo cvs update -d $(CVS_BRANCH_ARG) date; \
+	    (cd date; cvs update -d $(CVS_BRANCH_ARG)); \
+	fi
+	@if test ! -d demoware; then \
+	    echo Checking out demoware module; \
+	    cvs co $(CVS_BRANCH_ARG) demoware; \
+	elif test "$(CVS_BRANCH_ARG)" != "$(DEMOWARE_CVS_BRANCH_ARG)"; then \
+	    echo cvs update -d $(CVS_BRANCH_ARG) demoware; \
+	    (cd demoware; cvs update -d $(CVS_BRANCH_ARG)); \
+	fi
 
 build: FORCE
 	@$(MAKE) $(MFLAGS) do_build

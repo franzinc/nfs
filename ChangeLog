@@ -4,6 +4,14 @@ post-4.0 release changes
 *******************************************************************************
 ******** 4.0 release ***********
 
+2005-08-09    <layer@HOBART>
+
+	* Makefile: add -O to hammernfs build; make prereqs use same
+	  branch (or trunk) for date/demoware as for nfs module
+	* (NEW) cvstag.sh
+	* (NEW) test.sh
+	* nfs.cl: delete demoware-check call
+
 2005-08-08  Kevin Layer  <layer@gemini>
 
 join changes from release_3_0 branch onto trunk
