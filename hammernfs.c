@@ -1,12 +1,9 @@
 #include <stdio.h>
+#include <getopt.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <rpcsvc/mount.h>
 #include <rpcsvc/nfs_prot.h>
-
-#define TESTFILE "setup.log.full"
-
-char *EXPORTNAME="/export";
 
 void print_fh(unsigned char *fh, int vers) {
   int i;
@@ -24,14 +21,12 @@ void print_fh(unsigned char *fh, int vers) {
   }
 }
 
-
-
-void nfs_call() {
+void usage(char *prg) {
+  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] -e export -f file_to_read\n", prg);
+  exit(1);
 }
 
-
 int main(int argc, char **argv) {
-  int vers;
   struct sockaddr_in addr;
   fhstatus fhstatus;
   CLIENT *clnt;
@@ -43,29 +38,60 @@ int main(int argc, char **argv) {
   unsigned long long total=0;
   time_t starttime, now;
   double kbps;
-  char *host=argv[1];
+  char opt;
 
-  if (argc != 3) {
-    printf("Usage: %s host protocolversion\n", argv[0]);
-    exit(1);
-  }
-
-  vers=atoi(argv[2]);
+  /* Parameters */
+  int vers=2;
+  int duration=60; 
+  char *host="localhost";
+  char *testfile=NULL; 
+  char *exportname=NULL;
   
-  if (vers != 2 && vers != 3) {
-    printf("protocol version must be 2 or 3\n");
+  while ((opt=getopt(argc, argv, "v:t:h:e:f:"))!=-1) {
+    switch (opt) {
+    case 'v':
+      vers=atoi(optarg);
+      if (vers != 2) {
+	fprintf(stderr, "%s: NFS V%d not supported yet\n", argv[0]);
+	exit(1);
+      }
+      break;
+    case 't':
+      duration=atoi(optarg);
+      if (duration < 1) {
+	fprintf(stderr, "%s: Duration must be greater than zero.\n", argv[0]);
+	exit(1);
+      }
+      break;
+    case 'h':
+      host=strdup(optarg);
+      break;
+    case 'e':
+      exportname=strdup(optarg);
+      break;
+    case 'f':
+      testfile=strdup(optarg);
+      break;
+    default:
+      usage(argv[0]);
+      exit(1);
+    }
+  }
+
+  if (!exportname) {
+    fprintf(stderr, "%s: Export name must be specified.\n", argv[0]);
     exit(1);
   }
 
-  if (vers == 3) {
-    printf("version 3 not supported yet\n");
+  if (!testfile) {
+    fprintf(stderr, "%s: Test filename name must be specified (relative to export).\n", argv[0]);
     exit(1);
   }
 
   auth=authunix_create("localhost", 0, 0, 0, NULL);
 
   callrpc(host, MOUNTPROG, vers == 2 ? 1 : vers, MOUNTPROC_MNT,
-	  xdr_string, &EXPORTNAME, xdr_fhstatus, &fhstatus);
+	  xdr_string, &exportname, xdr_fhstatus, &fhstatus);
   
   if (fhstatus.fhs_status != 0) {
     printf("mount failed\n");
@@ -85,7 +111,7 @@ int main(int argc, char **argv) {
   clnt->cl_auth=auth;
 
   memcpy(doa.dir.data, fhstatus.fhstatus_u.fhs_fhandle, FHSIZE);
-  doa.name=TESTFILE;
+  doa.name=testfile;
 
   dor=nfsproc_lookup_2(&doa, clnt);
 
@@ -114,7 +140,7 @@ int main(int argc, char **argv) {
   while (1) {
     time(&now);
     
-    if (now-starttime >= 60) 
+    if (now-starttime >= duration) 
       break;
     
     rres=nfsproc_read_2(&ra, clnt);
