@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.48 2005/08/09 17:18:13 dancy Exp $
+# $Id: Makefile,v 1.49 2005/08/09 17:22:29 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -15,7 +15,7 @@ default: build
 
 # use `dists' because ``dist dist-demo'' does not work.. see comment below
 # near `dists' for why.
-all: prereqs clean dists
+all: clean dists
 
 prereqs: FORCE
 	@if test ! -d date; then cvs co -r acl70 date; fi
@@ -27,7 +27,7 @@ build: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
-do_build: FORCE
+do_build: prereqs FORCE
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp
 	echo '(setq excl::*break-on-warnings* t)' >> b.tmp
