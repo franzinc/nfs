@@ -22,7 +22,7 @@ void print_fh(unsigned char *fh, int vers) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] [ -u uid ] [ -g gid ] -e export -f file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] [ -u uid ] [ -g gid ] [ -b blocksize ] -e export -f file_to_read\n", prg);
   exit(1);
 }
 
@@ -44,11 +44,12 @@ int main(int argc, char **argv) {
   int vers=2;
   int duration=60;
   int uid=geteuid(), gid=getegid();
+  int blocksize=4096;
   char *host="localhost";
   char *testfile=NULL; 
   char *exportname=NULL;
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:"))!=-1) {
+  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -73,11 +74,14 @@ int main(int argc, char **argv) {
     case 'f':
       testfile=strdup(optarg);
       break;
-    case 'u':
+    case 'u': 
       uid=atoi(optarg);
       break;
     case 'g':
       gid=atoi(optarg);
+      break;
+    case 'b':
+      blocksize=atoi(optarg);
       break;
     default:
       usage(argv[0]);
@@ -139,8 +143,8 @@ int main(int argc, char **argv) {
   
   ra.file=dor->diropres_u.diropres.file;
   ra.offset=0;
-  ra.count=4096;
-  ra.totalcount=4096; /* unused */
+  ra.count=blocksize;
+  ra.totalcount=blocksize; /* unused */
 
   time(&starttime);
   
