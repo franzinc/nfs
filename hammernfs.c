@@ -153,19 +153,18 @@ int main(int argc, char **argv) {
     
     if (now-starttime >= duration) 
       break;
-    
+
     rres=nfsproc_read_2(&ra, clnt);
     
     if (rres->status != 0) {
       printf("read failed: status %d\n", rres->status);
       exit(1);
     }
-    
-    if (clnt_freeres(clnt, xdr_readres, &rres) != 1) {
+
+    if (clnt_freeres(clnt, xdr_readres, rres) != 1) {
       printf("clnt_freeres failed\n");
       exit(1);
     }
-    
     total+=rres->readres_u.reply.data.data_len;
   }
 
