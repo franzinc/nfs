@@ -22,7 +22,7 @@ void print_fh(unsigned char *fh, int vers) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] -e export -f file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] [ -u uid ] [ -g gid ] -e export -f file_to_read\n", prg);
   exit(1);
 }
 
@@ -42,12 +42,13 @@ int main(int argc, char **argv) {
 
   /* Parameters */
   int vers=2;
-  int duration=60; 
+  int duration=60;
+  int uid=geteuid(), gid=getegid();
   char *host="localhost";
   char *testfile=NULL; 
   char *exportname=NULL;
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:"))!=-1) {
+  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -72,6 +73,12 @@ int main(int argc, char **argv) {
     case 'f':
       testfile=strdup(optarg);
       break;
+    case 'u':
+      uid=atoi(optarg);
+      break;
+    case 'g':
+      gid=atoi(optarg);
+      break;
     default:
       usage(argv[0]);
       exit(1);
@@ -88,7 +95,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  auth=authunix_create("localhost", 0, 0, 0, NULL);
+  auth=authunix_create("localhost", uid, gid, 0, NULL);
 
   callrpc(host, MOUNTPROG, vers == 2 ? 1 : vers, MOUNTPROC_MNT,
 	  xdr_string, &exportname, xdr_fhstatus, &fhstatus);
