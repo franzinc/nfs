@@ -1,3 +1,9 @@
+Changes from 3.0 to 4.0
+  
+  - NFSv3 support
+  - Large file support
+  - Hard link creation support
+
 Changes from 2.0 to 3.0
 
   - UNC shares are now supported as NFS mount points
