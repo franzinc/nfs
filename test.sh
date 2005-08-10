@@ -7,7 +7,7 @@ time=20
 block_sizes="4096 8192"
 
 for bs in $block_sizes; do
-	cmd="./hammernfs -t $time -b $bs -u 483 -g 50 -e $export -f $file"
+	cmd="./hammernfs -q -t $time -b $bs -u 483 -g 50 -e $export -f $file"
 	echo ====================================================================
 	echo $cmd
 	$cmd

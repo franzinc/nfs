@@ -6,6 +6,8 @@ post-4.0 release changes
 
 2005-08-09    <layer@HOBART>
 
+	* hammernfs.c: add -q
+	
 	* Makefile: add -O to hammernfs build; make prereqs use same
 	  branch (or trunk) for date/demoware as for nfs module
 	* (NEW) cvstag.sh

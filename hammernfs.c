@@ -22,7 +22,7 @@ void print_fh(unsigned char *fh, int vers) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] [ -u uid ] [ -g gid ] [ -b blocksize ] -e export -f file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -h hostname ] [ -u uid ] [ -g gid ] [ -b blocksize ] -e export -f file_to_read\n", prg);
   exit(1);
 }
 
@@ -48,8 +48,9 @@ int main(int argc, char **argv) {
   char *host="localhost";
   char *testfile=NULL; 
   char *exportname=NULL;
+  int quiet = 0;
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:"))!=-1) {
+  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:q"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -64,6 +65,9 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "%s: Duration must be greater than zero.\n", argv[0]);
 	exit(1);
       }
+      break;
+    case 'q':
+      quiet = 1;
       break;
     case 'h':
       host=strdup(optarg);
@@ -109,9 +113,11 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  printf("Root file handle: ");
-  print_fh(fhstatus.fhstatus_u.fhs_fhandle, vers);
-  printf("\n");
+  if (!quiet) {
+      printf("Root file handle: ");
+      print_fh(fhstatus.fhstatus_u.fhs_fhandle, vers);
+      printf("\n");
+  }
   
   clnt=clnt_create(host, 100003, vers, "udp");
   if (!clnt) {
@@ -137,9 +143,11 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  printf("handle: ");
-  print_fh(dor->diropres_u.diropres.file.data, 2);
-  printf("\n");
+  if (!quiet) {
+      printf("handle: ");
+      print_fh(dor->diropres_u.diropres.file.data, 2);
+      printf("\n");
+  }
   
   ra.file=dor->diropres_u.diropres.file;
   ra.offset=0;
