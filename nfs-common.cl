@@ -1,5 +1,10 @@
 (in-package :user)
 
+;;;
+(defvar *nfsd-version* "4.1")
+(defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
+;;; 
+
 (defconstant NFS_OK 0)
 
 ;; Not owner. The operation was not allowed because the caller is
@@ -119,6 +124,6 @@
 (defmacro bailout (format &rest format-args)
   `(progn
      (logit ,format ,@format-args)
-     (console-control :close t)
+     (console-control :close t :show t)
      (exit 1)))
 

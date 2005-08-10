@@ -1,3 +1,30 @@
+2005-08-10    <dancy@DANCYSOFT>
+
+v4.1
+	
+	* nfs-common.cl: Moved *nfsd-version* and *nfsd-long-version*
+	variables here.  Adjusted 'bailout' macro so that the console
+	window is shown.  I meant to do that when I first made the macro.
+ 
+	* Makefile: Adjusted so that it grabs the program version from
+	nfs-common.cl instead of nfs.cl
+
+	* main.cl: Wait for mountd to finish initializing before starting
+	nfsd.  Print "Allegro NFS server version ~a initializing..."
+	before starting up any subprograms.
+
+	* mountd.c: Added support for user-defined port number to use for
+	udp and tcp sockets.  This will make it easier on people who have
+	to deal with firewalls.  Also, open *mountd-gate* once all sockets
+	and stuff have been prepared and mountd is ready to operate. 
+
+	* nfs.cl: Only log "Allegro NFS Server version ~a started." after
+	all sockets have been created, etc.
+
+	* configure/*:  Added options in the 'Global' tab so that user can
+	set the port which mountd should use for its sockets. 
+
+
 *******************************************************************************
 post-4.0 release changes
 

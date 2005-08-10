@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0 [Windows] (May 31, 2005 13:58)"; cg: "1.54.2.17"; form: configform; -*-
+;; -*- lisp-version: "7.0 [Windows] (Aug 3, 2005 8:28)"; cg: "1.54.2.17"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -17,7 +17,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*)))
-     (exterior (make-box 39 135 587 505)) (name :configform)
+     (exterior (make-box 4 139 552 509)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner
@@ -174,6 +174,37 @@
                        :name :static-text-port-mapper :tab-control
                        '(:tab-control :global) :top 136 :value
                        "Use system portmapper?" :width 124)
+        (make-instance 'radio-button :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 34
+                       :name :mountd-port-auto :tab-control
+                       '(:tab-control :global) :title "Automatic" :top
+                       187 :width 74)
+        (make-instance 'radio-button :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 34
+                       :name :mountd-port-manual :on-change
+                       'configform-mountd-port-manual-on-change
+                       :tab-control '(:tab-control :global) :title
+                       "User-defined" :top 209 :width 93)
+        (make-instance 'editable-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 128
+                       :name :mountd-port-number :on-change
+                       'configform-mountd-port-number-on-change
+                       :tab-control '(:tab-control :global) :top 209
+                       :value "" :width 45)
+        (make-instance 'static-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 39
+                       :name :static-text-6 :tab-control
+                       '(:tab-control :global) :top 240 :value
+                       "(Allegro NFS must be restarted for port number changes to take effect)"
+                       :width 345)
+        (make-instance 'group-box :contained-widgets
+                       '(:radio-button-1 :radio-button-2
+                         :editable-text-1 :static-text-6)
+                       :font (make-font-ex nil "Tahoma / ANSI" 11)
+                       :height 104 :left 28 :name :group-box-1
+                       :tab-control '(:tab-control :global) :title
+                       "Mount protocol port number" :top 168 :width
+                       364)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height 31
                        :left 230 :name :static-text-1 :tab-control
@@ -377,7 +408,12 @@
                                               :gc-debug-checkbox
                                               :nfs-debug-timestamps-checkbox
                                               :combo-box-port-mapper
-                                              :static-text-port-mapper)))
+                                              :static-text-port-mapper
+                                              :mountd-port-auto
+                                              :mountd-port-manual
+                                              :mountd-port-number
+                                              :static-text-6
+                                              :group-box-1)))
                        :top 9 :value :exports :width 514)
         (make-instance 'button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 10

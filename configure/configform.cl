@@ -10,6 +10,7 @@
 (defparameter *nfs-debug-timestamps* nil)
 (defparameter *nfs-gc-debug* nil)
 (defparameter *mountd-debug* nil)
+(defparameter *mountd-port-number* nil)
 
 (defparameter *host-lists* nil)
 (defparameter *user-lists* nil)
@@ -86,6 +87,7 @@
     (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
     (push `(*mountd-debug* ,*mountd-debug*) config)
+    (push `(*mountd-port-number* ,*mountd-port-number*) config)
     (push `(user::*use-system-portmapper* ,user::*use-system-portmapper*)
 	  config)
     
@@ -120,6 +122,20 @@
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     *mountd-debug*)
+  
+  (let ((auto-radio (my-find-component :mountd-port-auto form))
+        (manual-radio (my-find-component :mountd-port-manual form))
+        (mountd-port (my-find-component :mountd-port-number form)))
+    (if* *mountd-port-number* 
+       then
+            (setf (value auto-radio) nil)
+            (setf (value manual-radio) t)
+            (setf (value mountd-port) (format nil "~d" *mountd-port-number*))
+       else
+            (setf (value auto-radio) t)
+            (setf (value manual-radio) nil)
+            (setf (state mountd-port) :shrunk)
+            (setf (value mountd-port) "5000")))
   
   ;; user lists
   (let ((user-list-names (user-list-names))
@@ -903,4 +919,39 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 (defun configform-help-button-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (do-help widget)
+  t) ; Accept the new value
+
+(defun configform-mountd-port-number-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  
+  (let ((port (extract-number new-value)))
+    (if* (and port (> port 0) (< port 65536))
+       then
+            (setf *mountd-port-number* port)
+            (setf (value widget) (format nil "~d" port))
+            t ;; accept
+       else
+            ;; gripe
+            (pop-up-message-dialog (parent widget) 
+                                   "Invalid port number" 
+                                   "The number number must be an integer between 1 and 65535" error-icon "OK")
+            nil)))
+        
+
+(defun configform-mountd-port-manual-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  
+  (let* ((form (parent widget))
+         (mountd-port (my-find-component :mountd-port-number form)))
+    (if* new-value
+       then
+            (setf (state mountd-port) :normal)
+       else
+            (setf (state mountd-port) :shrunk)
+            (setf *mountd-port-number* nil)))
+  
   t) ; Accept the new value

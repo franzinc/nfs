@@ -22,12 +22,9 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.86 2005/08/09 22:21:10 layer Exp $
+;; $Id: nfs.cl,v 1.87 2005/08/10 23:42:47 dancy Exp $
 
 (in-package :user)
-
-(defvar *nfsd-version* "4.0")
-(defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 
 (eval-when (compile) (declaim (optimize (speed 3))))
 
@@ -96,26 +93,30 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 
 
 (defun nfsd ()
-  (logit "Allegro NFS Server version ~A started.~%" *nfsd-long-version*)
   (setf *nfsd-start-time* (get-universal-time))
-  (if* *nfs-gc-debug*
-     then (logit "~&Turning on memory management debugging.~%")
-	  (setf (sys:gsgc-switch :print) t)
-	  (setf (sys:gsgc-switch :stats) t)
-	  (setq excl:*global-gc-behavior* nil)
-     else (setf (sys:gsgc-switch :print) nil))	  
-
+  
   (with-nfsdsockets ()
     (with-portmapper-mapping (*nfsprog* '(2 3) *nfsport* IPPROTO_TCP)
       (with-portmapper-mapping (*nfsprog* '(2 3) *nfsport* IPPROTO_UDP)
 	(mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
 	(mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
 	(mp:process-run-function "dir cache reaper" #'dircache-reaper)
-	(let* ((buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
+	(let* ((buffer (make-array #.(* 64 1024) 
+				   :element-type '(unsigned-byte 8)))
 	       (server (make-rpc-server :tcpsock *nfsd-tcp-socket*
 					:udpsock *nfsd-udp-socket*
 					:buffer buffer)))
 	  (declare (dynamic-extent buffer server))
+	  
+	  (logit "Allegro NFS Server version ~A started.~%" 
+		 *nfsd-long-version*)
+	  (if* *nfs-gc-debug*
+	     then (logit "~&Turning on memory management debugging.~%")
+		  (setf (sys:gsgc-switch :print) t)
+		  (setf (sys:gsgc-switch :stats) t)
+		  (setq excl:*global-gc-behavior* nil)
+	     else (setf (sys:gsgc-switch :print) nil))	  
+	  
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)

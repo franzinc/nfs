@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.10 2005/08/08 22:16:22 layer Exp $
+;; $Id: main.cl,v 1.11 2005/08/10 23:42:47 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -38,10 +38,14 @@
   (declare (ignore args))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
+  (logit "Allegro NFS Server version ~A initializing...~%" 
+	 *nfsd-long-version*)
   (setf *pmap-process* (mp:process-run-function "portmapper" #'portmapper))
   (mp:process-wait "Waiting for portmapper to start" 
 		   #'mp:gate-open-p *pmap-gate*)
   (setf *mountd-process* (mp:process-run-function "mountd" #'mountd))
+  (mp:process-wait "Waiting for mountd to start" 
+		   #'mp:gate-open-p *mountd-gate*)
   (setf *nfsd-process* (mp:process-run-function "nfsd" #'nfsd)))
 
 (defun stopem ()

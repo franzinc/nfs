@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.21 2005/06/28 16:49:09 dancy Exp $
+;; $Id: mountd.cl,v 1.22 2005/08/10 23:42:47 dancy Exp $
 
 (in-package :user)
 
@@ -30,7 +30,11 @@
 (defparameter *mountd-tcp-socket* nil)
 (defparameter *mountd-udp-socket* nil)
 
+(defparameter *mountd-port-number* nil)
+    
 (defparameter *mountd-debug* nil)
+
+(defparameter *mountd-gate* (mp:make-gate nil))
 
 (defun make-mountdsockets ()
   (handler-case 
@@ -38,10 +42,12 @@
 	(unless *mountd-tcp-socket*
 	  (setf *mountd-tcp-socket*
 	    (socket:make-socket :type :hiper
+				:local-port *mountd-port-number*
 				:connect :passive)))
 	(unless *mountd-udp-socket*
 	  (setf *mountd-udp-socket*
-	    (socket:make-socket :type :datagram))))
+	    (socket:make-socket :type :datagram
+				:local-port *mountd-port-number*))))
     (error (c)
       (bailout "
 Unexpected error while creating a mountd socket: ~a~%" c)))
@@ -79,6 +85,9 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 					:udpsock *mountd-udp-socket*
 					:buffer buffer)))
 	  (declare (dynamic-extent buffer server))
+
+	  (mp:open-gate *mountd-gate*)
+	  
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)

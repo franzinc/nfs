@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0 [Windows] (May 31, 2005 13:58)"; cg: "1.54.2.17"; -*-
+;; -*- lisp-version: "7.0 [Windows] (Aug 3, 2005 8:28)"; cg: "1.54.2.17"; -*-
 
 (in-package :cg-user)
 
@@ -31,15 +31,16 @@
                      :cg.check-box :cg.clipboard :cg.clipboard-stack
                      :cg.clipboard.pixmap :cg.combo-box
                      :cg.common-control :cg.comtab :cg.dialog-item
-                     :cg.directory-dialog-os :cg.editable-text :cg.icon
-                     :cg.item-list :cg.keyboard-shortcuts
+                     :cg.directory-dialog-os :cg.editable-text
+                     :cg.group-box :cg.icon :cg.item-list
+                     :cg.keyboard-shortcuts :cg.lisp-widget
                      :cg.message-dialog :cg.multi-line-editable-text
                      :cg.os-widget :cg.picture-widget :cg.pixmap
                      :cg.pixmap-widget :cg.pixmap.file-io
-                     :cg.static-text :cg.string-dialog :cg.tab-control
-                     :cg.text-edit-pane :cg.text-or-combo
-                     :cg.text-widget :cg.toggling-widget
-                     :cg.utility-dialog)
+                     :cg.radio-button :cg.static-text :cg.string-dialog
+                     :cg.tab-control :cg.text-edit-pane
+                     :cg.text-or-combo :cg.text-widget
+                     :cg.toggling-widget :cg.utility-dialog)
   :splash-file-module (make-instance 'build-module :name "")
   :icon-file-module (make-instance 'build-module :name "")
   :include-flags '(:local-name-info)
