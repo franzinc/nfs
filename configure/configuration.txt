@@ -131,15 +131,21 @@ IP addresses can be specified in several ways:
 
 * Global settings *
  
-  * NFS/Mount protocol debugging: You can turn these options on if
-    you want to see what's going on at the protocol level.  Debugging
-    output will be generated in the console window.  Be careful!
-    Turning on NFS protocol debugging can generate lots of output.
+  * NFS/Mount protocol debugging: You can turn these options on if you
+    want to see what's going on at the protocol level.  Debugging
+    output will be generated in the console window and in the
+    nfsdebug.txt file in the Allegro NFS installation directory.  Be
+    careful!  Turning on NFS protocol debugging can generate lots of
+    output and severely degrade the performance of Allegro NFS.
 
   * Use system portmapper: Possible values are auto, yes and no,
     meaning auto-detect and use another running portmapper, always use
     the system portmapper and always use the Allegro portmapper,
-    respectively.
+    respectively.  'auto' is the best choice for most people.  If you
+    choose 'yes' and no portmapper is running on your system, then
+    Allegro NFS will not be able to start up properly.  Likewise, if
+    you choose 'no' and a portmapper is running on your system, then
+    Allegro NFS will not be able to start up properly.
 
 ----------------------------------------------------------------------------
 
