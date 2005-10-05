@@ -1,7 +1,4 @@
 2005-10-05    <dancy@DANCYSOFT>
-v4.2
-	* nfs-common.cl: Bumped version to v4.2
-
 	* dir.cl: Directory caching key is now a file handle instead of a
 	path string.
 
