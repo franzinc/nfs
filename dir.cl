@@ -7,7 +7,7 @@
 ;; rm -r
 ;; on a large/deep directory tree.  
 
-(defparameter *nfs-dircache* (make-hash-table :test #'equalp))
+(defparameter *nfs-dircache* (make-hash-table :test #'eq))
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
 ;; This can be much lower for nfsv3.  Like 1 or 2 seconds.
@@ -16,7 +16,7 @@
 (defstruct dircache 
   entries
   lastaccess
-  id)
+  id) ;; used for cookie
 
 (defparameter *nfs-dircache-id* 0)
 
@@ -30,24 +30,24 @@
     (push ".." res)
     (push "." res)))
 
-
-(defun nfs-lookup-dir (dir)
+(defun nfs-lookup-dir (fh)
   (mp:with-process-lock (*nfs-dircachelock*)
-    (let ((dc (gethash dir *nfs-dircache*)))
+    (let ((dc (gethash fh *nfs-dircache*)))
       (when (null dc)
-	#+ignore(format t "Refreshing dircache for ~A~%" dir)
-	(setf dc (make-dircache :entries (augmented-directory dir)
-				:id (incf *nfs-dircache-id*)))
-	(setf (gethash dir *nfs-dircache*) dc))
+	(let ((path (fh-pathname fh)))
+	  #+ignore(format t "Refreshing dircache for ~A~%" path)
+	  (setf dc (make-dircache :entries (augmented-directory path)
+				  :id (incf *nfs-dircache-id*)))
+	  (setf (gethash fh *nfs-dircache*) dc)))
       (setf (dircache-lastaccess dc) (get-universal-time))
       (values (dircache-entries dc) dc))))
 
 ;;; doesn't add duplicates
-(defun nfs-add-file-to-dir (file dir)
+(defun nfs-add-file-to-dir (file dirfh)
   (sanity-check-filename file)
   (mp:with-process-lock (*nfs-dircachelock*)
     (multiple-value-bind (entries dc)
-	(nfs-lookup-dir dir)
+	(nfs-lookup-dir dirfh)
       ;; Don't add duplicates
       (when (not (member file entries :test #'equalp))
 	;; see if there's a blank entry we can replace
@@ -61,10 +61,10 @@
 	(setf (dircache-entries dc)
 	  (append entries (list file)))))))
 
-(defun nfs-remove-file-from-dir (file dir)
+(defun nfs-remove-file-from-dir (file dirfh)
   (sanity-check-filename file)
   (mp:with-process-lock (*nfs-dircachelock*)
-    (let* ((entries (nfs-lookup-dir dir))
+    (let* ((entries (nfs-lookup-dir dirfh))
 	   (pos (position file entries :test #'equalp)))
       (when pos
 	(setf (nth pos entries) nil)))))
@@ -85,10 +85,4 @@
 	   (if (>= now (+ (dircache-lastaccess dc) *nfs-dircachereaptime*))
 	       (remhash key *nfs-dircache*)))
        *nfs-dircache*))))
-
-;; debugging
-(defun dump-nfsdircache ()
-  (maphash #'(lambda (key value)
-	       (logit "~S -> ~S~%" key value))
-	   *nfs-dircache*))
 

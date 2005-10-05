@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.87 2005/08/10 23:42:47 dancy Exp $
+;; $Id: nfs.cl,v 1.88 2005/10/05 21:47:17 dancy Exp $
 
 (in-package :user)
 
@@ -251,7 +251,15 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (file-error (c)
 	   (setf (xdr-pos ,xdr) ,savepossym)
-	   (when *nfs-debug* (logit "Handling file error: ~A~%" c))
+	   ;; Make some errors look less alarming. 
+	   (when *nfs-debug* 
+	     (case (excl::syscall-error-errno c)
+	       (#.*enoent* 
+		(logit " => [Not found]~%"))
+	       (#.*enotempty*
+		(logit " => [Not empty]~%"))
+	       (t
+		(logit "Handling file error: ~A~%" c))))
 	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
 			  (excl::syscall-error-errno c)))
 	   (if (= ,vers 3)
@@ -707,7 +715,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 
 (defun add-direntries (xdr dirfh max startindex vers &optional verf)
   (multiple-value-bind (dirlist dc)
-      (nfs-lookup-dir (fh-pathname dirfh))
+      (nfs-lookup-dir dirfh)
     (let ((index startindex)
 	  (totalbytesadded 8)
 	  (complete t)
@@ -716,6 +724,9 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  endindex
 	  p)
       (declare (fixnum entries totalbytesadded index))
+      
+      (if (eq *nfs-debug* :verbose)
+	  (logit "~%"))
       
       ;; HP-UX doesn't do the cookie verifier properly so don't
       ;; complain if we get a verifier of 0.
@@ -910,7 +921,7 @@ struct entry {
       ;; create the file.
       (close (open newpath :direction :output))
       (update-atime-and-mtime dirfh)
-      (nfs-add-file-to-dir filename (fh-pathname dirfh))
+      (nfs-add-file-to-dir filename dirfh)
       (xdr-int *nfsdxdr* NFS_OK)
       (xdr-fhandle *nfsdxdr* vers fh)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
@@ -937,7 +948,7 @@ struct entry {
       (if* (= res NFS_OK) 
 	 then
 	      (update-atime-and-mtime dirfh)
-	      (nfs-add-file-to-dir filename (fh-pathname dirfh))
+	      (nfs-add-file-to-dir filename dirfh)
 	      (xdr-int *nfsdxdr* NFS_OK)
 	      (nfs-xdr-post-op-fh *nfsdxdr* fh)
 	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -959,7 +970,7 @@ struct entry {
 	    (link (fh-pathname fh) newpath)
 	    (link-fh-in-dir fh destdirfh destfilename)
 	    (update-atime-and-mtime destdirfh)
-	    (nfs-add-file-to-dir destfilename (fh-pathname destdirfh))
+	    (nfs-add-file-to-dir destfilename destdirfh)
 	    (incf-cached-nlinks fh)
 	    ;; need to incf nlinks for the original file handle (which should
 	    ;; affect all links).  One easy thing would be to just 
@@ -1064,7 +1075,7 @@ struct entry {
       (delete-file (add-filename-to-dirname (fh-pathname dirfh) filename))
       (update-atime-and-mtime dirfh)
       ;; Update dircache.
-      (nfs-remove-file-from-dir filename (fh-pathname dirfh))
+      (nfs-remove-file-from-dir filename dirfh)
       (remove-fhandle fh filename)
       (uncache-attr fh)
       (xdr-int *nfsdxdr* NFS_OK)
@@ -1269,8 +1280,8 @@ struct entry {
 	    (uncache-attr tofh)
 	    (update-atime-and-mtime fromdirfh)
 	    (update-atime-and-mtime todirfh)
-	    (nfs-remove-file-from-dir fromfilename (fh-pathname fromdirfh))
-	    (nfs-add-file-to-dir tofilename (fh-pathname todirfh))
+	    (nfs-remove-file-from-dir fromfilename fromdirfh)
+	    (nfs-add-file-to-dir tofilename todirfh)
 	    (xdr-int *nfsdxdr* NFS_OK)
 	    (when (= vers 3)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-from fromdirfh)
@@ -1285,7 +1296,7 @@ struct entry {
     (let ((pre-op-attrs (get-pre-op-attrs dirfh))
 	  (fh (lookup-fh-in-dir dirfh filename :create t)))
       (make-directory (fh-pathname fh))
-      (nfs-add-file-to-dir filename (fh-pathname dirfh))
+      (nfs-add-file-to-dir filename dirfh)
       (update-atime-and-mtime dirfh)
       (xdr-int *nfsdxdr* NFS_OK)
       (ecase vers
@@ -1304,7 +1315,7 @@ struct entry {
 	  (fh (lookup-fh-in-dir dirfh filename :create t)))
       (rmdir (fh-pathname fh)) ;; throws error if non-empty
       (update-atime-and-mtime dirfh)
-      (nfs-remove-file-from-dir filename (fh-pathname dirfh))
+      (nfs-remove-file-from-dir filename dirfh)
       (uncache-attr fh)
       (remove-fhandle fh filename)
       (xdr-int *nfsdxdr* NFS_OK)

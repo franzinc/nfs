@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.17 2005/08/03 20:56:34 dancy Exp $
+;; $Id: fhandle.cl,v 1.18 2005/10/05 21:47:17 dancy Exp $
 
 ;; file handle stuff
 
@@ -141,8 +141,7 @@
       (if (string= filename ".")
 	  (return dirfh))
       (if (string= filename "..")
-	  (let ((parent (fh-parent dirfh)))
-	    (return (if parent parent dirfh)))) ;; parent of root is root
+	  (return (or (fh-parent dirfh) dirfh)))
       
       ;; See if an entry exists.
       (when (fh-children dirfh)
@@ -170,7 +169,8 @@
       (remhash filename (fh-children parent)))))
 
 ;; Caller is expected to remove todir/tofilename beforehand.
-;; Updates the pathname slot of the fhandle.
+;; Updates the pathname slot of the fhandle (and updates children
+;; recursively, so this can be expensive for directories).
 (defun rename-fhandle (fh fromfilename todir tofilename)
   (without-interrupts
     ;; remove from current parent.
@@ -178,14 +178,22 @@
       (if (null parent)
 	  (error "rename-fhandle: ~S has no parent" fh))
       (remhash fromfilename (fh-children parent)))
-    ;; update parent
+    ;; update our parent slot
     (setf (fh-parent fh) todir)
     ;; add to destination parent.
     (insert-fhandle fh tofilename)
-    ;; change pathname
-    (setf (fh-pathname fh) 
-      (add-filename-to-dirname (fh-pathname todir) tofilename))))
+    ;; change pathname of this node and its children and subchildren
+    (update-fhandle-pathname (fh-pathname todir) tofilename fh)))
 
+(defun update-fhandle-pathname (parentname yourname fh)
+  (let ((newname (add-filename-to-dirname parentname yourname)))
+    (setf (fh-pathname fh) newname)
+    (if (fh-children fh)
+	(maphash 
+	 #'(lambda (childname childfh)
+	     (update-fhandle-pathname newname childname childfh))
+	 (fh-children fh)))))
+	    
 ;; If body runs to completion, the filehandle will be saved,
 ;; otherwise, it will be removed.
 (defmacro with-potential-fhandle ((fhvar dirfh filename &key allow-dotnames) 

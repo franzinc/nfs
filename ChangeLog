@@ -1,3 +1,18 @@
+2005-10-05    <dancy@DANCYSOFT>
+v4.2
+	* nfs-common.cl: Bumped version to v4.2
+
+	* dir.cl: Directory caching key is now a file handle instead of a
+	path string.
+
+	* fhandle.cl: Update fh-pathname slot of children and subchildren
+	slots when renaming a filehandle.
+
+	* nfs.cl: Print out some "normal" error messages (like file not
+	found when doing a 'lookup') in a less alarming way.   Adjusted
+	directory caching related function calls according to changes made
+	in dir.cl.
+
 2005-08-10    <dancy@DANCYSOFT>
 
 v4.1
