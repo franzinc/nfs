@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.22 2005/08/10 23:42:47 dancy Exp $
+;; $Id: mountd.cl,v 1.23 2005/10/18 22:15:41 dancy Exp $
 
 (in-package :user)
 
@@ -79,7 +79,7 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 				'(1 2 3)
 				(socket:local-port *mountd-udp-socket*) 
 				IPPROTO_UDP)
-	(let* ((buffer (make-array (* 64 1024) 
+	(let* ((buffer (make-array #.(* 64 1024) 
 				   :element-type '(unsigned-byte 8)))
 	       (server (make-rpc-server :tcpsock *mountd-tcp-socket*
 					:udpsock *mountd-udp-socket*
@@ -91,8 +91,12 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)
-	      (mountd-message-handler xdr peer))))))))
-
+	      (handler-case (mountd-message-handler xdr peer)
+		(error (c)
+		  (logit 
+		   "Mountd: Error while processing request from ~a: ~a~%"
+		   (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+		   c))))))))))
 
 (defun mountd-message-handler (xdr peer)
   (block nil

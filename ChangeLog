@@ -1,3 +1,9 @@
+2005-10-18    <dancy@DANCYSOFT>
+v4.2
+	
+	* mountd.cl (mountd): Add a handler-case around the call to
+	mountd-message-handler.
+
 2005-10-05    <dancy@DANCYSOFT>
 	* dir.cl: Directory caching key is now a file handle instead of a
 	path string.
