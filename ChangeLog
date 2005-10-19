@@ -1,3 +1,9 @@
+2005-10-19    <dancy@CANDY2K>
+v4.3
+	
+	* nfs.cl: [spr30771] with-same-export: Fixed error response.  It
+	wasn't RFC compliant for NFSv3.
+
 2005-10-18    <dancy@DANCYSOFT>
 v4.2
 	

@@ -1,7 +1,7 @@
 (in-package :user)
 
 ;;;
-(defvar *nfsd-version* "4.2")
+(defvar *nfsd-version* "4.3")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 

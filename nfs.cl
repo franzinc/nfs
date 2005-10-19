@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.88 2005/10/05 21:47:17 dancy Exp $
+;; $Id: nfs.cl,v 1.89 2005/10/19 22:39:10 dancy Exp $
 
 (in-package :user)
 
@@ -466,7 +466,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
 
-(defmacro with-same-export ((fh1 fh2) &body body)
+(defmacro with-same-export ((fh1 fh2 function) &body body)
   `(if* (eq (fh-export ,fh1) (fh-export ,fh2))
       then
 	   ,@body
@@ -477,7 +477,15 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	      (xdr-int *nfsdxdr* NFSERR_ACCES))
 	     (3
 	      (xdr-int *nfsdxdr* NFSERR_XDEV)
-	      (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
+	      (ecase ,function
+		(:rename
+		 (nfs-xdr-wcc-data *nfsdxdr* nil nil) ;; from
+		 (nfs-xdr-wcc-data *nfsdxdr* nil nil)) ;; to
+		(:link
+		 (nfs-xdr-post-op-attr *nfsdxdr* nil)
+		 (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))))
+		 
+
 
 (defmacro nfs-unsupported ()
   `(progn
@@ -960,7 +968,7 @@ struct entry {
 (define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
   ;; Many sanity checks to prevent corruption
   (with-permission (destdirfh :write)
-    (with-same-export (fh destdirfh)
+    (with-same-export (fh destdirfh :link)
       (with-non-dir-fh (fh)
 	(with-dirfh (destdirfh)
 	  (sanity-check-filename destfilename)
@@ -1256,7 +1264,7 @@ struct entry {
 			 (fromfilename string)
 			 (todirfh fhandle)
 			 (tofilename string))
-  (with-same-export (fromdirfh todirfh)
+  (with-same-export (fromdirfh todirfh :rename)
     (with-permission (fromdirfh :write)
       ;; not really necessary since they have to be the same export...
       ;; and the same exports always have the same permissions..
