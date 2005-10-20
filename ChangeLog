@@ -3,7 +3,7 @@
 
 2005-10-20    <layer@HOBART>
 
-	* nfs.nsi: fail on win9x
+	* nfs.nsi: make installer fail on win9x
 
 2005-10-19    <dancy@CANDY2K>
 v4.3

@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.11.4.1 2005/10/20 20:59:24 layer Exp $
+; $Id: nfs.nsi,v 1.11.4.2 2005/10/20 23:18:34 layer Exp $
 
 SetCompressor lzma
 
@@ -376,11 +376,7 @@ StrCmp $R2 "Admin" 0 Continue
 ; The functions UserInfo.dll looks for are there on Win98 too, 
 ; but just don't work. So UserInfo.dll, knowing that admin isn't required
 ; on Win98, returns admin anyway. (per kichik)
-;;;;
-; I changed the "true" to "false" so that we'd not run on win9x
-;  - DKL, 10/20/05
-;;;;
-StrCpy $R0 "false"
+StrCpy $R0 "true"
 Goto Done
 
 Continue:
@@ -427,7 +423,64 @@ LicenseData binary-license.txt
 
 ;--------------------------------
 
+; IsWin9x
+;
+; Base on GetWindowsVersion from
+;     http://nsis.sourceforge.net/wiki/Get_Windows_version
+;
+; Based on Yazno's function, http://yazno.tripod.com/powerpimpit/
+; Updated by Joost Verburg
+;
+; Returns on top of stack
+;
+; Windows Version (95, 98, ME, NT x.x, 2000, XP, 2003)
+; or
+; '' (Unknown Windows Version)
+;
+; Usage:
+;   Call IsWin9x
+;   Pop $R0
+;   ; at this point $R0 is "true" or "false"
+ 
+Function IsWin9x
+
+Push $R0
+Push $R1
+
+ClearErrors
+
+ReadRegStr $R0 HKLM \
+"SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+
+IfErrors 0 lbl_winnt
+
+; we are not NT
+StrCpy $R0 "true"
+Goto lbl_done
+
+lbl_winnt:
+
+StrCpy $R0 "false"
+
+lbl_done:
+
+Pop $R1
+Exch $R0
+ 
+FunctionEnd
+
+;--------------------------------
+
 Function .onInit
+
+  Call IsWin9x
+  Pop $R0   ; at this point $R0 is "true" or "false"
+  StrCmp $R0 "true" 0 IsWinNT
+     MessageBox MB_OK \
+        'Allegro NFS Server does not work on Windows 9x.'
+     Abort
+ IsWinNT:
+
   Call IsUserAdmin
   Pop $R0   ; at this point $R0 is "true" or "false"
   StrCmp $R0 "false" 0 IsAdmin
