@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.11 2005/08/08 22:16:22 layer Exp $
+; $Id: nfs.nsi,v 1.11.4.1 2005/10/20 20:59:24 layer Exp $
 
 SetCompressor lzma
 
@@ -376,7 +376,11 @@ StrCmp $R2 "Admin" 0 Continue
 ; The functions UserInfo.dll looks for are there on Win98 too, 
 ; but just don't work. So UserInfo.dll, knowing that admin isn't required
 ; on Win98, returns admin anyway. (per kichik)
-StrCpy $R0 "true"
+;;;;
+; I changed the "true" to "false" so that we'd not run on win9x
+;  - DKL, 10/20/05
+;;;;
+StrCpy $R0 "false"
 Goto Done
 
 Continue:
