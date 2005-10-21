@@ -8,7 +8,7 @@ v4.3
 v4.2
 	
 	* mountd.cl (mountd): Add a handler-case around the call to
-	mountd-message-handler.
+	mountd-message-handler. [spr30735]
 
 2005-10-05    <dancy@DANCYSOFT>
 	* dir.cl: Directory caching key is now a file handle instead of a
