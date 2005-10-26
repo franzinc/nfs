@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.11.4.2 2005/10/20 23:18:34 layer Exp $
+; $Id: nfs.nsi,v 1.11.4.3 2005/10/26 20:32:43 dancy Exp $
 
 SetCompressor lzma
 
@@ -402,6 +402,8 @@ FunctionEnd
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
 !define VERBOSE_PROD "Allegro NFS Server for Windows"
 !define SHORT_PROD "Allegro NFS"
+; for DEP workaround
+!define APPCOMPATLAYERS "SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
 
 Name "${VERBOSE_PROD}"
 
@@ -489,7 +491,7 @@ Function .onInit
      Abort
  IsAdmin:
 
-  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "myMutex") i .r1 ?e'
+  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "AllegroNFSInstallMutex") i .r1 ?e'
   Pop $R0
  
   StrCmp $R0 0 +3
@@ -566,6 +568,25 @@ ServiceNotInstalled:
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
 
+
+
+  ; See if need to work around DEP
+  Push $1
+  System::Call "apphelp::ShimFlushCache(i 0, i 0, i 0, i 0) i .r1"
+  ; $1 will be "error" if there is no apphelp on this system.
+  ; $1 will be 1 if the call succeeded, which means we need to
+  ;    work around DEP.
+  IntCmp $1 1 0 noDEP noDEP	
+	DetailPrint "Installing DEP workarounds"
+	; Turn off DEP for Allegro NFS programs
+	; Add registry entries
+	WriteRegStr HKLM "${APPCOMPATLAYERS}" "$INSTDIR\nfs.exe"  "DisableNXShowUI"
+	WriteRegStr HKLM "${APPCOMPATLAYERS}" "$INSTDIR\configure\configure.exe"  "DisableNXShowUI"
+	System::Call "apphelp::ShimFlushCache(i 0, i 0, i 0, i 0)"	
+  noDEP:
+  Pop $1
+
+
 !define UNINSTMAIN "Software\Microsoft\Windows\CurrentVersion\Uninstall"
 !define UNINSTKEY "${UNINSTMAIN}\${SHORT_PROD}"
   
@@ -586,10 +607,16 @@ Section "Start Menu Shortcuts"
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
   CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe"
+  CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" \
+                                                   "start nfs"
+  CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "%windir%\system32\net.exe" \
+                                                   "stop nfs"
+/*
   CreateShortCut "${SMDIR}\Start NFS Service.lnk" "$INSTDIR\nfs.exe" \
                                                    "/start /quiet"
   CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "$INSTDIR\nfs.exe" \
                                                    "/stop /quiet"
+*/
   CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
 		"$INSTDIR\configure\configure.exe"
 SectionEnd
@@ -637,6 +664,8 @@ Section Uninstall
   DetailPrint "Removing registry keys..."
   DeleteRegKey HKLM "${UNINSTKEY}"
   DeleteRegKey HKLM "${REGKEY}"
+  DeleteRegValue HKLM "${APPCOMPATLAYERS}" "$INSTDIR\nfs.exe"
+  DeleteRegValue HKLM "${APPCOMPATLAYERS}" "$INSTDIR\configure\configure.exe"
 
   DetailPrint "Removing files and uninstaller..."
   Rmdir /r "$INSTDIR\system-dlls"

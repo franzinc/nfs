@@ -1,3 +1,11 @@
+2005-10-26    <dancy@DANCYSOFT>
+
+	* nfs.nsi: [bug15756].  If running on a system with DEP, apply
+	workarounds to the registry.
+
+	* nfs.nsi: For the start menu start/stop service shortcuts, use
+	net.exe instead of nfs.exe.
+	
 *******************************************************************************
 ******** 4.3 release ***********
 
