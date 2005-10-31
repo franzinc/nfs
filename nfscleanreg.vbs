@@ -1,7 +1,8 @@
 ' VBScript
-' $Id: nfscleanreg.vbs,v 1.2.4.3 2005/10/31 21:09:21 layer Exp $
+' $Id: nfscleanreg.vbs,v 1.2.4.4 2005/10/31 21:11:49 layer Exp $
 
-' from http://mikesalsbury.com/mambo/content/view/134/
+' adapted from code found here:
+'    http://mikesalsbury.com/mambo/content/view/134/
 '
 ' This function returns a "true/false" response if a
 ' given Windows Registry key exists.
