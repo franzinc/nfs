@@ -1,5 +1,5 @@
 ' VBScript
-' $Id: nfscleanreg.vbs,v 1.2.4.2 2005/10/31 19:49:27 layer Exp $
+' $Id: nfscleanreg.vbs,v 1.2.4.3 2005/10/31 21:09:21 layer Exp $
 
 ' from http://mikesalsbury.com/mambo/content/view/134/
 '
@@ -11,37 +11,31 @@
 ' a local "on error resume next" to keep executing
 ' normally if the error occurs.
 '
-Function RegEntryExists(theEntry)
+Function regEntryExists(theEntry)
   On error resume next
-  set shell = CreateObject("WScript.Shell")
+  Set shell = WScript.CreateObject("WScript.Shell")
   entry = shell.RegRead(theEntry)
   If Err.Number <> 0 then
+    'msgbox "FALSE: " & Err.Description
     Err.Clear
-    RegEntryExists = FALSE
+    regEntryExists = FALSE
   else
     Err.Clear
-    RegEntryExists = TRUE
+    'msgbox "TRUE"
+    regEntryExists = TRUE
   end if
-  set shell = Nothing
+  Set shell = Nothing
 End Function
 
 Function RegDeleteEntry(key)
-  set Sh = CreateObject("WScript.Shell")
-  Sh.RegDelete
+  Set Sh = CreateObject("WScript.Shell")
+  if regEntryExists(key) then
+     Sh.RegDelete key
+     msgbox "Key " & key & " was deleted."
+  else
+     msgbox "Key " & key & " does not exist."
+  end if
 End Function
 
-theEntry = "HKCR\CLSID\{D7DDF8D4-92DE-4e76-9326-8746C446AAC4}\"
-if regEntryExists(theEntry) then
-   RegDeleteEntry(theEntry)
-   msgbox "Key " & theEntry & " was deleted."
-else
-   msgbox "Key " & theEntry & " does not exist."
-end if
-
-theEntry = "HKCR\CLSID\{D9AD2502-2F93-4c0b-BC3C-20689232C3B0}\"
-if regEntryExists(theEntry) then
-   RegDeleteEntry(theEntry)
-   msgbox "Key " & theEntry & " was deleted."
-else
-   msgbox "Key " & theEntry & " does not exist."
-end if
+RegDeleteEntry "HKCR\CLSID\{D9AD2502-2F93-4c0b-BC3C-20689232C3B0}\X0"
+RegDeleteEntry "HKCR\CLSID\{D7DDF8D4-92DE-4e76-9326-8746C446AAC4}\X0"
