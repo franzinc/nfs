@@ -1,6 +1,8 @@
 2005-11-22    <dancy@DANCYSOFT>
 v4.3.1
-	
+
+	* Makefile, configure/Makefile:  Use c:/program files/acl80 now.
+
 	* Bugfix for the configure program (where the mountd port would
 	change to 5000 instead of automatic, without user intervention).
 	(spr30929, spr30924)
