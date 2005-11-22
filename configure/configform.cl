@@ -134,8 +134,7 @@
        else
             (setf (value auto-radio) t)
             (setf (value manual-radio) nil)
-            (setf (state mountd-port) :shrunk)
-            (setf (value mountd-port) "5000")))
+            (setf (state mountd-port) :shrunk)))
   
   ;; user lists
   (let ((user-list-names (user-list-names))
@@ -820,6 +819,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
       (setf (value (my-find-component :tab-control form)) :exports)
       (return-from save-config-common)))
   
+  ;; Finalize mountd port number changes.
+  (if* (value (my-find-component :mountd-port-auto form))
+     then (setf *mountd-port-number* nil)
+     else (setf *mountd-port-number* 
+            (parse-integer (value (my-find-component :mountd-port-number form)))))
+  
   (write-config-file *configfile*)
   (if *server-running* 
       (user::reload-nfs-server-config))
@@ -929,7 +934,6 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (let ((port (extract-number new-value)))
     (if* (and port (> port 0) (< port 65536))
        then
-            (setf *mountd-port-number* port)
             (setf (value widget) (format nil "~d" port))
             t ;; accept
        else
@@ -950,8 +954,9 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (if* new-value
        then
             (setf (state mountd-port) :normal)
+            (if (string= "" (value mountd-port))
+                (setf (value mountd-port) "5000"))
        else
-            (setf (state mountd-port) :shrunk)
-            (setf *mountd-port-number* nil)))
+            (setf (state mountd-port) :shrunk)))
   
   t) ; Accept the new value

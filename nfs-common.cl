@@ -1,7 +1,11 @@
 (in-package :user)
 
+(eval-when (compile load eval)
+  (require :osi)
+  (use-package :excl.osi))
+
 ;;;
-(defvar *nfsd-version* "4.3")
+(defvar *nfsd-version* "4.3.1")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
