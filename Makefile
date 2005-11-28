@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.52 2005/08/10 23:42:47 dancy Exp $
+# $Id: Makefile,v 1.53 2005/11/28 21:56:25 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 ### IMPORTANT: the nightly builds the product need to use a local copy and
 ###	       and not one in /c/Program Files/...  only change the ../aclxxx
 ###	       when the build machine's copy is updated.
-LISPDIR := $(shell if test -f ../acl70/mlisp; then echo ../acl70; else echo '"/c/Program Files/acl70"'; fi)
+LISPDIR := $(shell if test -f ../acl80b/mlisp; then echo ../acl80b; else echo '"/c/Program Files/acl80"'; fi)
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
@@ -160,6 +160,21 @@ hammernfs-libs/nfs_prot_clnt.c: hammernfs-libs/nfs_prot.x
 
 ###############################################################################
 # misc
+
+BRANCH_NAME = 
+
+release_branch: FORCE
+	@if test -z "$(BRANCH_NAME)"; then \
+	    echo BRANCH_NAME is null.;\
+	    exit 1;\
+	fi
+	for m in nfs date demoware; do \
+	    echo Doing module $$m;\
+	    cvs -Q rtag $(BRANCH_NAME)_branch_point $$m;\
+	    cvs -Q rtag $(BRANCH_NAME)_merge_begin $$m;\
+	    cvs -Q rtag $(BRANCH_NAME)_merge_end $$m;\
+	    cvs -Q rtag -b -r $(BRANCH_NAME)_branch_point $(BRANCH_NAME) $$m;\
+	done
 
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~

@@ -1,16 +1,18 @@
-;; -*- lisp-version: "7.0 [Windows] (Sep 13, 2005 10:22)"; cg: "1.54.2.17"; -*-
+;; -*- lisp-version: "8.0.pre-final.3 [Windows] (Nov 8, 2005 0:32)"; cg: "1.71"; -*-
 
 (in-package :cg-user)
 
 (defpackage :common-graphics-user)
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "..\\xdr")
+  :modules (list (make-instance 'module :name "..\\nfs-common")
+                 (make-instance 'module :name "..\\nfs-shared")
+                 (make-instance 'module :name "..\\sunrpc-common")
+                 (make-instance 'module :name "..\\xdr")
                  (make-instance 'module :name "..\\sunrpc")
                  (make-instance 'module :name "..\\portmap")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
-                 (make-instance 'module :name "..\\nfs-shared")
                  (make-instance 'module :name "ipaddr")
                  (make-instance 'form-module :name "configform"
                                 :finder-function 'configform
@@ -18,7 +20,7 @@
                  (make-instance 'form-module :name "help-form"
                                 :finder-function 'help-form
                                 :has-pixmap-file nil :create-on-open
-                                t))
+                                nil))
   :projects nil
   :libraries nil
   :distributed-files '("configuration.txt")

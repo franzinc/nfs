@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.27 2005/08/03 20:56:34 dancy Exp $
+;; $Id: sunrpc.cl,v 1.28 2005/11/28 21:56:25 layer Exp $
 
 (in-package :user)
 
@@ -66,7 +66,8 @@
   type
   socket
   addr
-  port)
+  port
+  fragments) ;; for TCP peers
 
 (defstruct rpc-server
   tcpsock
@@ -166,6 +167,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
       (let ((size (read-int-from-stream stream)))
 	(if (null size)
 	    (return-from read-record nil)) ;; indicate EOF
+	;; The 32-bit word that is sent by the client is unsigned.
+	;; If the high bit is set, it means "last fragment".
+	;; read-int-from-stream returns the signed representation
+	;; so if the number is negative, the high bit is set.
 	(when (>= size 0)
 	  (error "read-record: Fragments aren't handled yet"))
 	(setf size (logand size #x7fffffff))
@@ -174,6 +179,9 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		   size (length buffer)))
 	;;(logit "Message is ~d bytes~%" size)
 	(read-complete-vector buffer stream size))
+    (socket-error (c)
+      (if *rpc-debug* (logit "~a~%" c))
+      nil)
     (t (c)
       (logit "read-record got error ~A~%Returning nil~%" c)
       nil)))

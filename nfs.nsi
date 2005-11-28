@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.11 2005/08/08 22:16:22 layer Exp $
+; $Id: nfs.nsi,v 1.12 2005/11/28 21:56:25 layer Exp $
 
 SetCompressor lzma
 
@@ -402,6 +402,8 @@ FunctionEnd
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
 !define VERBOSE_PROD "Allegro NFS Server for Windows"
 !define SHORT_PROD "Allegro NFS"
+; for DEP workaround
+!define APPCOMPATLAYERS "SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
 
 Name "${VERBOSE_PROD}"
 
@@ -423,7 +425,64 @@ LicenseData binary-license.txt
 
 ;--------------------------------
 
+; IsWin9x
+;
+; Base on GetWindowsVersion from
+;     http://nsis.sourceforge.net/wiki/Get_Windows_version
+;
+; Based on Yazno's function, http://yazno.tripod.com/powerpimpit/
+; Updated by Joost Verburg
+;
+; Returns on top of stack
+;
+; Windows Version (95, 98, ME, NT x.x, 2000, XP, 2003)
+; or
+; '' (Unknown Windows Version)
+;
+; Usage:
+;   Call IsWin9x
+;   Pop $R0
+;   ; at this point $R0 is "true" or "false"
+ 
+Function IsWin9x
+
+Push $R0
+Push $R1
+
+ClearErrors
+
+ReadRegStr $R0 HKLM \
+"SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+
+IfErrors 0 lbl_winnt
+
+; we are not NT
+StrCpy $R0 "true"
+Goto lbl_done
+
+lbl_winnt:
+
+StrCpy $R0 "false"
+
+lbl_done:
+
+Pop $R1
+Exch $R0
+ 
+FunctionEnd
+
+;--------------------------------
+
 Function .onInit
+
+  Call IsWin9x
+  Pop $R0   ; at this point $R0 is "true" or "false"
+  StrCmp $R0 "true" 0 IsWinNT
+     MessageBox MB_OK \
+        'Allegro NFS Server does not work on Windows 9x.'
+     Abort
+ IsWinNT:
+
   Call IsUserAdmin
   Pop $R0   ; at this point $R0 is "true" or "false"
   StrCmp $R0 "false" 0 IsAdmin
@@ -432,7 +491,7 @@ Function .onInit
      Abort
  IsAdmin:
 
-  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "myMutex") i .r1 ?e'
+  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "AllegroNFSInstallMutex") i .r1 ?e'
   Pop $R0
  
   StrCmp $R0 0 +3
@@ -509,6 +568,25 @@ ServiceNotInstalled:
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
 
+
+
+  ; See if need to work around DEP
+  Push $1
+  System::Call "apphelp::ShimFlushCache(i 0, i 0, i 0, i 0) i .r1"
+  ; $1 will be "error" if there is no apphelp on this system.
+  ; $1 will be 1 if the call succeeded, which means we need to
+  ;    work around DEP.
+  IntCmp $1 1 0 noDEP noDEP	
+	DetailPrint "Installing DEP workarounds"
+	; Turn off DEP for Allegro NFS programs
+	; Add registry entries
+	WriteRegStr HKLM "${APPCOMPATLAYERS}" "$INSTDIR\nfs.exe"  "DisableNXShowUI"
+	WriteRegStr HKLM "${APPCOMPATLAYERS}" "$INSTDIR\configure\configure.exe"  "DisableNXShowUI"
+	System::Call "apphelp::ShimFlushCache(i 0, i 0, i 0, i 0)"	
+  noDEP:
+  Pop $1
+
+
 !define UNINSTMAIN "Software\Microsoft\Windows\CurrentVersion\Uninstall"
 !define UNINSTKEY "${UNINSTMAIN}\${SHORT_PROD}"
   
@@ -529,10 +607,16 @@ Section "Start Menu Shortcuts"
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
   CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe"
+  CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" \
+                                                   "start nfs"
+  CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "%windir%\system32\net.exe" \
+                                                   "stop nfs"
+/*
   CreateShortCut "${SMDIR}\Start NFS Service.lnk" "$INSTDIR\nfs.exe" \
                                                    "/start /quiet"
   CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "$INSTDIR\nfs.exe" \
                                                    "/stop /quiet"
+*/
   CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
 		"$INSTDIR\configure\configure.exe"
 SectionEnd
@@ -580,6 +664,8 @@ Section Uninstall
   DetailPrint "Removing registry keys..."
   DeleteRegKey HKLM "${UNINSTKEY}"
   DeleteRegKey HKLM "${REGKEY}"
+  DeleteRegValue HKLM "${APPCOMPATLAYERS}" "$INSTDIR\nfs.exe"
+  DeleteRegValue HKLM "${APPCOMPATLAYERS}" "$INSTDIR\configure\configure.exe"
 
   DetailPrint "Removing files and uninstaller..."
   Rmdir /r "$INSTDIR\system-dlls"

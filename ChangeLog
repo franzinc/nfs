@@ -1,3 +1,34 @@
+2005-11-22    <dancy@DANCYSOFT>
+v4.3.1
+
+	* Makefile, configure/Makefile:  Use c:/program files/acl80 now.
+
+	* Bugfix for the configure program (where the mountd port would
+	change to 5000 instead of automatic, without user intervention).
+	(spr30929, spr30924)
+
+*******************************************************************************
+******** post-4.3 release ***********
+
+2005-10-31    <layer@HOBART>
+
+	* nfscleanreg.vbs: delete new 4.3 key, too
+
+*******************************************************************************
+******** 4.3 release ***********
+
+2005-10-26    <dancy@DANCYSOFT>
+
+	* nfs.nsi: [bug15756].  If running on a system with DEP, apply
+	workarounds to the registry.
+
+	* nfs.nsi: For the start menu start/stop service shortcuts, use
+	net.exe instead of nfs.exe.
+	
+2005-10-20    <layer@HOBART>
+
+	* nfs.nsi: make installer fail on win9x
+
 2005-10-19    <dancy@CANDY2K>
 v4.3
 	

@@ -1,4 +1,4 @@
-;; -*- lisp-version: "7.0 [Windows] (Sep 13, 2005 10:22)"; cg: "1.54.2.17"; form: configform; -*-
+;; -*- lisp-version: "8.0.pre-final.3 [Windows] (Nov 8, 2005 0:32)"; cg: "1.71"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -16,14 +16,15 @@
 ;; or the single copy should have a parent or owner window.
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
-    (&key parent (owner (or parent (screen *system*)))
-     (exterior (make-box 4 139 552 509)) (name :configform)
+    (&key parent (owner (or parent (screen *system*))) exterior
+     (interior (make-box 8 162 548 505)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner
          (make-window name :owner owner
            :class 'dialog
            :exterior exterior
+           :interior interior
            :border border
            :child-p child-p
            :close-button t
