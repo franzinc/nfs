@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.23 2006/01/20 02:17:49 dancy Exp $
+;; $Id: portmap.cl,v 1.24 2006/01/20 03:56:47 dancy Exp $
 
 ;; portmapper
 
@@ -142,7 +142,8 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
 	(t 
 	 ;; should send a negative response
-	 (logit "portmap: unhandled procedure ~D~%"
+	 (logit "~a: portmap: unhandled procedure ~D~%"
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		(call-body-proc cbody)))))))
 
 (defun portmap-null (peer xid)
