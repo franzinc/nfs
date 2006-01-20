@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.0.pre-final.3 [Windows] (Nov 8, 2005 0:32)"; cg: "1.71"; -*-
+;; -*- lisp-version: "8.0 [Windows] (Jan 19, 2006 11:42)"; cg: "1.81"; -*-
 
 (in-package :cg-user)
 

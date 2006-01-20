@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.0.pre-final.3 [Windows] (Nov 8, 2005 0:32)"; cg: "1.71"; form: configform; -*-
+;; -*- lisp-version: "8.0 [Windows] (Jan 19, 2006 11:42)"; cg: "1.81"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -143,7 +143,14 @@
                        "Turn on NF~S protocol debugging" :top 50 :width
                        203)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 26
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       :name :portmap-debug-checkbox :on-change
+                       'configform-portmap-debug-checkbox-on-change
+                       :tab-control '(:tab-control :global) :title
+                       "Turn on ~Portmap protocol debugging" :top 130
+                       :width 201)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
                        :name :mountd-debug-checkbox :on-change
                        'configform-mountd-debug-checkbox-on-change
                        :tab-control '(:tab-control :global) :title
@@ -168,24 +175,24 @@
                        :name :combo-box-port-mapper :on-change
                        'configform-combo-box-port-mapper-on-change
                        :range '(:auto :yes :no) :tab-control
-                       '(:tab-control :global) :top 136 :value :auto
+                       '(:tab-control :global) :top 160 :value :auto
                        :width 55)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 28
                        :name :static-text-port-mapper :tab-control
-                       '(:tab-control :global) :top 136 :value
+                       '(:tab-control :global) :top 162 :value
                        "Use system portmapper?" :width 124)
         (make-instance 'radio-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 34
                        :name :mountd-port-auto :tab-control
                        '(:tab-control :global) :title "Automatic" :top
-                       187 :width 74)
+                       203 :width 74)
         (make-instance 'radio-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 34
                        :name :mountd-port-manual :on-change
                        'configform-mountd-port-manual-on-change
                        :tab-control '(:tab-control :global) :title
-                       "User-defined" :top 209 :width 93)
+                       "User-defined" :top 225 :width 93)
         (make-instance 'editable-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 128
                        :name :mountd-port-number :on-change
@@ -195,17 +202,9 @@
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 39
                        :name :static-text-6 :tab-control
-                       '(:tab-control :global) :top 240 :value
+                       '(:tab-control :global) :top 256 :value
                        "(Allegro NFS must be restarted for port number changes to take effect)"
                        :width 345)
-        (make-instance 'group-box :contained-widgets
-                       '(:radio-button-1 :radio-button-2
-                         :editable-text-1 :static-text-6)
-                       :font (make-font-ex nil "Tahoma / ANSI" 11)
-                       :height 104 :left 28 :name :group-box-1
-                       :tab-control '(:tab-control :global) :title
-                       "Mount protocol port number" :top 168 :width
-                       364)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height 31
                        :left 230 :name :static-text-1 :tab-control
@@ -353,6 +352,15 @@
                        :left 26 :name :static-text-14 :tab-control
                        '(:tab-control :host-lists) :top 139 :value
                        "New address" :width 68)
+        (make-instance 'group-box :contained-widgets
+                       '(:mountd-port-auto :mountd-port-manual
+                         :mountd-port-number :static-text-6
+                         :help-button)
+                       :font (make-font-ex nil "Tahoma / ANSI" 11)
+                       :height 104 :left 28 :name :group-box-1
+                       :tab-control '(:tab-control :global) :title
+                       "Mount protocol port number" :top 184 :width
+                       364)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range
@@ -405,6 +413,7 @@
                              (make-instance 'tab-info :id :global
                                             :label "Global" :widgets
                                             '(:nfs-debug-checkbox
+                                              :portmap-debug-checkbox
                                               :mountd-debug-checkbox
                                               :gc-debug-checkbox
                                               :nfs-debug-timestamps-checkbox
@@ -417,10 +426,10 @@
                                               :group-box-1)))
                        :top 9 :value :exports :width 514)
         (make-instance 'button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 10
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 68
                        :name :help-button :on-change
                        'configform-help-button-on-change :title "~Help"
-                       :top 304)
+                       :top 233)
         (make-instance 'cancel-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 444
                        :name :cancel-button-1 :on-change

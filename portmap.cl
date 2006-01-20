@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.22 2005/06/28 16:49:09 dancy Exp $
+;; $Id: portmap.cl,v 1.23 2006/01/20 02:17:49 dancy Exp $
 
 ;; portmapper
 
@@ -126,7 +126,6 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
   (let (msg cbody)
     (setf msg (create-rpc-msg xdr))
     (setf cbody (rpc-msg-cbody msg))
-    (if *portmap-debug* (write-line ""))
     ;;(pprint-cbody cbody)
     (unless (= (rpc-msg-mtype msg) 0)
       (error "Unexpected data!"))
@@ -147,13 +146,17 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 		(call-body-proc cbody)))))))
 
 (defun portmap-null (peer xid)
-  (if *portmap-debug* (logit "portmap-null~%~%"))
+  (if *portmap-debug* 
+      (logit "~a: portmap-null~%~%"
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
 
 
 (defun portmap-dump (peer xid)
-  (if *portmap-debug* (logit "portmap-dump~%~%"))
+  (if *portmap-debug* 
+      (logit "~a: portmap-dump~%~%"
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (dolist (mapping *mappings*)
       (xdr-int xdr 1) ;; indicate that data follows
@@ -169,16 +172,19 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	      (xdr-portmap-mapping params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
-    (if *portmap-debug* (logit "portmap-getport: ~A~%" m))
+    (if *portmap-debug* 
+	(logit "~A: portmap-getport: ~A~%" 
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       m))
     (if* m2
        then
 	    (if *portmap-debug*
-		(logit "Program found. Returning port ~D~%~%" 
+		(logit "    Program found. Returning port ~D~%~%" 
 			(mapping-port m2)))
 	    (xdr-unsigned-int xdr (mapping-port m2))
        else
 	    (if *portmap-debug*
-		(logit "Program not found.  Returning 0~%~%"))
+		(logit "    Program not found.  Returning 0~%~%"))
 	    (xdr-unsigned-int xdr 0))
     (send-successful-reply peer xid (null-verf) xdr)))
 
@@ -193,10 +199,9 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 |#
 
 (defun portmap-callit (peer xid params)
-  (declare (ignore xid peer params))
-  )
-
-
+  (declare (ignore xid params))
+  (logit "~a: portmap-callit (not supported)~%"
+	 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     
 (defun locate-matching-mapping (m)
   (dolist (m2 *mappings*)

@@ -11,6 +11,7 @@
 (defparameter *nfs-gc-debug* nil)
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
+(defparameter *portmap-debug* nil)
 
 (defparameter *host-lists* nil)
 (defparameter *user-lists* nil)
@@ -83,6 +84,7 @@
              *user-lists*)
     
     ;; parameters
+    (push `(*portmap-debug* ,*portmap-debug*) config)
     (push `(*nfs-debug* ,*nfs-debug*) config)
     (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
@@ -114,6 +116,8 @@
 
 
 (defun populate-form (form)
+  (setf (value (my-find-component :portmap-debug-checkbox form))
+    *portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
     *nfs-debug*)
   (setf (value (my-find-component :nfs-debug-timestamps-checkbox form))
@@ -959,4 +963,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
        else
             (setf (state mountd-port) :shrunk)))
   
+  t) ; Accept the new value
+
+(defun configform-portmap-debug-checkbox-on-change (widget
+                                                    new-value
+                                                    old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *portmap-debug* new-value)
+  (refresh-apply-button (parent widget))  
   t) ; Accept the new value

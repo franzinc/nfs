@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.39 2005/08/08 22:16:22 layer Exp $
+;; $Id: loadem.cl,v 1.40 2006/01/20 02:17:49 dancy Exp $
 
 (in-package :user)
 
@@ -64,8 +64,7 @@
   (use-package :excl.osi)
   (with-compilation-unit ()
     (dolist (file *filelist*)
-      (compile-file-if-needed (concatenate 'string file ".cl"))
-      (load file))))
+      (load (compile-file-if-needed (concatenate 'string file ".cl"))))))
 
 (defun buildit ()
   ;; This will be fixed before 7.0 is released.  Remove then.
