@@ -1,3 +1,10 @@
+2006-01-19    <dancy@GOBY>
+v4.3.2
+	
+	* Added option to the configure program to enable portmapper
+	debugging.  Augmented the debugging info that portmapper generates
+	to include the IP address of the requestor.
+
 2005-11-22    <dancy@DANCYSOFT>
 v4.3.1
 
