@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.28 2005/11/28 21:56:25 layer Exp $
+;; $Id: sunrpc.cl,v 1.29 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -526,3 +526,160 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		    results))))))
       
       (error "rpc call failed"))))
+
+;;;;;;;;;;
+;; 
+
+(defmacro with-rpc-socket ((service sym &rest params) &body body)
+  (let ((c (gensym)))
+    `(let ((,sym (handler-case (socket:make-socket ,@params)
+		   (error (,c)
+		     (bailout "
+~a: Error while creating socket: ~a~%" ,service ,c)))))
+       (unwind-protect
+	   (progn ,@body)
+	 (ignore-errors (close ,sym))
+	 (ignore-errors (close ,sym :abort t))))))
+
+(defmacro def-rpc-program-1 ((program prognum versions usock tsock) 
+			     &body body)
+  `(with-rpc-socket (,program ,tsock :type :hiper :connect :passive)
+     (with-rpc-socket (,program ,usock :type :datagram)
+       (logit "~a: Using UDP port ~d~%" 
+	      ,program (socket:local-port ,usock))
+       (logit "~a: Using TCP port ~d~%" 
+	      ,program (socket:local-port ,tsock))
+       (with-portmapper-mapping (,prognum (quote ,versions)
+					  (socket:local-port ,usock) 
+					  IPPROTO_UDP)
+	 (with-portmapper-mapping (,prognum (quote ,versions)
+					    (socket:local-port ,tsock)
+					    IPPROTO_TCP)
+	   ,@body)))))
+
+(defmacro def-rpc-program-main ((program prognum proc-versions usock tsock
+				 lowest-version highest-version)
+				&body prologue)
+  (let ((buffer (gensym))
+	(server (gensym))
+	(xdr (gensym))
+	(peer (gensym))
+	(msg (gensym))
+	(cbody (gensym))
+	(vers (gensym))
+	(res (gensym))
+	(params (gensym))
+	version-cases)
+    
+    (dolist (vdef proc-versions)
+      (let (proc-cases)
+	(dolist (procdef (cdr vdef))
+	  (push
+	   `(,(first procdef)
+	     (setf func (quote ,(second procdef)))
+	     (setf args-decoder (quote ,(xdr-prepend-xdr (third procdef))))
+	     (setf res-encoder (quote ,(xdr-prepend-xdr (fourth procdef)))))
+	   proc-cases))
+	(setf proc-cases (nreverse proc-cases))
+	(push 
+	 `(,(car vdef)
+	   (case procnum
+	     ,@proc-cases))
+	 version-cases)))
+    
+    (setf version-cases (nreverse version-cases))
+    
+    `(let* ((,buffer (make-array #.(* 64 1024) 
+				 :element-type 
+				 '(unsigned-byte 8)))
+	    (,server (make-rpc-server :tcpsock ,tsock
+				      :udpsock ,usock
+				      :buffer ,buffer)))
+       (declare (dynamic-extent ,buffer ,server))
+       
+       ,@prologue
+       
+       (loop
+	 (block nil
+	   (multiple-value-bind (,xdr ,peer)
+	       (rpc-get-message ,server)
+	     (let* ((,msg (create-rpc-msg ,xdr))
+		    (,cbody (rpc-msg-cbody ,msg)))
+	       ;; sanity checks first
+	       (if* (null ,cbody)
+		  then (logit "~a: Invalid message from ~A~%" 
+			      ,program 
+			      (socket:ipaddr-to-dotted 
+			       (rpc-peer-addr ,peer)))
+		       (return))
+	       
+	       (if* (/= (call-body-prog ,cbody) ,prognum)
+		  then (logit "~
+~a: Sending program unavailable response for prog=~D to ~A~%"
+			      ,program
+			      (call-body-prog ,cbody)
+			      (socket:ipaddr-to-dotted 
+			       (rpc-peer-addr ,peer)))
+		       (rpc-send-prog-unavail ,peer (rpc-msg-xid ,msg) 
+					      (null-verf))
+		       (return))
+	       
+	       (let ((,vers (call-body-vers ,cbody))
+		     (procnum (call-body-proc ,cbody))
+		     func args-decoder res-encoder)
+		 (case ,vers
+		   ,@version-cases)
+		 
+		 (if* (null func)
+		    then (logit "~
+~a: Sending program version mismatch response (requested version was ~D) to ~A~%" 
+				,program
+				,vers
+				(socket:ipaddr-to-dotted 
+				 (rpc-peer-addr ,peer)))
+			 (rpc-send-prog-mismatch 
+			  ,peer (rpc-msg-xid ,msg) (null-verf) 
+			  ,lowest-version ,highest-version)
+			 (return))
+		 
+		 ;; Let 'er rip.
+		 (with-successful-reply (,res ,peer 
+					      (rpc-msg-xid ,msg) 
+					      (null-verf))
+		   (with-xdr-xdr ((call-body-params ,cbody) 
+				  :name ,params)
+		     (funcall res-encoder ,res 
+			      (funcall func 
+				       (funcall args-decoder ,params)  ;; arg
+				       ,vers
+				       ,peer))))))))))))
+
+(defmacro def-rpc-program ((prgname prognum) definitions &body prologue)
+  (let ((program (symbol-name prgname))
+	(tsock (gensym))
+	(usock (gensym)))
+
+    (let (all-versions ;; for use in portmapper call
+	  proc-versions) ;; for use in main loop
+      (dolist (vdef definitions)
+	(let ((versions (first vdef)))
+	  (if (not (listp versions))
+	      (setf versions (list versions)))
+	  
+	  (setf all-versions (append all-versions versions))
+	  
+	  (push (cons versions (rest vdef)) proc-versions)))
+      
+      (setf all-versions (sort all-versions #'<))
+      (setf proc-versions (nreverse proc-versions))
+      
+      `(defun ,prgname ()
+	 (declare (optimize (speed 3)))
+	 (def-rpc-program-1 (,program ,prognum ,all-versions ,usock ,tsock)
+	     (def-rpc-program-main (,program ,prognum ,proc-versions 
+					     ,usock ,tsock
+					     ,(first all-versions)
+					     ,(car (last all-versions)))
+		 
+		 
+		 ,@prologue))))))

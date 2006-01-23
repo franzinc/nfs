@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.2 2005/07/28 16:41:41 dancy Exp $
+;; $Id: nsm.cl,v 1.3 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -53,7 +53,7 @@
 (defvar *nsm-state* 0) ;; down
 
 (defstruct nsm-monitor
-  host ;; dotted string
+  host ;; string
   requestor ;; string 
   prog
   vers
@@ -65,7 +65,7 @@
 
 (defparameter *nsm-state-file* "sys:nsm-state")
 (defparameter *nsm-debug* t)
-
+(defparameter *nsm-gate* (mp:make-gate nil))
 
 (defun make-nsm-sockets ()
   (handler-case 
@@ -116,8 +116,8 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 	  (declare (dynamic-extent buffer server))
 	  (nsm-load-state) 
 	  (advance-state)
-	  (nsm-save-state)
 	  (nsm-notify-peers) ;; Let folks know that we're back.
+	  (mp:open-gate *nsm-gate*)
 	  (loop
 	    (multiple-value-bind (xdr peer)
 		(rpc-get-message server)
@@ -177,6 +177,24 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
 
+;; This is clearly a bogusly-specified call.
+(defun nsm-stat (peer xid cbody)
+  (with-xdr-xdr ((call-body-params cbody) :name params)
+    (let ((monitor-host (xdr-string params)))
+      (when *nsm-debug* 
+	(logit "NSM: ~a requested nsm-stat ~a.~%"
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))  monitor-host)
+	(with-successful-reply (res peer xid (null-verf))
+	  ;; This is what Solaris does.
+	  (xdr-int res *sm-stat-succ*)
+	  (xdr-int res *nsm-state*))))))
+
+;; SM_MON
+
+;; This call tells us (local NSM) to respond to SM_NOTIFY calls for
+;; the host specified in monitor-host, and to notify that host, via
+;; the SM_NOTIFY call, when our state changes.
+
 ;; Args:
 ;; string mon_name
 ;; string myname
@@ -184,9 +202,10 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 ;; opaque priv[16];
 
 ;; return: res.. and state.
+
 (defun nsm-mon (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params)) ;; dotted string
+    (let ((monitor-host (xdr-string params))
 	  (requestor (xdr-string params))
 	  (prog (xdr-int params))
 	  (vers (xdr-int params))
@@ -199,15 +218,16 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 	(logit "NSM: ~A: + Callback to: Prog: ~a, Vers: ~a, Proc: ~a~%"
 	       peer-addr prog vers proc))
       (with-successful-reply (res peer xid (null-verf))
-	(if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then
-		(logit "NSM: ~A: --> Rejecting request~%" peer-addr)
+	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
+	   then (logit "NSM: ~A: --> Rejecting request~%" peer-addr)
 		(xdr-int res *sm-stat-fail*)
 		(xdr-int res -1)
-	   else
+	   else ;; XXX
+		;; Solaris has checks to prevent the SM_MON call
+		;; from being used to monitor the local host.
 		(pushnew
 		 (make-nsm-monitor :host monitor-host
-				   :requestor "127.0.0.1"
+				   :requestor requestor
 				   :prog prog
 				   :vers vers
 				   :proc proc
@@ -217,78 +237,28 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 		(xdr-int res *sm-stat-succ*)
 		(xdr-int res *nsm-state*))))))
 
+;; This procedure stops monitoring the host "mon_name". The
+;; information in "my_id" must exactly match the information given in
+;; the corresponding SM_MON call.
 
-(defun nsm-notify (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((host (xdr-string params))
-	  (state (xdr-int params))
-	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-      (when *nsm-debug* 
-	(logit "NSM: ~a: SM_NOTIFY (H: ~a, S: ~a)~%"
-	       peer-addr host state))
-      (with-successful-reply (res peer xid (null-verf))
-	;; Find a matching entry.  We match by using the IP address
-	;; of the peer, not the name provided.
-	(let ((entry (find peer-addr *nsm-monitored-hosts* 
-			   :key #'nsm-monitor-host :test #'string=)))
-	  (when entry
-	    ;; Invoke the callback procedure
-	    (ignore-errors
-	     (callrpc (nsm-monitor-requestor entry)
-		      (nsm-monitor-prog entry)
-		      (nsm-monitor-vers entry)
-		      (nsm-monitor-proc entry)
-		      :udp
-		      #'(lambda (xdr dummy)
-			  (declare (ignore dummy))
-			  (xdr-string xdr host)
-			  (xdr-int xdr state)
-			  (xdr-opaque-fixed xdr 
-					    :vec (nsm-monitor-priv entry)))
-		      nil))))))))
-
-(defun nsm-simu-crash (peer xid)
-  (let ((peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(xdr (create-xdr :direction :build)))
-    
-    (if *nsm-debug* (logit "NSM: ~a: SM_SIMU_CRASH~%" peer-addr))
-    (if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-       then
-	    (logit "NSM: ~a: -> Ignoring request.~%" peer-addr)
-       else
-	    (advance-state)
-	    (nsm-notify-peers))
-    (send-successful-reply peer xid (null-verf) xdr)))
-
-(defun nsm-stat (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params)))
-      (when *nsm-debug* 
-	(logit "NSM: ~a requested nsm-stat ~a.~%"
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))  monitor-host)
-	(with-successful-reply (res peer xid (null-verf))
-	  ;; This is what Solaris does.
-	  (xdr-int res *sm-stat-succ*)
-	  (xdr-int res *nsm-state*))))))
-
+;; Args: struct mon_id (monitor-host, req, prog, vers, proc)
 (defun nsm-unmon (peer xid cbody)
   (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params)) ;; dotted string
+    (let ((monitor-host (xdr-string params)) 
 	  (requestor (xdr-string params))
 	  (prog (xdr-int params))
 	  (vers (xdr-int params))
 	  (proc (xdr-int params))
 	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
       (when *nsm-debug* 
-	(logit "NSM: ~a: SM_UNMON (M: ~a, R: ~a, Prog: ~a, Vers: ~a, Proc: ~a)~%"
-	       peer-addr monitor-host requestor prog vers proc))
+	(logit 
+	 "NSM: ~a: SM_UNMON (M: ~a, R: ~a, Prog: ~a, Vers: ~a, Proc: ~a)~%"
+	 peer-addr monitor-host requestor prog vers proc))
       
       (with-successful-reply (res peer xid (null-verf))
-	(if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then
-		(logit "NSM: ~A: --> Ignore request~%" peer-addr)
-	   else
-		(setf *nsm-monitored-hosts* 
+	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
+	   then	(logit "NSM: ~A: --> Ignoring request~%" peer-addr)
+	   else	(setf *nsm-monitored-hosts* 
 		  (delete-if 
 		   #'(lambda (entry)
 		       (and (string= (nsm-monitor-host entry) monitor-host)
@@ -296,7 +266,8 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 			    (= (nsm-monitor-prog entry) prog)
 			    (= (nsm-monitor-vers entry) vers)
 			    (= (nsm-monitor-proc entry) proc)))
-		   *nsm-monitored-hosts*)))
+		   *nsm-monitored-hosts*))
+		(nsm-save-state))
 	
 	(xdr-int res *nsm-state*)))))
 
@@ -312,21 +283,68 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 	       peer-addr requestor prog vers proc))
       
       (with-successful-reply (res peer xid (null-verf))
-	(if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then
-		(logit "NSM: ~A: --> Ignore request~%" peer-addr)
-	   else
-		(setf *nsm-monitored-hosts* 
+	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
+	   then (logit "NSM: ~A: --> Ignoring request~%" peer-addr)
+	   else	(setf *nsm-monitored-hosts* 
 		  (delete-if 
 		   #'(lambda (entry)
 		       (and (string= (nsm-monitor-requestor entry) requestor)
 			    (= (nsm-monitor-prog entry) prog)
 			    (= (nsm-monitor-vers entry) vers)
 			    (= (nsm-monitor-proc entry) proc)))
-		   *nsm-monitored-hosts*)))
+		   *nsm-monitored-hosts*))
+		(nsm-save-state))
 	
 	(xdr-int res *nsm-state*)))))
 
+
+;; A remote statd is notifying us of its new state.
+(defun nsm-notify (peer xid cbody)
+  (with-xdr-xdr ((call-body-params cbody) :name params)
+    (let ((host (xdr-string params)) ;; the host that changed state
+	  (state (xdr-int params)) ;; new state
+	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+      (when *nsm-debug* 
+	(logit "NSM: ~a: SM_NOTIFY (H: ~a, S: ~a)~%"
+	       peer-addr host state))
+      (with-successful-reply (res peer xid (null-verf))
+	(let ((hostaddr (ignore-errors (socket:lookup-hostname host))))
+	  (when hostaddr
+	    (dolist (mon *nsm-monitored-hosts*)
+	      (let ((monaddr (ignore-errors (socket:lookup-hostname 
+					     (nsm-monitor-host mon)))))
+		(when (equalp monaddr hostaddr)
+		  (logit "NSM: + Invoking callback procedure.~%")
+		  (mp:process-run-function "NSM notify callback"
+		    #'nsm-notify-callback host state mon))))))))))
+
+
+(defun nsm-notify-callback (host state entry)
+  (ignore-errors
+   (callrpc (nsm-monitor-requestor entry)
+	    (nsm-monitor-prog entry)
+	    (nsm-monitor-vers entry)
+	    (nsm-monitor-proc entry)
+	    :udp
+	    #'(lambda (xdr dummy)
+		(declare (ignore dummy))
+		(xdr-string xdr host)
+		(xdr-int xdr state)
+		(xdr-opaque-fixed xdr :vec (nsm-monitor-priv entry)))
+	    nil)))
+
+(defun nsm-simu-crash (peer xid)
+  (let ((peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	(xdr (create-xdr :direction :build)))
+    
+    (if *nsm-debug* (logit "NSM: ~a: SM_SIMU_CRASH~%" peer-addr))
+    (if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
+       then
+	    (logit "NSM: ~a: -> Ignoring request.~%" peer-addr)
+       else
+	    (advance-state)
+	    (nsm-notify-peers))
+    (send-successful-reply peer xid (null-verf) xdr)))
 
 ;;;;;;;;;
 
@@ -355,20 +373,27 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
     (incf *nsm-state*))
   ;; Make sure it remains a signed-positive.
   (if (> *nsm-state* #.(1- (expt 2 31)))
-      (setf *nsm-state* 1)))
+      (setf *nsm-state* 1))
+  (if *nsm-debug* (logit "NSM: New state: ~d~%" *nsm-state*))
+  (nsm-save-state))
 
 (defun nsm-notify-peers ()
   (if (null *nsm-our-name*)
       (setf *nsm-our-name* (gethostname)))
   
-  ;; Do each in its own process so that an unresponsive peer
-  ;; doesn't hold up the whole process.
-  (dolist (entry *nsm-monitored-hosts*)
-    (mp:process-run-function "NSM peer notify in progress" 
-      #'nsm-notify-peer (nsm-monitor-host entry))))
+  (let ((entries *nsm-monitored-hosts*))
+    (setf *nsm-monitored-hosts* nil)
+    
+    (dolist (entry entries)
+      (if *nsm-debug*
+	  (logit "NSM: Notifying ~a of our new state.~%" 
+		 (nsm-monitor-host entry)))
+	     
+      (mp:process-run-function 
+	  (format nil "NSM notifying ~a of new state" (nsm-monitor-host entry))
+	#'nsm-notify-peer (nsm-monitor-host entry)))))
 
 (defun nsm-notify-peer (host)
-  ;; Don't make any heroic efforts.
   (ignore-errors
    (callrpc host *smprog* *smvers* *sm-notify* :udp
 	    ;; inproc
@@ -376,6 +401,7 @@ Unexpected error while creating a nsm socket: ~a~%" c)))
 		(declare (ignore dummy))
 		(xdr-string xdr *nsm-our-name*)
 		(xdr-int xdr *nsm-state*))
-	    nil)))
-
-
+	    nil ;; in
+	    :retries 50
+	    :timeout 10)))
+  

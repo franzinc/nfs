@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.19 2005/07/28 16:41:41 dancy Exp $
+;; $Id: xdr.cl,v 1.20 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -177,6 +177,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	(make-vec (max *xdrdefaultsize* more)))))
   (xdr-vec xdr))
 
+
 (defmacro xdr-unroll-extract-from-array (size array offset)
   (let ((shift (* 8 size))
 	(arraysym (gensym))
@@ -222,7 +223,11 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	 (progn 
 	   ,@body))
        nil)))
-	
+
+(defun xdr-void (xdr &optional arg)
+  (declare (ignore xdr arg))
+  nil)
+
 (defun xdr-unsigned-int (xdr &optional int)
   (declare 
    (type xdr xdr))
@@ -235,6 +240,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
      (let ((vec (xdr-expand-check xdr 4)))
        (xdr-unroll-set-in-array 4 int vec (xdr-pos xdr))
        (xdr-update-pos xdr 4)))))
+
+(defun xdr-unsigned (xdr &optional int)
+  (xdr-unsigned-int xdr int))
 
 (defun xdr-int (xdr &optional int)
   (declare
@@ -249,6 +257,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
      (let ((vec (xdr-expand-check xdr 4)))
        (xdr-unroll-set-in-array 4 int vec (xdr-pos xdr))
        (xdr-update-pos xdr 4)))))
+
+(defun xdr-long (xdr &optional int)
+  (xdr-int xdr int))
 
 (eval-when (compile load eval)
 (defun xdr-signed-unsigned-int-compiler-macro (xdr int env whole)
@@ -322,28 +333,36 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (pprint vec)
        (xdr-update-pos xdr 8)))))
 
+(defun xdr-extract-vec (vec)
+  (if* (listp vec)
+     then (subseq (first vec) (second vec) (+ (second vec) (third vec)))
+     else vec))
 
-
-;; If make-vec is true, return a new vector.
-;; Otherwise, return enough information to efficiently
-;; get that the data from the xdr vector later.
-(defun xdr-opaque-fixed (xdr &key vec len make-vec)
+(defun xdr-opaque-fixed (xdr &key vec offset len makevec)
   (declare
    (type xdr xdr))
   (ecase (xdr-direction xdr)
     (:extract
-     (unless len
-       (error "xdr-opaque-fixed: 'len' parameter is required"))
+     (if (not len)
+	 (error "xdr-opaque-fixed: 'len' parameter is required"))
      (prog1 
-	 (if make-vec
-	     (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len))
-	   (list xdr (xdr-pos xdr) len))
+	 (if* makevec
+	    then (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len))
+	    else (list (xdr-vec xdr) (xdr-pos xdr) len))
        (xdr-advance xdr (compute-padded-len len))))
     (:build
-     (unless vec
-       (error "xdr-opaque-fixed: 'vec' parameter is required"))
-     (unless len
-       (setf len (length vec)))
+     (if (null vec)
+	 (error "xdr-opaque-fixed: 'vec' parameter is required"))
+     (if* (listp vec)
+	then (setf offset (second vec))
+	     (setf len (third vec))
+	     (setf vec (first vec)))
+     
+     (if (null len)
+	 (setf len (length vec)))
+     (if (null offset)
+	 (setf offset 0))
+     
      (let* ((plen (compute-padded-len len))
 	    (destvec (xdr-expand-check xdr plen))
 	    (pos (xdr-pos xdr)))
@@ -351,26 +370,33 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		(optimize (speed 3) (safety 0))
 		(type (simple-array (unsigned-byte 8) (*)) vec destvec))
        (dotimes (i len)
-	 (declare (fixnum i))
-	 (setf (aref destvec (+ i pos)) (aref vec i)))
+	 (declare (fixnum i offset len))
+	 (setf (aref destvec (+ i pos)) (aref vec (+ i offset))))
        (xdr-update-pos xdr plen)))))
 
 
- ;;; extract:  returns (xdr offset length)
-(defun xdr-opaque-variable (xdr &key vec len make-vec)
+ ;;; extract:  returns (vec offset length)
+(defun xdr-opaque-variable (xdr &key vec offset len makevec)
   (declare 
    (type xdr xdr))
   (let ((direction (xdr-direction xdr)))
     (cond
      ((eq direction :extract)
-      (xdr-opaque-fixed xdr :len (xdr-int xdr) :make-vec make-vec))
+      (xdr-opaque-fixed xdr :len (xdr-int xdr) :makevec makevec))
      ((eq direction :build)
-      (unless vec
-        (error "xdr-opaque-variable: 'vec' parameter is required"))
-      (unless len
-	(setf len (length vec)))
+      (if (null vec)
+	  (error "xdr-opaque-variable: 'vec' parameter is required"))
+      (if* (listp vec)
+	 then (setf offset (second vec))
+	      (setf len (third vec))
+	      (setf vec (first vec)))
+
+      (if (null len)
+	  (setf len (length vec)))
+      (if (null offset)
+	  (setf offset 0))
       (xdr-int xdr len)
-      (xdr-opaque-fixed xdr :vec vec :len len)))))
+      (xdr-opaque-fixed xdr :vec vec :len len :offset offset)))))
 
 ;; Returns number of bytes actually read.
 (defun xdr-opaque-variable-from-stream (xdr stream count)

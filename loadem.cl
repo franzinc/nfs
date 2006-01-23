@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.40 2006/01/20 02:17:49 dancy Exp $
+;; $Id: loadem.cl,v 1.41 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -39,19 +39,19 @@
       "xdr" 
       "sunrpc" 
       "portmap" 
-      "sunrpc-service"
+      ;;"sunrpc-service"
       "ipaddr" 
       "export"
       "configure"
       "fhandle" 
       "mountd" 
-      ;;"nsm"
-      ;;"nlm"
+      "nsm"
       "attr" 
       "dir" 
       "openfile"
       "main" ;; needs to be before "nfs"
       "nfs"
+      "nlm"
       #+nfs-telnet-server "telnet"
       "date/date"
       #+nfs-demo "demoware/demoware"

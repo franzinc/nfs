@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc-service.cl,v 1.1 2005/08/03 20:56:34 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.2 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -39,18 +39,6 @@
 ;;;;  String naming service (for debug output).
 ;;;;   range of versions
 ;;;;   Mapping of procedure numbers to procedures.
-
-(defmacro with-rpc-socket ((service sym &rest params) &body body)
-  (let ((c (gensym)))
-    `(let ((,sym (handler-case (socket:make-socket ,@params)
-		   (error (,c)
-		     (bailout "
-~a: Error while creating socket: ~a~%" ,service ,c)))))
-       (unwind-protect
-	   (progn ,@body)
-	 (ignore-errors (close ,sym))
-	 (ignore-errors (close ,sym :abort t))))))
-
 
 ;; versions may be a single number or a sorted list of numbers.
 (defun rpc-service (service prog versions procedures)

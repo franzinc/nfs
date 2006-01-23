@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.18 2005/10/05 21:47:17 dancy Exp $
+;; $Id: fhandle.cl,v 1.19 2006/01/23 21:33:49 dancy Exp $
 
 ;; file handle stuff
 
@@ -285,3 +285,9 @@
 		 :stale
 	       fh))))))))
   
+(defun vec-to-fhandle (vec vers)
+  (let* ((realvec (first vec))
+	 (xdr (create-xdr :vec realvec :size (+ (second vec) (third vec)))))
+    (setf (xdr-pos xdr) (second vec))
+    
+    (xdr-fhandle xdr vers)))

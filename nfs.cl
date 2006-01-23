@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.89 2005/10/19 22:39:10 dancy Exp $
+;; $Id: nfs.cl,v 1.90 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -1101,7 +1101,7 @@ struct entry {
   (with-permission (fh :write)
     (with-nfs-open-file (f fh :output)
       (file-position f offset)
-      (write-sequence (xdr-vec (first data))
+      (write-sequence (first data)
 		      f
 		      :start (second data)
 		      :end (+ (third data) (second data)))
@@ -1128,7 +1128,7 @@ struct entry {
 	    wrote)
 	(file-position f offset)
 	(setf wrote 
-	  (- (write-vector (xdr-vec (first data))
+	  (- (write-vector (first data)
 			   f
 			   :start (second data)
 			   :end (+ (second data) count))

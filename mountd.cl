@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.23 2005/10/18 22:15:41 dancy Exp $
+;; $Id: mountd.cl,v 1.24 2006/01/23 21:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -51,6 +51,7 @@
     (error (c)
       (bailout "
 Unexpected error while creating a mountd socket: ~a~%" c)))
+  
   (logit "Mountd using UDP port ~d~%" (socket:local-port *mountd-udp-socket*))
   (logit "Mountd using TCP port ~d~%" (socket:local-port *mountd-tcp-socket*)))
     

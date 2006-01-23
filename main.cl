@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.11 2005/08/10 23:42:47 dancy Exp $
+;; $Id: main.cl,v 1.12 2006/01/23 21:33:49 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -31,6 +31,8 @@
 (defparameter *pmap-process* nil)
 (defparameter *mountd-process* nil)
 (defparameter *nfsd-process* nil)
+(defparameter *nsm-process* nil)
+(defparameter *nlm-process* nil)
 
 ;;#+nfs-debug (eval-when (eval load) (require :trace))
 
@@ -46,6 +48,12 @@
   (setf *mountd-process* (mp:process-run-function "mountd" #'mountd))
   (mp:process-wait "Waiting for mountd to start" 
 		   #'mp:gate-open-p *mountd-gate*)
+  (setf *nsm-process* (mp:process-run-function "nsm" #'nsm))
+  (mp:process-wait "Waiting for nsm to start" 
+		   #'mp:gate-open-p *nsm-gate*)
+  (setf *nlm-process* (mp:process-run-function "nlm" #'nlm))
+  (mp:process-wait "Waiting for nlm to start" 
+		   #'mp:gate-open-p *nlm-gate*)
   (setf *nfsd-process* (mp:process-run-function "nfsd" #'nfsd)))
 
 (defun stopem ()
