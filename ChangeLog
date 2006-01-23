@@ -1,3 +1,40 @@
+2006-01-23    <dancy@CANDY2K>
+
+	* Intermediate commit for nsm/nlm support:
+
+	fhandle.cl:  New helper: vec-to-fhandle.
+
+	loadem.cl:  Load nsm and nlm.
+
+	main.cl: Start nsm and nlm.
+
+	nfs.cl: Changes due to the changes make to
+	xdr-opaque-{fixed,variable} in xdr.cl
+
+	openfile.cl: Finer grain locking.  Each openfile struct now has a
+	lock.  *open-file-cache-lock* still protects the hash tables.
+	openfile structs now have a reference count slot which is used by
+	lockd to hold a file open until all locks are released (the open
+	file reaper will not reap any file w/ a non-zero refcount).
+	with-nfs-open-file accepts :any for the direction arg to access
+	files that should already be open.
+
+	sunrpc-service.cl: Removed in favor of rpcgen and macros in sunrpc.cl
+
+	rpcgen.cl: New.  Processes a .x file and generates defconstants
+	and macro calls.  I used this to generate the base code for nlm.cl.
+
+	sunrpc.cl: New macro def-rpc-program.  Creates a function which
+	opens sockets and do an RPC main loop on your behalf.  You just
+	have to define the procedure functions.
+
+	xdr.cl: Added xdr-void function.  Added xdr-unsigned as an alias
+	for xdr-unsigned-int.  Added xdr-long as an alias for xdr-int.
+	Added xdr-extract-vec for extracting the subseqence of a "vec" (as
+	returned by xdr-opaque-{fixed,variable}).  modified
+	xdr-opaque-{fixed,variable} so that they return a (vec/offset/len)
+	triple instead of (xdr/offset/len) triple.  
+	
 2006-01-19    <dancy@GOBY>
 v4.3.2
 	
