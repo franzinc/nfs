@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.2 2006/01/23 21:33:49 dancy Exp $
+;; $Id: nlm.cl,v 1.3 2006/01/24 00:41:15 dancy Exp $
 
 (in-package :user)
 
@@ -67,7 +67,7 @@
 
 (defxdrunion nlm-testrply (nlm-stats stat)
  (
-  (*lck-denied* nlm-holder holder)
+  (#.*lck-denied* nlm-holder holder)
   (:default void)
  ))
 
@@ -191,19 +191,20 @@
      (#.*nlm-lock* nlm-lock nlm-lockargs nlm-res)
      (#.*nlm-cancel* nlm-cancel nlm-cancargs nlm-res)
      (#.*nlm-unlock* nlm-unlock nlm-unlockargs nlm-res)
-     (#.*nlm-granted* nlm-granted nlm-testargs nlm-res)
+     ;;(#.*nlm-granted* nlm-granted nlm-testargs nlm-res)
      (#.*nlm-test-msg* nlm-test-msg nlm-testargs void)
      (#.*nlm-lock-msg* nlm-lock-msg nlm-lockargs void)
      (#.*nlm-cancel-msg* nlm-cancel-msg nlm-cancargs void)
      (#.*nlm-unlock-msg* nlm-unlock-msg nlm-unlockargs void)
      (#.*nlm-granted-msg* nlm-granted-msg nlm-testargs void)
-     (#.*nlm-test-res* nlm-test-res nlm-testres void)
-     (#.*nlm-lock-res* nlm-lock-res nlm-res void)
-     (#.*nlm-cancel-res* nlm-cancel-res nlm-res void)
-     (#.*nlm-unlock-res* nlm-unlock-res nlm-res void)
-     (#.*nlm-granted-res* nlm-granted-res nlm-res void)
-     (#.*nlm-share* nlm-share nlm-shareargs nlm-shareres)
-     (#.*nlm-unshare* nlm-unshare nlm-shareargs nlm-shareres)
+     ;;(#.*nlm-test-res* nlm-test-res nlm-testres void)
+     ;;(#.*nlm-lock-res* nlm-lock-res nlm-res void)
+     ;;(#.*nlm-cancel-res* nlm-cancel-res nlm-res void)
+     ;;(#.*nlm-unlock-res* nlm-unlock-res nlm-res void)
+     ;;(#.*nlm-granted-res* nlm-granted-res nlm-res void)
+     
+     ;;(#.*nlm-share* nlm-share nlm-shareargs nlm-shareres)
+     ;;(#.*nlm-unshare* nlm-unshare nlm-shareargs nlm-shareres)
      (#.*nlm-nm-lock* nlm-nm-lock nlm-lockargs nlm-res)
      (#.*nlm-free-all* nlm-free-all nlm-notify void)
    )
@@ -219,13 +220,14 @@
      (#.*nlmproc4-cancel-msg* nlmproc4-cancel-msg nlm4-cancargs void)
      (#.*nlmproc4-unlock-msg* nlmproc4-unlock-msg nlm4-unlockargs void)
      (#.*nlmproc4-granted-msg* nlmproc4-granted-msg nlm4-testargs void)
-     (#.*nlmproc4-test-res* nlmproc4-test-res nlm4-testres void)
-     (#.*nlmproc4-lock-res* nlmproc4-lock-res nlm4-res void)
-     (#.*nlmproc4-cancel-res* nlmproc4-cancel-res nlm4-res void)
-     (#.*nlmproc4-unlock-res* nlmproc4-unlock-res nlm4-res void)
-     (#.*nlmproc4-granted-res* nlmproc4-granted-res nlm4-res void)
-     (#.*nlmproc4-share* nlmproc4-share nlm4-shareargs nlm4-shareres)
-     (#.*nlmproc4-unshare* nlmproc4-unshare nlm4-shareargs nlm4-shareres)
+     ;;(#.*nlmproc4-test-res* nlmproc4-test-res nlm4-testres void)
+     ;;(#.*nlmproc4-lock-res* nlmproc4-lock-res nlm4-res void)
+     ;;(#.*nlmproc4-cancel-res* nlmproc4-cancel-res nlm4-res void)
+     ;;(#.*nlmproc4-unlock-res* nlmproc4-unlock-res nlm4-res void)
+     ;;(#.*nlmproc4-granted-res* nlmproc4-granted-res nlm4-res void)
+     
+     ;;(#.*nlmproc4-share* nlmproc4-share nlm4-shareargs nlm4-shareres)
+     ;;(#.*nlmproc4-unshare* nlmproc4-unshare nlm4-shareargs nlm4-shareres)
      (#.*nlmproc4-nm-lock* nlmproc4-nm-lock nlm4-lockargs nlm4-res)
      (#.*nlmproc4-free-all* nlmproc4-free-all nlm4-notify void)
    ))
@@ -254,22 +256,36 @@
      (4 
       3)))
 
-(defun nlm-lock-to-string (lock)
-  (let ((fh (nlm-lock-fh lock)))
-    (if (fh-p fh)
-	(setf fh (fh-pathname fh)))
-    
-    (format nil "(Caller: ~a, file: ~a, off: ~d, len: ~d)"
-	    (nlm-lock-caller-name lock)
-	    fh
-	    (nlm-lock-l-offset lock)
-	    (nlm-lock-l-len lock))))
+(defstruct (nlm-lock-internal
+	    (:print-object nlm-lock-internal-printer))
+  exclusive
+  caller-name
+  fh
+  oh
+  uppid
+  offset
+  len)
 
-(defun nlm-privatize-lock (lock vers)
-  (setf (nlm-lock-fh lock) 
-    (vec-to-fhandle (nlm-lock-fh lock) (nlm-vers-to-nfs-vers vers)))
-  (setf (nlm-lock-oh lock) (xdr-extract-vec (nlm-lock-oh lock)))
-  lock)
+(defun nlm-lock-internal-printer (obj stream)
+  (format stream "(Caller: ~a, file: ~a, pid: ~a, offset: ~a, len: ~a)"
+	  (nlm-lock-internal-caller-name obj)
+	  (let ((fh (nlm-lock-internal-fh obj)))
+	    (if (fh-p fh)
+		(fh-pathname fh)
+	      fh))
+	  (nlm-lock-internal-uppid obj)
+	  (nlm-lock-internal-offset obj)
+	  (nlm-lock-internal-len obj)))
+
+(defun nlm-internalize-lock (lock exclusive vers)
+  (make-nlm-lock-internal 
+   :exclusive exclusive
+   :caller-name (nlm-lock-caller-name lock)
+   :fh (vec-to-fhandle (nlm-lock-fh lock) (nlm-vers-to-nfs-vers vers))
+   :oh (xdr-extract-vec (nlm-lock-oh lock))
+   :uppid (nlm-lock-uppid lock)
+   :offset (nlm-lock-l-offset lock)
+   :len (nlm-lock-l-len lock)))
 
 (defvar *nlm-state-lock* (mp:make-process-lock))
 
@@ -277,23 +293,37 @@
 
 (defvar *nlm-retry-list* nil)
 
-(defun nlm-lock-match-p (alock1 alock2)
-  (and (eq (nlm-lock-fh alock1) (nlm-lock-fh alock2))
-       (equalp (nlm-lock-oh alock1) (nlm-lock-oh alock2))
-       (= (nlm-lock-uppid alock1) (nlm-lock-uppid alock2))
-       (= (nlm-lock-l-offset alock1) (nlm-lock-l-offset alock2))
-       (= (nlm-lock-l-len alock1) (nlm-lock-l-len alock2))))
+(defun nlm-lock-match-p (lock1 lock2)
+  (and (eq (nlm-lock-internal-fh lock1) (nlm-lock-internal-fh lock2))
+       (equalp (nlm-lock-internal-oh lock1) (nlm-lock-internal-oh lock2))
+       (= (nlm-lock-internal-uppid lock1) (nlm-lock-internal-uppid lock2))
+       (= (nlm-lock-internal-offset lock1) (nlm-lock-internal-offset lock2))
+       (= (nlm-lock-internal-len lock1) (nlm-lock-internal-len lock2))))
 
-(defun nlm-find-lock (alock list)
+(defun nlm-find-lock (lock list)
   (dolist (entry list)
-    (if (nlm-lock-match-p alock entry)
+    (if (nlm-lock-match-p lock entry)
 	(return entry))))
 
-(defun nlm-find-retry-lock (alock)
-  (dolist (entry *nlm-retry-list*)
-    (if (nlm-lock-match-p alock (car entry))
-	(return entry))))
-  
+(defun overlapped-p (start1 end1 start2 end2)
+  ;; Easier to conclude what an overlap is not, so figure that out and
+  ;; invert.
+  (not
+   (or 
+    ;; Starts and ends below start1
+    (and (< start2 start1) (<= end2 start1))
+    ;; Starts >= end1
+    (>= start2 end1))))
+
+(defun nlm-find-overlapping-lock (fh offset length)
+  (let ((start1 offset)
+	(end1 (+ offset length)))
+    (dolist (entry *nlm-locks*)
+      (if (eq (nlm-lock-internal-fh entry) fh)
+	  (let* ((start2 (nlm-lock-internal-offset entry))
+		 (end2 (+ start2 (nlm-lock-internal-len entry))))
+	    (if (overlapped-p start1 end1 start2 end2)
+		(return entry)))))))
 
 ;; XXX 
 ;; Windows has no concept of locking from "here to the current/future
@@ -324,25 +354,32 @@
       (setf length #x7fffffff))
   (excl.osi:locking f #.*lk-unlck* length))
 
-(defun nlm-try-lock (alock exclusive)
-  (let ((status #.*lck-denied*))
-    (with-nfs-open-file (f (nlm-lock-fh alock)
-			   (if exclusive :output :input)
-			   :of of)
-      (handler-case (nlm-do-lock f (nlm-lock-l-offset alock)
-				  (nlm-lock-l-len alock))
-	(error (c)
-	  (logit "NSM: Unexpected error during LOCK call: ~a~%" c))
-	(:no-error (success)
-	  (if* success
-	     then (incf (openfile-refcount of))
-		  (setf status #.*lck-granted*)
-		  (mp:with-process-lock (*nlm-state-lock*)
-		    (push alock *nlm-locks*))
-		  ;; XXXX need to establish monitoring 
-		  ))))
-    
-    status))
+;; There is no testing operation using the _locking interface
+;; so we have to lock and if that was succesful, unlock.
+(defun nlm-do-test-lock (f offset length)
+  (if* (nlm-do-lock f offset length)
+     then (nlm-do-unlock f offset length)
+	  t
+     else nil))
+
+(defun nlm-try-lock (lock)
+  (with-nfs-open-file (f (nlm-lock-internal-fh lock)
+			 (if (nlm-lock-internal-exclusive lock) 
+			     :output 
+			   :input)
+			 :of of)
+    (handler-case (nlm-do-lock f (nlm-lock-internal-offset lock)
+			       (nlm-lock-internal-len lock))
+      (error (c)
+	(logit "NSM: Unexpected error during lock call: ~a~%" c))
+      (:no-error (success)
+	(if* success
+	   then (incf (openfile-refcount of))
+		(mp:with-process-lock (*nlm-state-lock*)
+		  (push lock *nlm-locks*))
+		;; XXXX need to establish monitoring 
+		#.*lck-granted*
+	   else #.*lck-denied*)))))
 
 ;; Procedures
 
@@ -354,24 +391,24 @@
 	     vers)))
 
 (defun nlm-lock (arg vers peer)
-  (let* ((alock (nlm-privatize-lock (nlm-lockargs-alock arg) vers))
+  (let* ((exclusive (nlm-lockargs-exclusive arg))
+	 (lock (nlm-internalize-lock (nlm-lockargs-alock arg) 
+				     exclusive vers))
 	 (block (nlm-lockargs-block arg))
-	 (exclusive (nlm-lockargs-exclusive arg))
-	 (fh (nlm-lock-fh alock))
-	 (status #.*lck-denied*))
+	 (fh (nlm-lock-internal-fh lock))
+	 (status #.*lck-denied-nolocks*))
+    
     (if *nlm-debug*
 	(logit "~
 NLM: ~a: LOCK (L: ~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-	       (nlm-lock-to-string alock)
+	       lock
 	       (nlm-lockargs-block arg)
-	       (nlm-lockargs-exclusive arg)
+	       exclusive
 	       (nlm-lockargs-reclaim arg)
 	       (nlm-lockargs-state arg)))
     
     ;; XXX: check for valid access (host and user).
-    
-    ;; XXX  all locks in windows are exclusive.
     
     ;; XXX -- need proper synchronization to prevent concurrent
     ;; access to fhandles hash tables, and other relevant shared
@@ -379,14 +416,13 @@ NLM: ~a: LOCK (L: ~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
     ;; need to check for stuff that calls close-open-file.
     
     (when (fh-p fh)
-      (setf status (nlm-try-lock alock exclusive))
+      (setf status (nlm-try-lock lock))
       
       (if* (and (= status #.*lck-denied*) block)
 	 then (setf status #.*lck-blocked*)
 	      (mp:with-process-lock (*nlm-state-lock*)
-		(if (not (nlm-find-retry-lock alock))
-		    (push (cons alock exclusive)
-			  *nlm-retry-list*)))))
+		(if (not (nlm-find-lock lock *nlm-retry-list*))
+		    (push lock *nlm-retry-list*)))))
 	
     (if *nlm-debug*
 	(nlm-log-status status))
@@ -396,26 +432,30 @@ NLM: ~a: LOCK (L: ~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
      :stat (make-nlm-stat :stat status))))
 
 (defun nlm-unlock (arg vers peer)
-  (let* ((alock (nlm-privatize-lock (nlm-unlockargs-alock arg) vers))
-	 (fh (nlm-lock-fh alock))
-	 (status #.*lck-denied*))
+  (let* ((lock (nlm-internalize-lock (nlm-unlockargs-alock arg) nil vers))
+	 (fh (nlm-lock-internal-fh lock))
+	 ;; always say OK.  Doing otherwise makes linux log kernel
+	 ;; messages.
+	 (status #.*lck-granted*)) 
     (if *nlm-debug*
 	(logit "~
 NLM: ~a: UNLOCK ~a~%"
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-	       (nlm-lock-to-string alock)))
+	       lock))
     
     ;; XXX: check for valid access (host and user).
     
     (if (fh-p fh)
 	(mp:with-process-lock (*nlm-state-lock*)
-	  (let ((entry (nlm-find-lock alock *nlm-locks*)))
+	  (let ((entry (nlm-find-lock lock *nlm-locks*)))
 	    (if* entry
 	       then ;; The file should already be in the open file cache
 		    ;; since it must remain open to retain the locks.
 		    (with-nfs-open-file (f fh :any :of of)
-		      (handler-case (nlm-do-unlock f (nlm-lock-l-offset alock)
-						   (nlm-lock-l-len alock))
+		      (handler-case 
+			  (nlm-do-unlock f 
+					 (nlm-lock-internal-offset lock)
+					 (nlm-lock-internal-len lock))
 			(error (c)
 			  (logit "~
 NSM: Unexpected error during UNLOCK call: ~a~%" 
@@ -436,14 +476,14 @@ NSM: Unexpected error during UNLOCK call: ~a~%"
      :stat (make-nlm-stat :stat status))))
 
 (defun nlm-cancel (arg vers peer)
-  (let ((alock (nlm-privatize-lock (nlm-cancargs-alock arg) vers))
-	(status #.*lck-denied*))
+  (let ((lock (nlm-internalize-lock (nlm-cancargs-alock arg) nil vers))
+	(status #.*lck-denied-nolocks*))
     
     (if *nlm-debug*
 	(logit "~
 NLM: ~a: CANCEL (L: ~a, block: ~a, excl: ~a)~%"
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-	       (nlm-lock-to-string alock)
+	       lock
 	       (nlm-cancargs-block arg)
 	       (nlm-cancargs-exclusive arg)))
     
@@ -462,7 +502,7 @@ NLM: ~a: CANCEL (L: ~a, block: ~a, excl: ~a)~%"
     ;; Solaris does ???
 
     (mp:with-process-lock (*nlm-state-lock*)
-      (let ((entry (nlm-find-retry-lock alock)))
+      (let ((entry (nlm-find-lock lock *nlm-retry-list*)))
 	(if* entry
 	   then (setf status #.*lck-granted*)
 		(setf *nlm-retry-list* (delete entry *nlm-retry-list*)))))
@@ -474,23 +514,66 @@ NLM: ~a: CANCEL (L: ~a, block: ~a, excl: ~a)~%"
      :cookie (nlm-cancargs-cookie arg)
      :stat (make-nlm-stat :stat status))))
 
+(defun nlm-test (arg vers peer)
+  (let* ((exclusive (nlm-testargs-exclusive arg))
+	 (lock (nlm-internalize-lock (nlm-testargs-alock arg) exclusive
+				     vers))
+	 (fh (nlm-lock-internal-fh lock))
+	 (offset (nlm-lock-internal-offset lock))
+	 (len (nlm-lock-internal-len lock))
+	 (status #.*lck-denied-nolocks*)
+	 holder)
+  
+    (if *nlm-debug*
+	(logit "NLM: ~a: TEST ~a, Exclusive: ~a~%"
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       lock
+	       exclusive))
+
+    (when (fh-p fh)
+      (with-nfs-open-file (f (nlm-lock-internal-fh lock)
+			     (if exclusive :output :input))
+	(if* (nlm-do-test-lock f offset len)
+	   then (setf status #.*lck-granted*)
+	   else (setf status #.*lck-denied*)
+		(setf holder (nlm-find-overlapping-lock fh offset len))
+		(setf holder
+		  (if* holder 
+		     then (make-nlm-holder 
+			   :exclusive (nlm-lock-internal-exclusive holder)
+			   :uppid (nlm-lock-internal-uppid holder)
+			   :oh (nlm-lock-internal-oh holder)
+			   :l-offset (nlm-lock-internal-offset holder)
+			   :l-len (nlm-lock-internal-len holder))
+		     else ;; Make something up.  The lock must have been
+			  ;; established by an external process (or the
+			  ;; file handle supplied is stale)
+			  (make-nlm-holder
+			   :exclusive t
+			   :uppid 1
+			   :oh (make-array 1 :element-type '(unsigned-byte 8)
+					   :initial-contents '(0))
+			   :l-offset 0
+			   :l-len #x7fffffff))))))
+    
+    (if *nlm-debug*
+	(nlm-log-status status))
+    
+    (make-nlm-testres :cookie (nlm-testargs-cookie arg)
+		      :test-stat (make-nlm-testrply 
+				  :stat status
+				  :holder holder))))
+  
 (defun nlm-lock-retry-loop ()
   (loop
     (mp:with-process-lock (*nlm-state-lock*)
       (let (removals)
 	(dolist (entry *nlm-retry-list*)
-	  (let* ((alock (car entry))
-		 (exclusive (cdr entry))
-		 (status (nlm-try-lock alock exclusive)))
-	    
-	    (when (= status #.*lck-granted*)
-	      (if *nlm-debug*
-		  (logit "Deferred lock ~a granted.~%" 
-			 (nlm-lock-to-string alock)))
-	      
-	      
-	      
-	      (push entry removals))))
+	  (when (= #.*lck-granted* (nlm-try-lock entry))
+	    (if *nlm-debug*
+		(logit "Deferred lock ~a granted.~%" entry))
+	    ;; XXXX -- sent GRANTED callback
+	    (push entry removals)))
 	
 	(if removals
 	    (dolist (entry removals)

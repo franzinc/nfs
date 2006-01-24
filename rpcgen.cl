@@ -181,7 +181,7 @@
 	    (multiple-value-bind (type slot)
 		(rpcgen-parse-type-and-name stream)
 	      (rpcgen-lex stream #\;)
-	      (format t "  (~a ~a ~a)~%" case type slot))))
+	      (format t "  (#.~a ~a ~a)~%" case type slot))))
 	 ((string= token "default")
 	  (rpcgen-lex stream #\:)
 	  (multiple-value-bind (type slot)

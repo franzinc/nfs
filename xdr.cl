@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.20 2006/01/23 21:33:49 dancy Exp $
+;; $Id: xdr.cl,v 1.21 2006/01/24 00:41:15 dancy Exp $
 
 (in-package :user)
 
@@ -691,15 +691,22 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (let ((case (first arm))
 	    (slot-type (second arm))
 	    (slot-name (third arm)))
-	(push slot-name slots)
-	(push `((eql discrim ,case)
-		(,(xdr-prepend-xdr slot-type) 
-		 xdr (,(xdr-struct-accessor type slot-name) arg)))
-	      builds)
-	(push `((eql discrim ,case)
-		(setf (,(xdr-struct-accessor type slot-name) res) 
-		  (,(xdr-prepend-xdr slot-type) xdr)))
-	      extractions)))
+	
+	(when (not (eq slot-type 'void))
+	  (push slot-name slots)
+	  (let ((conditional 
+		 (if* (eq case :default)
+		    then t
+		    else `(eql discrim ,case))))
+	    
+	    (push `(,conditional
+		    (,(xdr-prepend-xdr slot-type) 
+		     xdr (,(xdr-struct-accessor type slot-name) arg)))
+		  builds)
+	    (push `(,conditional
+		    (setf (,(xdr-struct-accessor type slot-name) res) 
+		      (,(xdr-prepend-xdr slot-type) xdr)))
+		  extractions)))))
     
     (setf slots (nreverse slots))
     (setf builds (nreverse builds))
