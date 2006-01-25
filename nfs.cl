@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.91 2006/01/25 03:28:29 dancy Exp $
+;; $Id: nfs.cl,v 1.92 2006/01/25 20:35:50 dancy Exp $
 
 (in-package :user)
 
@@ -1380,13 +1380,13 @@ struct entry {
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun nfs-okay-to-write (fh cred)
-  (when (= *AUTH_UNIX* (opaque-auth-flavor cred))
+  (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
     (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
 	   (uid (auth-unix-uid au)))
       (export-user-write-access-allowed-p (fh-export fh) uid))))
 
 (defun nfs-okay-to-read (fh cred)
-  (when (= *AUTH_UNIX* (opaque-auth-flavor cred))
+  (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
     (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
 	   (uid (auth-unix-uid au)))
       (export-user-read-access-allowed-p (fh-export fh) uid))))

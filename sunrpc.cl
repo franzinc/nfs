@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.30 2006/01/25 03:28:29 dancy Exp $
+;; $Id: sunrpc.cl,v 1.31 2006/01/25 20:35:50 dancy Exp $
 
 (in-package :user)
 
@@ -665,7 +665,8 @@ Accepting new tcp connection and adding it to the client list.~%"))
 			      (funcall func 
 				       (funcall args-decoder ,params)  ;; arg
 				       ,vers
-				       ,peer))))))))))))
+				       ,peer
+				       ,cbody))))))))))))
 
 (defmacro def-rpc-program ((prgname prognum) definitions &body prologue)
   (let ((program (symbol-name prgname))

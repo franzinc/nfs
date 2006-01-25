@@ -1,10 +1,9 @@
 
-$Id: TODO.txt,v 1.5 2006/01/25 16:47:02 dancy Exp $
+$Id: TODO.txt,v 1.6 2006/01/25 20:35:50 dancy Exp $
 
 Redo nsm.cl using rpcgen.
 
 nlm: Lock down most operations during grace period.
-nlm: access controls.
 nlm: interface w/ nsm.  Find all places where we need to turn
      monitoring on (when a lock is obtained.. even if we have 
      not successfully notified, and when a lock is unlocked..

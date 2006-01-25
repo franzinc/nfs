@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.6 2006/01/25 17:39:46 dancy Exp $
+;; $Id: nlm.cl,v 1.7 2006/01/25 20:35:50 dancy Exp $
 
 (in-package :user)
 
@@ -519,16 +519,23 @@
 	      #.*lck-granted*
 	 else #.*lck-denied-nolocks*))))
 
+(defun nlm-access-ok (lock cbody)
+  (let ((cred (call-body-cred cbody))
+	(fh (nlm-lock-internal-fh lock)))
+    (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
+      (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
+	     (uid (auth-unix-uid au)))
+	(export-user-write-access-allowed-p (fh-export fh) uid)))))
 
 ;; Procedures
 
 ;; NULL
 
-(defun nlmproc4-null (arg vers peer)
-  (nlm-null arg vers peer))
+(defun nlmproc4-null (arg vers peer cbody)
+  (nlm-null arg vers peer cbody))
 
-(defun nlm-null (arg vers peer)
-  (declare (ignore arg))
+(defun nlm-null (arg vers peer cbody)
+  (declare (ignore arg cbody))
   (if *nlm-debug* 
       (logit "NLM~a: ~a: NULL~%" 
 	     (if-nlm-v4 vers "4" "")
@@ -537,10 +544,10 @@
 
 ;; LOCK
 
-(defun nlmproc4-lock (arg vers peer)
-  (nlm-lock arg vers peer))
+(defun nlmproc4-lock (arg vers peer cbody)
+  (nlm-lock arg vers peer cbody))
 
-(defun nlm-lock (arg vers peer &key async (monitor t))
+(defun nlm-lock (arg vers peer cbody &key async (monitor t))
   (let* ((exclusive (nlm-lockargs-exclusive arg))
 	 (alock (nlm-lockargs-alock arg))
 	 (cookie (nlm-lockargs-cookie arg))
@@ -562,8 +569,6 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	       lock
 	       block exclusive reclaim state))
     
-    ;; XXX: check for valid access (host and user).
-    
     ;; XXX -- need proper synchronization to prevent concurrent
     ;; access to fhandles hash tables, and other relevant shared
     ;; structured.  openfile stuff has been modified but I still
@@ -575,6 +580,10 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
+     elseif (not (nlm-access-ok lock cbody))
+       then (if *nlm-debug*
+		(logit "==> Access denied by configuration.~%"))
+	    (setf status #.*lck-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (if* (nlm-find-lock lock *nlm-locks*)
 		 then (setf status #.*lck-granted*)
@@ -601,10 +610,10 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 
 ;; UNLOCK
 
-(defun nlmproc4-unlock (arg vers peer)
-  (nlm-unlock arg vers peer))
+(defun nlmproc4-unlock (arg vers peer cbody)
+  (nlm-unlock arg vers peer cbody))
 
-(defun nlm-unlock (arg vers peer &key async)
+(defun nlm-unlock (arg vers peer cbody &key async)
   (let* ((lock (nlm-internalize-lock (nlm-unlockargs-alock arg) nil vers))
 	 (fh (nlm-lock-internal-fh lock))
 	 ;; always say OK.  Doing otherwise makes linux log kernel
@@ -618,11 +627,13 @@ NLM: ~a: UNLOCK~a~a ~a~%"
 	       (if async "_MSG" "")
 	       lock))
     
-    ;; XXX: check for valid access (host and user).
-
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
+     elseif (not (nlm-access-ok lock cbody))
+       then (if *nlm-debug*
+		(logit "==> Access denied by configuration.~%"))
+	    (setf status #.*lck-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (let ((entry (nlm-find-lock lock *nlm-locks*)))
 		(if* entry
@@ -650,10 +661,10 @@ NLM: Unexpected error during UNLOCK call: ~a~%" c)
 
 ;; CANCEL
 
-(defun nlmproc4-cancel (arg vers peer)
-  (nlm-cancel arg vers peer))
+(defun nlmproc4-cancel (arg vers peer cbody)
+  (nlm-cancel arg vers peer cbody))
 
-(defun nlm-cancel (arg vers peer &key async)
+(defun nlm-cancel (arg vers peer cbody &key async)
   (let ((lock (nlm-internalize-lock (nlm-cancargs-alock arg) nil vers))
 	(status #.*lck-granted*)) ;; always report success
     
@@ -667,7 +678,11 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	       (nlm-cancargs-block arg)
 	       (nlm-cancargs-exclusive arg)))
 
-    (nlm-cancel-pending-retry lock)
+    (if* (nlm-access-ok lock cbody)
+       then (nlm-cancel-pending-retry lock)
+       else (if *nlm-debug*
+		(logit "==> Access denied by configuration.~%"))
+	    (setf status #.*lck-denied*))
     
     (if *nlm-debug*
 	(nlm-log-status status))
@@ -678,10 +693,10 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 
 ;; TEST
 
-(defun nlmproc4-test (arg vers peer)
-  (nlm-test arg vers peer))
+(defun nlmproc4-test (arg vers peer cbody)
+  (nlm-test arg vers peer cbody))
 
-(defun nlm-test (arg vers peer &key async)
+(defun nlm-test (arg vers peer cbody &key async)
   (let* ((exclusive (nlm-testargs-exclusive arg))
 	 (lock (nlm-internalize-lock (nlm-testargs-alock arg) exclusive
 				     vers))
@@ -702,6 +717,10 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
+     elseif (not (nlm-access-ok lock cbody))
+       then (if *nlm-debug*
+		(logit "==> Access denied by configuration.~%"))
+	    (setf status #.*lck-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (setf status (nlm-do-test-lock lock))
 	      (when (= status #.*lck-denied*)
@@ -735,10 +754,11 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 				  :holder holder))))
 
 ;; FREE ALL
-(defun nlmproc4-free-all (arg vers peer)
-  (nlm-free-all arg vers peer))
+(defun nlmproc4-free-all (arg vers peer cbody)
+  (nlm-free-all arg vers peer cbody))
 
-(defun nlm-free-all (arg vers peer)
+(defun nlm-free-all (arg vers peer cbody)
+  (declare (ignore cbody))
   (let ((name (nlm-notify-name arg))
 	(dotted (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     (if *nlm-debug*
@@ -746,6 +766,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	       (if-nlm-v4 vers "4" "")
 	       dotted 
 	       name))
+    
     (mp:with-process-lock (*nlm-state-lock*)
       (let (locks)
 	(dolist (entry *nlm-locks*)
@@ -763,11 +784,11 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	  (setf *nlm-locks* (delete lock *nlm-locks*)))))))
 
 ;; NM (non-monitored) lock
-(defun nlmproc4-nm-lock (arg vers peer)
-  (nlm-nm-lock arg vers peer))
+(defun nlmproc4-nm-lock (arg vers peer cbody)
+  (nlm-nm-lock arg vers peer cbody))
 
-(defun nlm-nm-lock (arg vers peer)
-  (nlm-lock arg vers peer :monitor nil))
+(defun nlm-nm-lock (arg vers peer cbody)
+  (nlm-lock arg vers peer cbody :monitor nil))
 
 ;; Make asynchronous versions of the 4 main functions as well.
 
@@ -784,15 +805,15 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	 (intern (concatenate 'string "nlm-" (symbol-name name)))))
     
     `(eval-when (compile load eval)
-       (defun ,funcname (arg vers peer)
+       (defun ,funcname (arg vers peer cbody)
 	 (ignore-errors
 	  (callrpc (rpc-peer-addr peer) #.*nlm-prog* vers ,res-procnum :udp 
 		   (if-nlm-v4 vers #',encoder4 #',encoder)
-		   (,realfunc arg vers peer :async t)
+		   (,realfunc arg vers peer cbody :async t)
 		   :no-reply t)))
        
-       (defun ,func4name (arg vers peer)
-	 (,funcname arg vers peer)))))
+       (defun ,func4name (arg vers peer cbody)
+	 (,funcname arg vers peer cbody)))))
 
 (defun-nlm-async test)
 (defun-nlm-async lock)
@@ -858,11 +879,12 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
     
     (sleep *nlm-grant-notify-interval*)))
 
-(defun nlmproc4-granted-res (arg vers peer)
-  (nlm-granted-res arg vers peer))
+(defun nlmproc4-granted-res (arg vers peer cbody)
+  (nlm-granted-res arg vers peer cbody))
 
 ;; This is the callback the client uses to ack the granted msg.
-(defun nlm-granted-res (arg vers peer)
+(defun nlm-granted-res (arg vers peer cbody)
+  (declare (ignore cbody))
   (let ((status (nlm-stat-stat (nlm-res-stat arg)))
 	(cookie (xdr-extract-vec (nlm-res-cookie arg))))
     (if *nlm-debug*
