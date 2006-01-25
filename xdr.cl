@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.21 2006/01/24 00:41:15 dancy Exp $
+;; $Id: xdr.cl,v 1.22 2006/01/25 03:28:29 dancy Exp $
 
 (in-package :user)
 
@@ -261,6 +261,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 (defun xdr-long (xdr &optional int)
   (xdr-int xdr int))
 
+(defun xdr-int32 (xdr &optional int)
+  (xdr-int xdr int))
+
 (eval-when (compile load eval)
 (defun xdr-signed-unsigned-int-compiler-macro (xdr int env whole)
   ;; If 'int' is provided, must be building
@@ -317,6 +320,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
      (let ((vec (xdr-expand-check xdr 8)))
        (xdr-unroll-set-in-array 8 int vec (xdr-pos xdr))
        (xdr-update-pos xdr 8)))))
+
+(defun xdr-uint64 (xdr &optional int)
+  (xdr-unsigned-hyper xdr int))
 
 (defun xdr-hyper (xdr &optional int)
   (declare

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.19 2006/01/23 21:33:49 dancy Exp $
+;; $Id: fhandle.cl,v 1.20 2006/01/25 03:28:29 dancy Exp $
 
 ;; file handle stuff
 
@@ -31,7 +31,8 @@
 (eval-when (compile)
   (declaim (optimize (speed 3))))
 
-;; Far too large for our needs.  
+(eval-when (compile load eval)
+;; Far too large for our needs.
 (defconstant *fhsize2* 32)
 (defconstant *fhsizewords2* (/ *fhsize2* 4))
 ;; NFSv3 allows for a variable length file handle of up to 64 bytes.
@@ -40,6 +41,7 @@
 (defconstant *fhsize3* 
     (/ (floor (roundup (log (1+ most-positive-fixnum) 2) 32)) 8))
 (defconstant *fhsizewords3* (/ *fhsize3* 4))
+)
 
 ;; Maps file handle ids to file handles
 (defparameter *fhandles* (make-hash-table))
@@ -243,10 +245,10 @@
        (declare (type fixnum value words))
        (ecase vers
 	 (2
-	  (setf words *fhsizewords2*))
+	  (setf words #.*fhsizewords2*))
 	 (3 
-	  (setf words *fhsizewords3*)
-	  (xdr-int xdr *fhsize3*)))
+	  (setf words #.*fhsizewords3*)
+	  (xdr-int xdr #.*fhsize3*)))
        (dotimes (i words)
 	 (declare (type fixnum i))
 	 (xdr-unsigned-int xdr (logand value #xffffffff))
@@ -262,11 +264,11 @@
 	 ;;(declare (type fixnum id))   
 	 (case vers
 	   (2
-	    (setf words *fhsizewords2*))
+	    (setf words #.*fhsizewords2*))
 	   (3 
 	    (setf words (/ (xdr-unsigned-int xdr) 4))
 	    ;; sanity check.
-	    (when (/= words *fhsizewords3*)
+	    (when (/= words #.*fhsizewords3*)
 	      (logit "Invalid file handle size (~D words)" words)
 	      (return :inval)))
 	   (t 
@@ -291,3 +293,8 @@
     (setf (xdr-pos xdr) (second vec))
     
     (xdr-fhandle xdr vers)))
+
+(defun fhandle-to-vec (fh vers)
+  (let ((xdr (create-xdr :direction :build)))
+    (xdr-fhandle xdr vers fh)
+    (subseq (xdr-vec xdr) 0 (xdr-pos xdr))))

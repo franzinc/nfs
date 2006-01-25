@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.24 2006/01/20 03:56:47 dancy Exp $
+;; $Id: portmap.cl,v 1.25 2006/01/25 03:28:29 dancy Exp $
 
 ;; portmapper
 
@@ -38,16 +38,22 @@
 (defconstant *pmap-proc-getport* 3)
 (defconstant *pmap-proc-dump* 4)
 (defconstant *pmap-proc-callit* 5)
-(defconstant IPPROTO_TCP 6)
-(defconstant IPPROTO_UDP 17)
 )
 
 
-(defstruct mapping
+(defstruct (mapping
+	    (:print-object mapping-printer))
   (prog 0)
   (vers 0)
   (prot 0)
   (port 0))
+
+(defun mapping-printer (obj stream)
+  (format stream "[Prg: ~d, V: ~d, ~a, Port: ~d]"
+	  (mapping-prog obj)
+	  (mapping-vers obj)
+	  (protocol-to-string (mapping-prot obj))
+	  (mapping-port obj)))
   
 (defparameter *pmap-gate* (mp:make-gate nil))
 (defparameter *mappings* nil)
@@ -101,7 +107,7 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
   (when (eq *use-system-portmapper* :auto)
     (setf *use-system-portmapper* nil)
     (when (ping-portmapper)
-      (logit "Using system portmapper.~%")
+      (logit "PMAP: Using system portmapper.~%")
       (setf *use-system-portmapper* t)
       (mp:open-gate *pmap-gate*)))
   
@@ -142,13 +148,13 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
 	(t 
 	 ;; should send a negative response
-	 (logit "~a: portmap: unhandled procedure ~D~%"
+	 (logit "PMAP: ~a: unhandled procedure ~D~%"
 		(socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		(call-body-proc cbody)))))))
 
 (defun portmap-null (peer xid)
   (if *portmap-debug* 
-      (logit "~a: portmap-null~%~%"
+      (logit "PMAP: ~a: NULL~%"
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
@@ -156,7 +162,7 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 
 (defun portmap-dump (peer xid)
   (if *portmap-debug* 
-      (logit "~a: portmap-dump~%~%"
+      (logit "PMAP: ~a: DUMP~%"
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (dolist (mapping *mappings*)
@@ -173,20 +179,17 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	      (xdr-portmap-mapping params)))
          (m2 (locate-matching-mapping m))
          (xdr (create-xdr :direction :build)))
+    
     (if *portmap-debug* 
-	(logit "~A: portmap-getport: ~A~%" 
+	(logit "PMAP: ~A: GETPORT ~A ==> ~a~%" 
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-	       m))
+	       m
+	       (if m2 (mapping-port m2) "Not found")))
+    
     (if* m2
-       then
-	    (if *portmap-debug*
-		(logit "    Program found. Returning port ~D~%~%" 
-			(mapping-port m2)))
-	    (xdr-unsigned-int xdr (mapping-port m2))
-       else
-	    (if *portmap-debug*
-		(logit "    Program not found.  Returning 0~%~%"))
-	    (xdr-unsigned-int xdr 0))
+       then (xdr-unsigned-int xdr (mapping-port m2))
+       else (xdr-unsigned-int xdr 0))
+    
     (send-successful-reply peer xid (null-verf) xdr)))
 
 #|
@@ -201,7 +204,7 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 
 (defun portmap-callit (peer xid params)
   (declare (ignore xid params))
-  (logit "~a: portmap-callit (not supported)~%"
+  (logit "PMAP: ~a: CALLIT (not supported)~%"
 	 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     
 (defun locate-matching-mapping (m)
@@ -214,16 +217,13 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
   nil)
 
 (defun portmap-add-program (prog vers port proto)
-  (let ((mapping (make-mapping
-                  :prog prog
-                  :vers vers
-                  :prot proto
-                  :port port)))
+  (let ((mapping (make-mapping :prog prog
+			       :vers vers
+			       :prot proto
+			       :port port)))
     (if* *use-system-portmapper*
-       then
-	    (portmap-set-client mapping)
-       else
-	    (unless (find mapping *mappings* :test #'equalp)
+       then (portmap-set-client mapping)
+       else (unless (find mapping *mappings* :test #'equalp)
 	      (push mapping *mappings*)))))
 
 (defun portmap-remove-program (prog vers port proto)

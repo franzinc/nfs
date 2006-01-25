@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.29 2006/01/23 21:33:49 dancy Exp $
+;; $Id: sunrpc.cl,v 1.30 2006/01/25 03:28:29 dancy Exp $
 
 (in-package :user)
 
@@ -497,8 +497,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		&key (retries 3)
 		     (timeout 5)
 		     port
-		     outproc)
-  (when(null port)
+		     outproc
+		     no-reply) ;; don't wait for a reply
+  
+  (when (null port)
     (setf port (portmap-getport-client host prognum versnum proto))
     (if (= port 0)
 	(error "program not registered")))
@@ -506,7 +508,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
   (with-rpc-peer (peer host port proto)
     (let ((xdr (create-xdr :direction :build))
 	  (xid (random #.(expt 2 32))))
-
+      
       (if inproc
 	  (funcall inproc xdr in))
       
@@ -516,6 +518,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	 xid
 	 (rpc-make-call-body prognum versnum procnum
 			     (null-auth) (null-verf) xdr))
+	
+	(if no-reply
+	    (return-from callrpc t))
+	
 	(let ((msg (mp:with-timeout (timeout :timeout)
 		     (rpc-get-reply peer))))
 	  (if (not (eq msg :timeout))
@@ -526,6 +532,13 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		    results))))))
       
       (error "rpc call failed"))))
+
+(defun protocol-to-string (proto)
+  (if* (or (eq proto :udp) (eql proto #.IPPROTO_UDP))
+     then "UDP"
+   elseif (or (eq proto :tcp) (eql proto #.IPPROTO_TCP))
+     then "TCP"
+     else (format nil "~a" proto)))
 
 ;;;;;;;;;;
 ;; 

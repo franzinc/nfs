@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.90 2006/01/23 21:33:49 dancy Exp $
+;; $Id: nfs.cl,v 1.91 2006/01/25 03:28:29 dancy Exp $
 
 (in-package :user)
 
@@ -382,7 +382,9 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	   (when *nfs-debug*
 	     (if *nfs-debug-timestamps*
 		 (nfs-log-time))
-	     (logit "(nfsv~d) ~A(" vers (quote ,name))
+	     (logit "~a (nfsv~d) ~a(" 
+		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+		    vers (quote ,name))
 	     ,@debugs
 	     (if *nfs-debug-timestamps*
 		 (setf procedure-start-time (get-internal-real-time))))
