@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.4 2006/01/25 03:28:29 dancy Exp $
+;; $Id: nlm.cl,v 1.5 2006/01/25 16:47:02 dancy Exp $
 
 (in-package :user)
 
@@ -60,6 +60,10 @@
 (defxdrstruct nlm-res ((netobj cookie)
                           (nlm-stat stat)))
 
+
+(defxdrstruct nlm4-res ((netobj cookie)
+                          (nlm-stat stat)))
+
 (defxdrstruct nlm-holder ((bool exclusive)
                           (int svid)
                           (netobj oh)
@@ -72,11 +76,20 @@
   (:default void)
  ))
 
+(defxdrunion nlm4-testrply (nlm4-stats stat)
+ (
+  (#.*lck-denied* nlm4-holder holder)
+  (:default void)
+ ))
+
 (defxdrstruct nlm-testres ((netobj cookie)
                           (nlm-testrply test-stat)))
 
+(defxdrstruct nlm4-testres ((netobj cookie)
+                          (nlm4-testrply test-stat)))
+
 (defxdrstruct nlm-lock ((string caller-name)
-                          (netobj fh)
+                          (fhandle2 fh)
                           (netobj oh)
                           (int svid) 
                           (unsigned l-offset) 
@@ -94,12 +107,26 @@
                           (bool exclusive)
                           (nlm-lock alock)))
 
+
+(defxdrstruct nlm4-cancargs ((netobj cookie)
+                          (bool block)
+                          (bool exclusive)
+                          (nlm4-lock alock)))
+
+
 (defxdrstruct nlm-testargs ((netobj cookie)
                           (bool exclusive)
                           (nlm-lock alock)))
 
+(defxdrstruct nlm4-testargs ((netobj cookie)
+                          (bool exclusive)
+                          (nlm4-lock alock)))
+
 (defxdrstruct nlm-unlockargs ((netobj cookie)
                           (nlm-lock alock)))
+
+(defxdrstruct nlm4-unlockargs ((netobj cookie)
+                          (nlm4-lock alock)))
 
 ;; enum fsh-mode
 (eval-when (compile load eval)
@@ -122,7 +149,7 @@
  (xdr-int xdr int))
 
 (defxdrstruct nlm-share ((string caller-name)
-                          (netobj fh)
+                          (fhandle2 fh)
                           (netobj oh)
                           (fsh-mode mode)
                           (fsh-access access)))
@@ -138,6 +165,8 @@
 (defxdrstruct nlm-notify ((string name)
                           (long state)))
 
+(defxdrstruct nlm4-notify ((string name)
+                          (long state)))
 
 ;; enum nlm4-stats
 (eval-when (compile load eval)
@@ -162,7 +191,7 @@
                           (uint64 l-len)))
 
 (defxdrstruct nlm4-lock ((string caller-name)
-                          (netobj fh)
+                          (fhandle3 fh)
                           (netobj oh)
                           (int32 svid)
                           (uint64 l-offset)
@@ -170,7 +199,7 @@
 
 #+ignore
 (defxdrstruct nlm4-share ((string caller-name)
-                          (netobj fh)
+                          (fhandle3 fh)
                           (netobj oh)
                           (fsh4-mode mode)
                           (fsh4-access access)))
@@ -347,7 +376,7 @@
    :cookie (if cookie (xdr-extract-vec cookie))
    :exclusive exclusive
    :caller-name (nlm-lock-caller-name lock)
-   :fh (vec-to-fhandle (nlm-lock-fh lock) (nlm-vers-to-nfs-vers vers))
+   :fh (nlm-lock-fh lock)
    :oh (xdr-extract-vec (nlm-lock-oh lock))
    :svid (nlm-lock-svid lock)
    :offset (nlm-lock-l-offset lock)
@@ -490,7 +519,7 @@
 
 ;; Procedures
 
-:; NULL
+;; NULL
 
 (defun nlmproc4-null (arg vers peer)
   (nlm-null arg vers peer))
@@ -523,7 +552,7 @@
     
     (if *nlm-debug*
 	(logit "~
-NLM~a: ~a: LOCK~a~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
+NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	       (if-nlm-v4 vers "4" "")
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 	       (if async "_MSG" "")
@@ -624,7 +653,7 @@ NLM: Unexpected error during UNLOCK call: ~a~%" c)
     
     (if *nlm-debug*
 	(logit "~
-NLM: ~a: CANCEL~a~A (L: ~a, block: ~a, excl: ~a)~%"
+NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 	       (if-nlm-v4 vers "4" "")
 	       (if async "_MSG" "")
@@ -699,15 +728,48 @@ NLM: ~a: CANCEL~a~A (L: ~a, block: ~a, excl: ~a)~%"
 				  :stat status
 				  :holder holder))))
 
+;; FREE ALL
+(defun nlm-free-all (arg vers peer)
+  (let ((name (nlm-notify-name arg)))
+    (if *nlm-debug*
+	(logit "NLM~a: ~a: FREE ALL (~a)~%"
+	       (if-nlm-v4 vers "4" "")
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       name))
+    
+    ))
+    
+
+
 ;; Make asynchronous versions of the 4 main functions as well.
 
-;; sample
-(defun nlm-test-msg (arg vers peer)
-  (ignore-errors
-   (callrpc (rpc-peer-addr peer) *nlm-prog* vers *nlm-test-res* :udp 
-	    #'xdr-nlm-testres 
-	    (nlm-test arg vers peer :async t)
-	    :no-reply t)))
+(defmacro defun-nlm-async (name)
+  (let ((funcname 
+	 (intern (concatenate 'string "nlm-" (symbol-name name) "-msg")))
+	(func4name
+	 (intern (concatenate 'string "nlmproc4-" (symbol-name name) "-msg")))
+	(res-procnum
+	 (intern (concatenate 'string "*nlm-" (symbol-name name) "-res*")))
+	(encoder (if (eq name 'test) 'xdr-nlm-testres 'xdr-nlm-res))
+	(encoder4 (if (eq name 'test) 'xdr-nlm4-testres 'xdr-nlm4-res))
+	(realfunc 
+	 (intern (concatenate 'string "nlm-" (symbol-name name)))))
+    
+    `(eval-when (compile load eval)
+       (defun ,funcname (arg vers peer)
+	 (ignore-errors
+	  (callrpc (rpc-peer-addr peer) #.*nlm-prog* vers ,res-procnum :udp 
+		   (if-nlm-v4 vers #',encoder4 #',encoder)
+		   (,realfunc arg vers peer :async t)
+		   :no-reply t)))
+       
+       (defun ,func4name (arg vers peer)
+	 (,funcname arg vers peer)))))
+
+(defun-nlm-async test)
+(defun-nlm-async lock)
+(defun-nlm-async unlock)
+(defun-nlm-async cancel)
 
 ;;; little daemons
  
@@ -733,28 +795,27 @@ NLM: ~a: CANCEL~a~A (L: ~a, block: ~a, excl: ~a)~%"
 (defun nlm-externalize-lock (lock)
   (make-nlm-lock 
    :caller-name (nlm-lock-internal-caller-name lock)
-   :fh (fhandle-to-vec (nlm-lock-internal-fh lock) 
-		       (nlm-vers-to-nfs-vers 
-			(nlm-lock-internal-vers lock)))
+   :fh (nlm-lock-internal-fh lock)
    :oh (nlm-lock-internal-oh lock)
    :svid (nlm-lock-internal-svid lock)
    :l-offset (nlm-lock-internal-offset lock)
    :l-len (nlm-lock-internal-len lock)))
 
 (defun nlm-send-granted-msg (entry)
-  (let ((addr (nlm-lock-internal-peer-addr entry)))
+  (let ((addr (nlm-lock-internal-peer-addr entry))
+	(vers (nlm-lock-internal-vers entry)))
     (if *nlm-debug*
-	(logit "NLM: Sending GRANTED message to ~a~%" 
+	(logit "NLM: Sending GRANTED~a_MSG to ~a~%" 
+	       (if-nlm-v4 vers "4" "")
 	       (socket:ipaddr-to-dotted addr)))
     
     (ignore-errors
      (callrpc addr
-	      #.*nlm-prog*
-	      (nlm-lock-internal-vers entry)
+	      #.*nlm-prog*  
+	      vers
 	      #.*nlm-granted-msg* ;; Same number in all versions.
 	      :udp
-	      #'xdr-nlm-testargs
-	      ;; XXX -- needs to work for V4 as well
+	      (if-nlm-v4 vers #'xdr-nlm4-testargs #'xdr-nlm-testargs)
 	      (make-nlm-testargs 
 	       :cookie (nlm-lock-internal-cookie entry)
 	       :exclusive (nlm-lock-internal-exclusive entry)
@@ -769,13 +830,17 @@ NLM: ~a: CANCEL~a~A (L: ~a, block: ~a, excl: ~a)~%"
     
     (sleep *nlm-grant-notify-interval*)))
 
+(defun nlmproc4-granted-res (arg vers peer)
+  (nlm-granted-res arg vers peer))
+
+;; This is the callback the client uses to ack the granted msg.
 (defun nlm-granted-res (arg vers peer)
-  (declare (ignore vers))
   (let ((status (nlm-stat-stat (nlm-res-stat arg)))
 	(cookie (xdr-extract-vec (nlm-res-cookie arg))))
     (if *nlm-debug*
-	(logit "NLM: ~a GRANTED_RES (Stat: ~a)~%" 
+	(logit "NLM: ~a GRANTED~a_RES (Stat: ~a)~%" 
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       (if-nlm-v4 vers "4" "")
 	       (nlm-status-to-string status)))
     
     (mp:with-process-lock (*nlm-state-lock*)
@@ -794,4 +859,3 @@ NLM: ~a: CANCEL~a~A (L: ~a, block: ~a, excl: ~a)~%"
 			    (logit "==> Client rejecting lock ~a~%" lock))
 			;; unlock it.
 			(nlm-do-unlock lock)))))))
-

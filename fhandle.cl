@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.20 2006/01/25 03:28:29 dancy Exp $
+;; $Id: fhandle.cl,v 1.21 2006/01/25 16:47:02 dancy Exp $
 
 ;; file handle stuff
 
@@ -229,7 +229,22 @@
     (invalidate-fhandles fh)
     (remhash (nfs-export-path exp) *export-roots*)))
 
+;; debugging
+
+#+ignore
+(defun dump-fhandles ()
+  (maphash #'(lambda (id fh)
+	       (format t "~a (#x~x)-> ~a~%" id id (fh-pathname fh)))
+	   *fhandles*))
+	       
+
 ;; XDR
+
+(defun xdr-fhandle2 (xdr &optional fh)
+  (xdr-fhandle xdr 2 fh))
+
+(defun xdr-fhandle3 (xdr &optional fh)
+  (xdr-fhandle xdr 3 fh))
 
 (defun xdr-fhandle (xdr vers &optional fh)
   (declare (optimize (speed 3) (safety 0))
@@ -287,14 +302,3 @@
 		 :stale
 	       fh))))))))
   
-(defun vec-to-fhandle (vec vers)
-  (let* ((realvec (first vec))
-	 (xdr (create-xdr :vec realvec :size (+ (second vec) (third vec)))))
-    (setf (xdr-pos xdr) (second vec))
-    
-    (xdr-fhandle xdr vers)))
-
-(defun fhandle-to-vec (fh vers)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-fhandle xdr vers fh)
-    (subseq (xdr-vec xdr) 0 (xdr-pos xdr))))
