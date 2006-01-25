@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.5 2006/01/25 16:47:02 dancy Exp $
+;; $Id: nlm.cl,v 1.6 2006/01/25 17:39:46 dancy Exp $
 
 (in-package :user)
 
@@ -506,7 +506,10 @@
 	 then (if *nlm-debug*
 		  (logit "NLM: Removing ~a from notify list.~%" entry))
 	      (setf *nlm-notify-list* (delete entry *nlm-notify-list*))
-	      (nlm-do-unlock entry)))
+	      (handler-case (nlm-do-unlock entry)
+		(error (c)
+		  (logit "NLM: Unexpected error while unlocking ~a: ~a~%"
+			 entry c)))))
 
     (let ((entry (nlm-find-lock lock *nlm-retry-list*)))
       (if* entry
@@ -537,7 +540,7 @@
 (defun nlmproc4-lock (arg vers peer)
   (nlm-lock arg vers peer))
 
-(defun nlm-lock (arg vers peer &key async)
+(defun nlm-lock (arg vers peer &key async (monitor t))
   (let* ((exclusive (nlm-lockargs-exclusive arg))
 	 (alock (nlm-lockargs-alock arg))
 	 (cookie (nlm-lockargs-cookie arg))
@@ -566,6 +569,9 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
     ;; structured.  openfile stuff has been modified but I still
     ;; need to check for stuff that calls close-open-file.
 
+    (if (not monitor)
+	(setf block nil))
+    
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
@@ -729,17 +735,39 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 				  :holder holder))))
 
 ;; FREE ALL
+(defun nlmproc4-free-all (arg vers peer)
+  (nlm-free-all arg vers peer))
+
 (defun nlm-free-all (arg vers peer)
-  (let ((name (nlm-notify-name arg)))
+  (let ((name (nlm-notify-name arg))
+	(dotted (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     (if *nlm-debug*
 	(logit "NLM~a: ~a: FREE ALL (~a)~%"
 	       (if-nlm-v4 vers "4" "")
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       dotted 
 	       name))
-    
-    ))
-    
+    (mp:with-process-lock (*nlm-state-lock*)
+      (let (locks)
+	(dolist (entry *nlm-locks*)
+	  (if (string= 
+	       (socket:ipaddr-to-dotted (nlm-lock-internal-peer-addr entry))
+	       dotted)
+	      (push entry locks)))
+	
+	(dolist (lock locks)
+	  (if *nlm-debug* (logit "==> Unlocking ~a~%" lock))
+	  (handler-case (nlm-do-unlock lock)
+	    (error (c)
+	      (logit "==> Unexpected error while unlocking ~a: ~a~%"
+		     lock c)))
+	  (setf *nlm-locks* (delete lock *nlm-locks*)))))))
 
+;; NM (non-monitored) lock
+(defun nlmproc4-nm-lock (arg vers peer)
+  (nlm-nm-lock arg vers peer))
+
+(defun nlm-nm-lock (arg vers peer)
+  (nlm-lock arg vers peer :monitor nil))
 
 ;; Make asynchronous versions of the 4 main functions as well.
 
@@ -858,4 +886,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 		   else (if *nlm-debug*
 			    (logit "==> Client rejecting lock ~a~%" lock))
 			;; unlock it.
-			(nlm-do-unlock lock)))))))
+			(handler-case (nlm-do-unlock lock)
+			  (error (c)
+			    (logit "~
+NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
