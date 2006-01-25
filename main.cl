@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.12 2006/01/23 21:33:49 dancy Exp $
+;; $Id: main.cl,v 1.13 2006/01/25 03:54:31 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -37,7 +37,8 @@
 ;;#+nfs-debug (eval-when (eval load) (require :trace))
 
 (defun startem (&rest args)
-  (declare (ignore args))
+  (declare (ignore args)
+	   (special *nlm-gate*))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
   (logit "Allegro NFS Server version ~A initializing...~%" 
