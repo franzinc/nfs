@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.3 2006/01/23 21:33:49 dancy Exp $
+;; $Id: nsm.cl,v 1.4 2006/01/26 03:42:59 dancy Exp $
 
 (in-package :user)
 
@@ -30,25 +30,71 @@
 
 ;; Ref: http://www.opengroup.org/onlinepubs/009629799/chap11.htm
 
+
+;; Begin auto-generated 
+
 (eval-when (compile load eval)
-  (defconstant *smprog* 100024)
-  (defconstant *smvers* 1)
+  (defconstant *sm-maxstrlen* 1024))
 
-  (defconstant *sm-maxstrlen* 1024)
+(defxdrstruct sm-name ((string mon-name)))
 
-  (defconstant *sm-null* 0)
-  (defconstant *sm-stat* 1)
-  (defconstant *sm-mon* 2)
-  (defconstant *sm-unmon* 3)
-  (defconstant *sm-unmon-all* 4)
-  (defconstant *sm-simu-crash* 5)
-  (defconstant *sm-notify* 6)
-  
-  (defconstant *sm-stat-succ* 0)
-  (defconstant *sm-stat-fail* 1))
+;; enum res
+(eval-when (compile load eval)
+ (defconstant *stat-succ* 0)
+ (defconstant *stat-fail* 1))
 
-(defvar *nsm-tcp-socket* nil)
-(defvar *nsm-udp-socket* nil)
+(defun xdr-res (xdr &optional int)
+ (xdr-int xdr int))
+
+(defxdrstruct sm-stat-res ((res res-stat)
+                          (int state)))
+
+(defxdrstruct sm-stat ((int state)))
+
+(defxdrstruct my-id ((string my-name)
+                          (int my-prog)
+                          (int my-vers)
+                          (int my-proc)))
+
+(defxdrstruct mon-id ((string mon-name)
+                          (my-id my-id)))
+
+(defxdrstruct mon ((mon-id mon-id)
+                          (opaque priv :fixed 16)))
+
+(defxdrstruct stat-chge ((string mon-name)
+			 (int state)))
+
+(defxdrstruct nsm-callback-status ((string mon-name)
+                          (int state)
+                          (opaque priv :fixed 16)))
+
+(eval-when (compile load eval)
+ (defconstant *sm-prog* 100024)
+ (defconstant *sm-vers* 1)
+ (defconstant *sm-null* 0)
+ (defconstant *sm-stat* 1)
+ (defconstant *sm-mon* 2)
+ (defconstant *sm-unmon* 3)
+ (defconstant *sm-unmon-all* 4)
+ (defconstant *sm-simu-crash* 5)
+ (defconstant *sm-notify* 6)
+)
+
+(def-rpc-program (nsm #.*sm-prog*)
+  (
+   (#.*sm-vers*
+     (#.*sm-null* sm-null void void)
+     (#.*sm-stat* sm-stat sm-name sm-stat-res)
+     (#.*sm-mon* sm-mon mon sm-stat-res)
+     (#.*sm-unmon* sm-unmon mon-id sm-stat)
+     (#.*sm-unmon-all* sm-unmon-all my-id sm-stat)
+     (#.*sm-simu-crash* sm-simu-crash void void)
+     (#.*sm-notify* sm-notify stat-chge void)
+   )
+  ))
+
+;; End auto-generated
 
 (defvar *nsm-state* 0) ;; down
 
@@ -58,350 +104,349 @@
   prog
   vers
   proc
-  priv)
+  priv
+  state)
 
-(defparameter *nsm-monitored-hosts* nil)
-(defparameter *nsm-our-name* nil)
+(defun nsm-monitor-to-string (obj)
+  (format nil "[Monitor ~a (Callback: ~a, Prg: ~a, V: ~a, Proc: ~a)]"
+	  (nsm-monitor-host obj)
+	  (nsm-monitor-requestor obj)
+	  (nsm-monitor-prog obj)
+	  (nsm-monitor-vers obj)
+	  (nsm-monitor-proc obj)))
+
+(defvar *nsm-monitored-hosts* nil)
+(defvar *nsm-callbacks-list* nil)
+(defvar *nsm-our-name* nil)
 
 (defparameter *nsm-state-file* "sys:nsm-state")
 (defparameter *nsm-debug* t)
+(defparameter *nsm-callback-retry-interval* 10) ;; seconds
+(defparameter *nsm-notify-retry-interval* 10) ;; seconds
 (defparameter *nsm-gate* (mp:make-gate nil))
-
-(defun make-nsm-sockets ()
-  (handler-case 
-      (progn
-	(unless *nsm-tcp-socket*
-	  (setf *nsm-tcp-socket*
-	    (socket:make-socket :type :hiper
-				:connect :passive)))
-	(unless *nsm-udp-socket*
-	  (setf *nsm-udp-socket*
-	    (socket:make-socket :type :datagram))))
-    (error (c)
-      (bailout "
-Unexpected error while creating a nsm socket: ~a~%" c)))
-  (logit "NSM: Using UDP port ~d~%" (socket:local-port *nsm-udp-socket*))
-  (logit "NSM: Using TCP port ~d~%" (socket:local-port *nsm-tcp-socket*)))
-
-(defun close-nsm-sockets ()
-  (when *nsm-tcp-socket*
-    (close *nsm-tcp-socket*)
-    (setf *nsm-tcp-socket* nil))
-  (when *nsm-udp-socket*
-    (close *nsm-udp-socket*)
-    (setf *nsm-udp-socket* nil)))
-
-(defmacro with-nsm-sockets (() &body body)
-  `(unwind-protect
-       (progn
-	 (make-nsm-sockets)
-	 ,@body)
-     (close-nsm-sockets)))
-
-(defun nsm ()
-  (with-nsm-sockets ()
-    (with-portmapper-mapping (*smprog* 
-			      *smvers*
-			      (socket:local-port *nsm-tcp-socket*) 
-			      IPPROTO_TCP)
-      (with-portmapper-mapping (*smprog* 
-				*smvers*
-				(socket:local-port *nsm-udp-socket*) 
-				IPPROTO_UDP)
-	(let* ((buffer (make-array #.(* 64 1024) 
-				   :element-type '(unsigned-byte 8)))
-	       (server (make-rpc-server :tcpsock *nsm-tcp-socket*
-					:udpsock *nsm-udp-socket*
-					:buffer buffer)))
-	  (declare (dynamic-extent buffer server))
-	  (nsm-load-state) 
-	  (advance-state)
-	  (nsm-notify-peers) ;; Let folks know that we're back.
-	  (mp:open-gate *nsm-gate*)
-	  (loop
-	    (multiple-value-bind (xdr peer)
-		(rpc-get-message server)
-	      (nsm-message-handler xdr peer))))))))
-
-
-(defun nsm-message-handler (xdr peer)
-  (block nil
-    (let (msg cbody)
-      (setf msg (create-rpc-msg xdr))
-      (setf cbody (rpc-msg-cbody msg))
-      
-      ;; sanity checks first
-      (when (null cbody)
-	(logit "Invalid message from ~A~%" peer)
-	(return))
-      
-      (when (/= (call-body-prog cbody) *smprog*)
-	(logit "NSM: Sending program unavailable response for prog=~D to ~A~%"
-	       (call-body-prog cbody)
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
-	(return))
-
-      (unless (= (call-body-vers cbody) *smvers*)
-	(logit "NSM: Sending program version mismatch response (requested version was ~D) to ~A~%" 
-	       (call-body-vers cbody)
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) (null-verf) 
-				*smvers* *smvers*)
-	(return))
-      
-      (case (call-body-proc cbody)
-	(#.*sm-null*
-	 (nsm-null peer (rpc-msg-xid msg)))
-	(#.*sm-stat*
-	 (nsm-stat peer (rpc-msg-xid msg) cbody))
-	(#.*sm-mon*
-	 (nsm-mon peer (rpc-msg-xid msg) cbody))
-	(#.*sm-unmon*
-	 (nsm-unmon peer (rpc-msg-xid msg) cbody))
-	(#.*sm-unmon-all*
-	 (nsm-unmon-all peer (rpc-msg-xid msg) cbody))
-	(#.*sm-simu-crash*
-	 (nsm-simu-crash peer (rpc-msg-xid msg)))
-	(#.*sm-notify*
-	 (nsm-notify peer (rpc-msg-xid msg) cbody))
-	(t
-	 ;; should send a negative response
-	 (logit "NSM: unhandled procedure ~D requested by ~A~%"
-		(call-body-proc cbody)
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer))))))))
-
-(defun nsm-null (peer xid)
-  (if *nsm-debug* (logit "NSM: ~a: SM_NULL~%" 
-			 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-  (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (null-verf) xdr)))
-
-;; This is clearly a bogusly-specified call.
-(defun nsm-stat (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params)))
-      (when *nsm-debug* 
-	(logit "NSM: ~a requested nsm-stat ~a.~%"
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))  monitor-host)
-	(with-successful-reply (res peer xid (null-verf))
-	  ;; This is what Solaris does.
-	  (xdr-int res *sm-stat-succ*)
-	  (xdr-int res *nsm-state*))))))
-
-;; SM_MON
-
-;; This call tells us (local NSM) to respond to SM_NOTIFY calls for
-;; the host specified in monitor-host, and to notify that host, via
-;; the SM_NOTIFY call, when our state changes.
-
-;; Args:
-;; string mon_name
-;; string myname
-;; int prog, vers, proc
-;; opaque priv[16];
-
-;; return: res.. and state.
-
-(defun nsm-mon (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params))
-	  (requestor (xdr-string params))
-	  (prog (xdr-int params))
-	  (vers (xdr-int params))
-	  (proc (xdr-int params))
-	  (priv (xdr-opaque-fixed params :len 16 :make-vec t))
-	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-      (when *nsm-debug* 
-	(logit "NSM: ~A: SM_MON (M: ~a, R: ~a)~%"
-	       peer-addr monitor-host requestor)
-	(logit "NSM: ~A: + Callback to: Prog: ~a, Vers: ~a, Proc: ~a~%"
-	       peer-addr prog vers proc))
-      (with-successful-reply (res peer xid (null-verf))
-	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then (logit "NSM: ~A: --> Rejecting request~%" peer-addr)
-		(xdr-int res *sm-stat-fail*)
-		(xdr-int res -1)
-	   else ;; XXX
-		;; Solaris has checks to prevent the SM_MON call
-		;; from being used to monitor the local host.
-		(pushnew
-		 (make-nsm-monitor :host monitor-host
-				   :requestor requestor
-				   :prog prog
-				   :vers vers
-				   :proc proc
-				   :priv priv)
-		 *nsm-monitored-hosts* :test #'equalp)
-		(nsm-save-state)
-		(xdr-int res *sm-stat-succ*)
-		(xdr-int res *nsm-state*))))))
-
-;; This procedure stops monitoring the host "mon_name". The
-;; information in "my_id" must exactly match the information given in
-;; the corresponding SM_MON call.
-
-;; Args: struct mon_id (monitor-host, req, prog, vers, proc)
-(defun nsm-unmon (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((monitor-host (xdr-string params)) 
-	  (requestor (xdr-string params))
-	  (prog (xdr-int params))
-	  (vers (xdr-int params))
-	  (proc (xdr-int params))
-	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-      (when *nsm-debug* 
-	(logit 
-	 "NSM: ~a: SM_UNMON (M: ~a, R: ~a, Prog: ~a, Vers: ~a, Proc: ~a)~%"
-	 peer-addr monitor-host requestor prog vers proc))
-      
-      (with-successful-reply (res peer xid (null-verf))
-	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then	(logit "NSM: ~A: --> Ignoring request~%" peer-addr)
-	   else	(setf *nsm-monitored-hosts* 
-		  (delete-if 
-		   #'(lambda (entry)
-		       (and (string= (nsm-monitor-host entry) monitor-host)
-			    (string= (nsm-monitor-requestor entry) requestor)
-			    (= (nsm-monitor-prog entry) prog)
-			    (= (nsm-monitor-vers entry) vers)
-			    (= (nsm-monitor-proc entry) proc)))
-		   *nsm-monitored-hosts*))
-		(nsm-save-state))
-	
-	(xdr-int res *nsm-state*)))))
-
-(defun nsm-unmon-all (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((requestor (xdr-string params))
-	  (prog (xdr-int params))
-	  (vers (xdr-int params))
-	  (proc (xdr-int params))
-	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-      (when *nsm-debug* 
-	(logit "NSM: ~a: SM_UNMON_ALL (R: ~a, Prog: ~a, Vers: ~a, Proc: ~a)~%"
-	       peer-addr requestor prog vers proc))
-      
-      (with-successful-reply (res peer xid (null-verf))
-	(if* (/= #.(socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-	   then (logit "NSM: ~A: --> Ignoring request~%" peer-addr)
-	   else	(setf *nsm-monitored-hosts* 
-		  (delete-if 
-		   #'(lambda (entry)
-		       (and (string= (nsm-monitor-requestor entry) requestor)
-			    (= (nsm-monitor-prog entry) prog)
-			    (= (nsm-monitor-vers entry) vers)
-			    (= (nsm-monitor-proc entry) proc)))
-		   *nsm-monitored-hosts*))
-		(nsm-save-state))
-	
-	(xdr-int res *nsm-state*)))))
-
-
-;; A remote statd is notifying us of its new state.
-(defun nsm-notify (peer xid cbody)
-  (with-xdr-xdr ((call-body-params cbody) :name params)
-    (let ((host (xdr-string params)) ;; the host that changed state
-	  (state (xdr-int params)) ;; new state
-	  (peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-      (when *nsm-debug* 
-	(logit "NSM: ~a: SM_NOTIFY (H: ~a, S: ~a)~%"
-	       peer-addr host state))
-      (with-successful-reply (res peer xid (null-verf))
-	(let ((hostaddr (ignore-errors (socket:lookup-hostname host))))
-	  (when hostaddr
-	    (dolist (mon *nsm-monitored-hosts*)
-	      (let ((monaddr (ignore-errors (socket:lookup-hostname 
-					     (nsm-monitor-host mon)))))
-		(when (equalp monaddr hostaddr)
-		  (logit "NSM: + Invoking callback procedure.~%")
-		  (mp:process-run-function "NSM notify callback"
-		    #'nsm-notify-callback host state mon))))))))))
-
-
-(defun nsm-notify-callback (host state entry)
-  (ignore-errors
-   (callrpc (nsm-monitor-requestor entry)
-	    (nsm-monitor-prog entry)
-	    (nsm-monitor-vers entry)
-	    (nsm-monitor-proc entry)
-	    :udp
-	    #'(lambda (xdr dummy)
-		(declare (ignore dummy))
-		(xdr-string xdr host)
-		(xdr-int xdr state)
-		(xdr-opaque-fixed xdr :vec (nsm-monitor-priv entry)))
-	    nil)))
-
-(defun nsm-simu-crash (peer xid)
-  (let ((peer-addr (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(xdr (create-xdr :direction :build)))
-    
-    (if *nsm-debug* (logit "NSM: ~a: SM_SIMU_CRASH~%" peer-addr))
-    (if* (/= (socket:dotted-to-ipaddr "127.0.0.1") peer-addr)
-       then
-	    (logit "NSM: ~a: -> Ignoring request.~%" peer-addr)
-       else
-	    (advance-state)
-	    (nsm-notify-peers))
-    (send-successful-reply peer xid (null-verf) xdr)))
+(defvar *nsm-state-lock* (mp:make-process-lock))
 
 ;;;;;;;;;
 
+(defun nsm-init ()
+  (mp:process-run-function "nsm callback retry loop" 
+    #'sm-callback-retry-loop)
+  (nsm-load-state) 
+  (nsm-advance-state)
+  (nsm-notify-peers) ;; Let folks know that we're back.
+  (mp:open-gate *nsm-gate*))
+
 (defun nsm-save-state ()
-  (let ((tmpfile (concatenate 'string *nsm-state-file* ".tmp")))
-    (with-open-file (f tmpfile :direction :output
-		     :if-exists :supersede)
-      (write (list *nsm-state* *nsm-monitored-hosts*) :stream f)
-      (fsync f))
-    ;; No way to do an atomic rename on Windows. *sigh*.
-    (if (probe-file *nsm-state-file*)
-	(delete-file *nsm-state-file*))
-    (rename tmpfile *nsm-state-file*)))
+  (mp:with-process-lock (*nsm-state-lock*)
+    (let ((tmpfile (concatenate 'string *nsm-state-file* ".tmp")))
+      (with-open-file (f tmpfile :direction :output
+		       :if-exists :supersede)
+	(write (list *nsm-state* *nsm-monitored-hosts*) :stream f)
+	(fsync f))
+      ;; No way to do an atomic rename on Windows. *sigh*.
+      (if (probe-file *nsm-state-file*)
+	  (delete-file *nsm-state-file*))
+      (rename tmpfile *nsm-state-file*))))
 
 (defun nsm-load-state ()
-  (multiple-value-setq (*nsm-state* *nsm-monitored-hosts*)
-    (if (probe-file *nsm-state-file*)
-	(with-open-file (f *nsm-state-file*)
-	  (let ((res (read f)))
-	    (values (first res) (second res))))
-      (values -1 nil))))
+  (mp:with-process-lock (*nsm-state-lock*)
+    (multiple-value-setq (*nsm-state* *nsm-monitored-hosts*)
+      (if (probe-file *nsm-state-file*)
+	  (with-open-file (f *nsm-state-file*)
+	    (let ((res (read f)))
+	      (values (first res) (second res))))
+	(values -1 nil)))))
 
-(defun advance-state ()
-  (incf *nsm-state*)
-  (until (and (oddp *nsm-state*) (> *nsm-state* 0))
-    (incf *nsm-state*))
-  ;; Make sure it remains a signed-positive.
-  (if (> *nsm-state* #.(1- (expt 2 31)))
-      (setf *nsm-state* 1))
-  (if *nsm-debug* (logit "NSM: New state: ~d~%" *nsm-state*))
-  (nsm-save-state))
+(defun nsm-advance-state ()
+  (mp:with-process-lock (*nsm-state-lock*)
+    (incf *nsm-state*)
+    (until (and (oddp *nsm-state*) (> *nsm-state* 0))
+      (incf *nsm-state*))
+    ;; Make sure it remains a signed-positive.
+    (if (> *nsm-state* #.(1- (expt 2 31)))
+	(setf *nsm-state* 1))
+    (if *nsm-debug* (logit "NSM: New state: ~d~%" *nsm-state*))
+    (nsm-save-state)))
+
+(defun nsm-log-status (status)
+  (logit "==> ~a~%"
+	 (case status
+	   (#.*stat-fail* "FAIL")
+	   (#.*stat-succ* "SUCC")
+	   (t (format nil "~a" status)))))
+
+(defun nsm-convert-mon-id (mon-id &key priv)
+  (let* ((priv (if priv (xdr-extract-vec priv)))
+	 (name (mon-id-mon-name mon-id)) ;; host to monitor
+	 (my-id (mon-id-my-id mon-id))
+	 (callback-host (my-id-my-name my-id))
+	 (callback-prog (my-id-my-prog my-id))
+	 (callback-vers (my-id-my-vers my-id))
+	 (callback-proc (my-id-my-proc my-id)))
+    (make-nsm-monitor :host name
+		      :requestor callback-host
+		      :prog callback-prog
+		      :vers callback-vers
+		      :proc callback-proc
+		      :priv priv)))
+
+;; Call with lock held.
+(defun nsm-find-entry (mon-id)
+  (let ((host (nsm-monitor-host mon-id))
+	(requestor (nsm-monitor-requestor mon-id))
+	(prog (nsm-monitor-prog mon-id))
+	(vers (nsm-monitor-vers mon-id))
+	(proc (nsm-monitor-proc mon-id)))
+    (dolist (entry *nsm-monitored-hosts*)
+      (if (and (string= (nsm-monitor-host entry) host)
+	       (string= (nsm-monitor-requestor entry) requestor)
+	       (= (nsm-monitor-prog entry) prog)
+	       (= (nsm-monitor-vers entry) vers)
+	       (= (nsm-monitor-proc entry) proc))
+	  (return entry)))))
+
+;; Returns a list of matches
+(defun nsm-find-entry-by-my-id (requestor prog vers proc)
+  (let (res)
+    (dolist (entry *nsm-monitored-hosts*)
+      (if (and (string= (nsm-monitor-requestor entry) requestor)
+	       (= (nsm-monitor-prog entry) prog)
+	       (= (nsm-monitor-vers entry) vers)
+	       (= (nsm-monitor-proc entry) proc))
+	  (push entry res)))
+    res))
+
+;;;;;;;;;;; Procedures
+
+(defun sm-null (arg vers peer cbody)
+  (declare (ignore arg vers cbody))
+  (if *nsm-debug*
+      (logit "NSM: ~a: NULL~%" 
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer)))))
+
+;; in: sm-name, out: sm-stat-res
+(defun sm-stat (arg vers peer cbody)
+  (declare (ignore vers cbody))
+  (let ((name (sm-name-mon-name arg))
+	(status #.*stat-fail*))
+    (if *nsm-debug*
+	(logit "NSM: ~a: STAT (~a)~%" 
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       name))
+    
+    ;; This is what linux does.
+    (if (ignore-errors (socket:lookup-hostname name))
+	(setf status #.*stat-succ*))
+
+    (if *nsm-debug*
+	(nsm-log-status status))
+
+    (mp:with-process-lock (*nsm-state-lock*)
+      (make-sm-stat-res :res-stat status
+			:state *nsm-state*))))
+
+;; in: mon, out: sm-stat-res
+(defun sm-mon  (arg vers peer cbody)
+  (declare (ignore vers cbody))
+  (let* ((mon-id (mon-mon-id arg))
+	 (struct (nsm-convert-mon-id mon-id :priv (mon-priv arg)))
+	 (addr (rpc-peer-addr peer))
+	 (status #.*stat-fail*))
+    
+    (if *nsm-debug*
+	(logit "NSM: ~a: MON ~a~%" (socket:ipaddr-to-dotted addr) 
+	       (nsm-monitor-to-string struct)))
+
+    (mp:with-process-lock (*nsm-state-lock*)
+      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+	(if* (member struct *nsm-monitored-hosts* :test #'equalp)
+	   then (if *nsm-debug*
+		    (logit "==> Already monitored.~%"))
+	   else (push struct *nsm-monitored-hosts*)
+		(nsm-save-state)
+		(if *nsm-debug*
+		    (logit "==> Adding entry to monitor list.~%")))
+	(setf status #.*stat-succ*))
+      
+      (if *nsm-debug*
+	  (nsm-log-status status))
+      
+      (make-sm-stat-res :res-stat status
+			:state *nsm-state*))))
+    
+;; in: mon-id, out: sm-stat
+(defun sm-unmon  (arg vers peer cbody)
+  (declare (ignore vers cbody))
+  (let ((struct (nsm-convert-mon-id arg))
+	(addr (rpc-peer-addr peer)))
+    
+    (if *nsm-debug*
+	(logit "NSM: ~a: UNMON ~a~%" (socket:ipaddr-to-dotted addr) 
+	       (nsm-monitor-to-string struct)))
+    
+    (mp:with-process-lock (*nsm-state-lock*)
+      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+	(let ((entry (nsm-find-entry struct)))
+	  (if* entry
+	     then (if *nsm-debug*
+		      (logit "==> Removing entry from monitor list.~%"))
+		  (setf *nsm-monitored-hosts* 
+		    (delete entry *nsm-monitored-hosts*))
+		  (nsm-save-state)
+	     else (if *nsm-debug*
+		      (logit "==> No matching entry (probably a dupe)~%")))))
+      
+      (make-sm-stat :state *nsm-state*))))
+
+
+;; in: my-id, out: sm-stat
+(defun sm-unmon-all  (arg vers peer cbody)
+  (declare (ignore vers cbody))
+  (let ((requestor (my-id-my-name arg))
+	(prog (my-id-my-prog arg))
+	(vers (my-id-my-vers arg))
+	(proc (my-id-my-proc arg))
+	(addr (rpc-peer-addr peer)))
+    
+    (if *nsm-debug*
+	(logit "NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
+	       (socket:ipaddr-to-dotted addr)
+	       requestor prog vers proc))
+    
+    (mp:with-process-lock (*nsm-state-lock*)
+      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+	(let ((entries (nsm-find-entry-by-my-id requestor prog vers proc)))
+	  (when entries
+	    (dolist (entry entries)
+	      (if *nsm-debug*
+		  (logit "NSM: Removing ~a from monitor list.~%" 
+			 (nsm-monitor-to-string entry)))
+	      (setf *nsm-monitored-hosts* 
+		(delete entry *nsm-monitored-hosts*)))
+	    (nsm-save-state))))
+      
+      (make-sm-stat :state *nsm-state*))))
+	
+
+;; in: void, out: void
+(defun sm-simu-crash  (arg vers peer cbody)
+  (declare (ignore arg vers cbody))
+  (let ((addr (rpc-peer-addr peer)))
+
+    (if *nsm-debug*
+	(logit "NSM: ~a: SIMU_CRASH~%" (socket:ipaddr-to-dotted addr)))
+    
+    (mp:with-process-lock (*nsm-state-lock*)
+      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+	(nsm-advance-state) ;; auto-saves
+	(nsm-notify-peers)))))
+
+;; Clients call this to notify us that they rebooted.  
+
+;; in: stat-chge, out: void
+(defun sm-notify  (arg vers peer cbody)
+  (declare (ignore vers cbody))
+  (let* ((addr (rpc-peer-addr peer))
+	 (host (stat-chge-mon-name arg))
+	 (newstate (stat-chge-state arg))
+	 (dotted (socket:ipaddr-to-dotted addr)))
+	
+    (if *nsm-debug*
+	(logit "NSM: ~a: NOTIFY (~a, ~a)~%" 
+	       dotted host newstate))
+    
+    ;; Notify interested parties.
+    (mp:with-process-lock (*nsm-state-lock*)
+      (dolist (entry *nsm-monitored-hosts*)
+	(when (string= (nsm-monitor-host entry) dotted)
+	  (if *nsm-debug*
+	      (logit "==> Adding ~a to callback list.~%" 
+		     (nsm-monitor-to-string entry)))
+	  (setf (nsm-monitor-state entry) newstate)
+	  (push entry *nsm-callbacks-list*))))))
+
+;; Returns t if we got a reply of some sort.
+(defun sm-do-callback (entry)
+  (handler-case 
+      (callrpc (nsm-monitor-requestor entry)
+	       (nsm-monitor-prog entry)
+	       (nsm-monitor-vers entry)
+	       (nsm-monitor-proc entry)
+	       :udp
+	       #'xdr-nsm-callback-status 
+	       (make-nsm-callback-status :mon-name (nsm-monitor-host entry)
+					 :state (nsm-monitor-state entry)
+					 :priv (nsm-monitor-priv entry)))
+    (error (c)
+      (if *nsm-debug*
+	  (logit "NSM: Error while sending callback ~a: ~a~%"
+		 (nsm-monitor-to-string entry) c))
+      nil)
+    (:no-error (results)
+      (declare (ignore results))
+      t)))
+	       
+
+(defun sm-callback-retry-loop ()
+  (loop
+    ;; Make a copy of the list before traversing it.  That way we can
+    ;; release the lock while we process the callbacks.  If we don't,
+    ;; we could get into a deadlock if the callback procedures make
+    ;; additional NSM calls.
+    
+    (let (entries completed)
+      (mp:with-process-lock (*nsm-state-lock*)
+	(setf entries (copy-list *nsm-callbacks-list*)))
+      
+      (dolist (entry entries)
+	(when (sm-do-callback entry)
+	  (if *nsm-debug*
+	      (logit "NSM: Callback ~a completed.~%" 
+		     (nsm-monitor-to-string entry)))
+	  (push entry completed)))
+      
+      (mp:with-process-lock (*nsm-state-lock*)
+	(dolist (entry completed)
+	  (setf *nsm-callbacks-list* (delete entry *nsm-callbacks-list*)))))
+    
+    (sleep *nsm-callback-retry-interval*)))
 
 (defun nsm-notify-peers ()
-  (if (null *nsm-our-name*)
-      (setf *nsm-our-name* (gethostname)))
+  (mp:with-process-lock (*nsm-state-lock*)
   
-  (let ((entries *nsm-monitored-hosts*))
-    (setf *nsm-monitored-hosts* nil)
+    (if (null *nsm-our-name*)
+	(setf *nsm-our-name* (gethostname)))
+  
+    (let ((entries *nsm-monitored-hosts*))
+      (setf *nsm-monitored-hosts* nil)
     
-    (dolist (entry entries)
-      (if *nsm-debug*
-	  (logit "NSM: Notifying ~a of our new state.~%" 
-		 (nsm-monitor-host entry)))
-	     
-      (mp:process-run-function 
-	  (format nil "NSM notifying ~a of new state" (nsm-monitor-host entry))
-	#'nsm-notify-peer (nsm-monitor-host entry)))))
+      (dolist (entry entries)
+	(if *nsm-debug*
+	    (logit "~
+NSM: Notifying ~a of our new state.~%" 
+		   (nsm-monitor-host entry)))
+	
+	(mp:process-run-function 
+	    (format nil "~
+NSM notifying ~a of new state" (nsm-monitor-host entry))
+	  #'nsm-notify-peer (nsm-monitor-host entry) *nsm-state*)))))
 
-(defun nsm-notify-peer (host)
-  (ignore-errors
-   (callrpc host *smprog* *smvers* *sm-notify* :udp
-	    ;; inproc
-	    #'(lambda (xdr dummy)
-		(declare (ignore dummy))
-		(xdr-string xdr *nsm-our-name*)
-		(xdr-int xdr *nsm-state*))
-	    nil ;; in
-	    :retries 50
-	    :timeout 10)))
-  
+(defun nsm-notify-peer (host state)
+  ;; XXX -- should we ever give up?
+  (loop
+    (handler-case 
+	(callrpc host #.*sm-prog* #.*sm-vers* #.*sm-notify* :udp
+		 #'xdr-stat-chge
+		 (make-stat-chge :mon-name *nsm-our-name*
+				 :state state))
+      (error (c)
+	(if *nsm-debug*
+	    (logit "NSM: Error while sending notify to ~a: ~a~%"
+		   host c)))
+      (:no-error (results)
+	(declare (ignore results))
+	(if *nsm-debug*
+	    (logit "NSM: Successfully notified of our new state.~a~%" host))
+	(return-from nsm-notify-peer)))
+    
+    (sleep *nsm-notify-retry-interval*)))

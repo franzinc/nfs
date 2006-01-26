@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.7 2006/01/25 20:35:50 dancy Exp $
+;; $Id: nlm.cl,v 1.8 2006/01/26 03:42:59 dancy Exp $
 
 (in-package :user)
 
@@ -282,6 +282,11 @@
      ;;(#.*nlm-unshare* nlm-unshare nlm-shareargs nlm-shareres)
      (#.*nlm-nm-lock* nlm-nm-lock nlm-lockargs nlm-res)
      (#.*nlm-free-all* nlm-free-all nlm-notify void)
+     
+     ;; extra, so that nsm can call us back when something has 
+     ;; sent in a notify.
+     (99 nlm-nsm-callback nsm-callback-status void)
+     
    )
    (#.*nlm4-vers*
      (#.*nlmproc4-null* nlmproc4-null void void)
@@ -308,13 +313,14 @@
      (#.*nlmproc4-free-all* nlmproc4-free-all nlm4-notify void)
    ))
   
-  ;; Prologue
-  (mp:process-run-function "nlm retry loop" #'nlm-lock-retry-loop)
-  (mp:process-run-function "nlm notify loop" #'nlm-grant-notify-loop)
-  (mp:open-gate *nlm-gate*)
   )
 
 ;; End auto-generated code.
+
+(defun nlm-init ()
+  (mp:process-run-function "nlm retry loop" #'nlm-lock-retry-loop)
+  (mp:process-run-function "nlm notify loop" #'nlm-grant-notify-loop)
+  (mp:open-gate *nlm-gate*))
 
 ;; Helpers
 
@@ -403,6 +409,15 @@
   (dolist (entry list)
     (if (equalp (nlm-lock-internal-cookie entry) cookie)
 	(return entry))))
+
+;; Returns a list
+(defun nlm-find-locks-by-addr (addr list)
+  (let (res)
+    (dolist (entry list)
+      (if (= (nlm-lock-internal-peer-addr entry) addr)
+	  (push entry res)))
+    res))
+      
 
 (defun overlapped-p (start1 end1 start2 end2)
   ;; Easier to conclude what an overlap is not, so figure that out and
@@ -501,23 +516,29 @@
 ;; the granted message hasn't been acknowledged yet).
 (defun nlm-cancel-pending-retry (lock)
   (mp:with-process-lock (*nlm-state-lock*)
-    (let ((entry (nlm-find-lock lock *nlm-notify-list*)))
-      (if* entry
-	 then (if *nlm-debug*
-		  (logit "NLM: Removing ~a from notify list.~%" entry))
-	      (setf *nlm-notify-list* (delete entry *nlm-notify-list*))
-	      (handler-case (nlm-do-unlock entry)
-		(error (c)
-		  (logit "NLM: Unexpected error while unlocking ~a: ~a~%"
-			 entry c)))))
-
-    (let ((entry (nlm-find-lock lock *nlm-retry-list*)))
-      (if* entry
-	 then (if *nlm-debug*
-		  (logit "NLM: Removing ~a from retry list.~%" entry))
-	      (setf *nlm-retry-list* (delete entry *nlm-retry-list*))
-	      #.*lck-granted*
-	 else #.*lck-denied-nolocks*))))
+    (let (status)
+      (let ((entry (nlm-find-lock lock *nlm-notify-list*)))
+	(if* entry
+	   then (if *nlm-debug*
+		    (logit "NLM: Removing ~a from notify list.~%" entry))
+		(setf *nlm-notify-list* (delete entry *nlm-notify-list*))
+		(handler-case (nlm-do-unlock entry)
+		  (error (c)
+		    (logit "NLM: Unexpected error while unlocking ~a: ~a~%"
+			   entry c)))))
+      
+      (let ((entry (nlm-find-lock lock *nlm-retry-list*)))
+	(if* entry
+	   then (if *nlm-debug*
+		    (logit "NLM: Removing ~a from retry list.~%" entry))
+		(setf *nlm-retry-list* (delete entry *nlm-retry-list*))
+		(setf status #.*lck-granted*)
+	   else (setf status #.*lck-denied-nolocks*)))
+      
+      (nlm-remove-monitoring (nlm-lock-internal-peer-addr lock))
+      
+      status)))
+	      
 
 (defun nlm-access-ok (lock cbody)
   (let ((cred (call-body-cred cbody))
@@ -558,13 +579,14 @@
 				     :addr (rpc-peer-addr peer)
 				     :cookie cookie))
 	 (fh (nlm-lock-internal-fh lock))
+	 (addr (rpc-peer-addr peer))
 	 (status (if-nlm-v4 vers #.*nlm4-failed* #.*lck-denied-nolocks*)))
     
     (if *nlm-debug*
 	(logit "~
 NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	       (if-nlm-v4 vers "4" "")
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       (socket:ipaddr-to-dotted addr)
 	       (if async "_MSG" "")
 	       lock
 	       block exclusive reclaim state))
@@ -592,8 +614,9 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 		
 		      (if* (= status #.*lck-granted*)
 			 then (mp:with-process-lock (*nlm-state-lock*)
-				(push lock *nlm-locks*)))
-		      ;; XXXX need to establish monitoring
+				(push lock *nlm-locks*))
+			      (if monitor
+				  (nlm-add-monitoring addr)))
 		
 		      (if* (and (= status #.*lck-denied*) block)
 			 then (setf status #.*lck-blocked*)
@@ -616,13 +639,14 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 (defun nlm-unlock (arg vers peer cbody &key async)
   (let* ((lock (nlm-internalize-lock (nlm-unlockargs-alock arg) nil vers))
 	 (fh (nlm-lock-internal-fh lock))
+	 (addr (rpc-peer-addr peer))
 	 ;; always say OK.  Doing otherwise makes linux log kernel
 	 ;; messages.
 	 (status #.*lck-granted*)) 
     (if *nlm-debug*
 	(logit "~
 NLM: ~a: UNLOCK~a~a ~a~%"
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       (socket:ipaddr-to-dotted addr)
 	       (if-nlm-v4 vers "4" "")
 	       (if async "_MSG" "")
 	       lock))
@@ -648,9 +672,8 @@ NLM: Unexpected error during UNLOCK call: ~a~%" c)
 			  (:no-error (&rest args)
 			    (declare (ignore args))
 			    (setf status #.*lck-granted*)
-			    (setf *nlm-locks* (delete entry *nlm-locks*))
-			    ;; XXX turn off monitoring if necessary
-			    ))))))
+			    (setf *nlm-locks* (delete entry *nlm-locks*))))
+			(nlm-remove-monitoring addr)))))
   
     (if *nlm-debug*
 	(nlm-log-status status))
@@ -760,28 +783,14 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 (defun nlm-free-all (arg vers peer cbody)
   (declare (ignore cbody))
   (let ((name (nlm-notify-name arg))
-	(dotted (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+	(addr (rpc-peer-addr peer)))
     (if *nlm-debug*
 	(logit "NLM~a: ~a: FREE ALL (~a)~%"
 	       (if-nlm-v4 vers "4" "")
-	       dotted 
+	       (socket:ipaddr-to-dotted addr)
 	       name))
     
-    (mp:with-process-lock (*nlm-state-lock*)
-      (let (locks)
-	(dolist (entry *nlm-locks*)
-	  (if (string= 
-	       (socket:ipaddr-to-dotted (nlm-lock-internal-peer-addr entry))
-	       dotted)
-	      (push entry locks)))
-	
-	(dolist (lock locks)
-	  (if *nlm-debug* (logit "==> Unlocking ~a~%" lock))
-	  (handler-case (nlm-do-unlock lock)
-	    (error (c)
-	      (logit "==> Unexpected error while unlocking ~a: ~a~%"
-		     lock c)))
-	  (setf *nlm-locks* (delete lock *nlm-locks*)))))))
+    (nlm-cleanup-common addr)))
 
 ;; NM (non-monitored) lock
 (defun nlmproc4-nm-lock (arg vers peer cbody)
@@ -834,6 +843,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	
 	(if new-granted
 	    (dolist (entry new-granted)
+	      (nlm-add-monitoring entry)
 	      (nlm-send-granted-msg entry)
 	      (setf *nlm-retry-list* (delete entry *nlm-retry-list*))))
 	
@@ -912,3 +922,136 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 			  (error (c)
 			    (logit "~
 NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
+
+;; Used by FREE ALL and by the nsm-callback.
+(defun nlm-cleanup-common (addr)
+  (mp:with-process-lock (*nlm-state-lock*)
+    (let ((entries (nlm-find-locks-by-addr addr *nlm-locks*)))
+      (dolist (entry entries)
+	(if *nlm-debug*
+	    (logit "NLM: Unlocking ~a~%" entry))
+	(nlm-do-unlock entry)
+	(setf *nlm-locks* (delete entry *nlm-locks*))))
+    
+    (let ((entries (nlm-find-locks-by-addr addr *nlm-notify-list*)))
+      (dolist (entry entries)
+	(if *nlm-debug*
+	    (logit "NLM: Removing ~a from notify list.~%" entry))
+	(setf *nlm-notify-list* (delete entry *nlm-notify-list*))))
+    
+    (let ((entries (nlm-find-locks-by-addr addr *nlm-retry-list*)))
+      (dolist (entry entries)
+	(if *nlm-debug*
+	    (logit "NLM: Removing ~a from retry list.~%" entry))
+	(setf *nlm-retry-list* (delete entry *nlm-retry-list*))))
+    
+    (nlm-remove-monitoring addr)))
+
+
+;; A client restarted.  Release their locks.
+;; arg is an nsm-callback-status
+(defun nlm-nsm-callback (arg vers peer cbody)
+  (declare (ignore cbody vers))
+  (let ((host (nsm-callback-status-mon-name arg))
+	(state (nsm-callback-status-state arg))
+	(addr (rpc-peer-addr peer)))
+    
+    (if *nlm-debug*
+	(logit "NLM: NSM reported new state for ~a: ~a~%" 
+	       host state))
+    
+    (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+      (nlm-cleanup-common (socket:dotted-to-ipaddr host)))))
+
+(defvar *nlm-monitored-hosts* nil)
+
+(defun nlm-addr-in-monitored-list (addr)
+  (member addr *nlm-monitored-hosts* :test #'socket:ipaddr-equalp))
+
+(defun nlm-add-monitoring (addr)
+  (let ((dotted (socket:ipaddr-to-dotted addr)))
+    (mp:with-process-lock (*nlm-state-lock*)
+      (if* (nlm-addr-in-monitored-list addr)
+	 then (if *nlm-debug*
+		  (logit "NLM: ~a already set up for monitoring. (OK)~%"
+			 dotted))
+	 else (let ((priv #.(make-array 16 :element-type '(unsigned-byte 8)
+					:initial-element 0)))
+		(if *nlm-debug*
+		    (logit "NLM: Calling NSM to add monitoring for ~a~%"
+			   dotted))
+		
+		;; XXX make rpcgen generate nice defuns to encapsulate this
+		;; nonsense.
+		(handler-case
+		    (callrpc 
+		     #.(socket:dotted-to-ipaddr "127.0.0.1")
+		     #.*sm-prog*
+		     #.*sm-vers*
+		     #.*sm-mon*
+		     :udp
+		     #'xdr-mon
+		     (make-mon :mon-id 
+			       (make-mon-id 
+				:mon-name dotted
+				:my-id (make-my-id 
+					:my-name "127.0.0.1"
+					:my-prog #.*nlm-prog*
+					:my-vers 1 
+					:my-proc 99))
+			       :priv priv)
+		     :outproc #'xdr-sm-stat-res)
+		  (error (c)
+		    (logit "~
+NLM: Unexpected error while calling NSM MON: ~a~%" c))
+		  (:no-error (res)
+		    (let ((status (sm-stat-res-res-stat res))) ;; Cripes!
+		      (if* (= status #.*stat-succ*)
+			 then (if *nlm-debug*
+				  (logit "NLM: ==> Success~%"))
+			      (push addr *nlm-monitored-hosts*)
+			 else (if *nlm-debug*
+				  (logit "NLM: ==> Failed~%")))))))))))
+
+
+(defun nlm-remove-monitoring (addr)
+  (let ((dotted (socket:ipaddr-to-dotted addr)))
+    (mp:with-process-lock (*nlm-state-lock*)
+      (if* (not (nlm-addr-in-monitored-list addr))
+	 then (if *nlm-debug*
+		  (logit "NLM: nlm-remove-monitoring: ~a not on monitoring list. (OK)~%"
+			 dotted))
+	 else (when (and 
+		     (null (nlm-find-locks-by-addr addr *nlm-locks*))
+		     (null (nlm-find-locks-by-addr addr *nlm-retry-list*))
+		     (null (nlm-find-locks-by-addr addr *nlm-notify-list*)))
+		(if *nlm-debug*
+		    (logit "NLM: Calling NSM to remove monitoring for ~a~%" 
+			   dotted))
+		
+		(handler-case
+		    (callrpc 
+		     #.(socket:dotted-to-ipaddr "127.0.0.1")
+		     #.*sm-prog*
+		     #.*sm-vers*
+		     #.*sm-unmon*
+		     :udp
+		     #'xdr-mon-id
+		     (make-mon-id 
+		      :mon-name dotted
+		      :my-id (make-my-id 
+			      :my-name "127.0.0.1"
+			      :my-prog #.*nlm-prog*
+			      :my-vers 1 
+			      :my-proc 99)))
+		  (error (c)
+		    (logit "~
+NLM: Unexpected error while calling NSM UNMON: ~a~%" c))
+		  (:no-error (res)
+		    (declare (ignore res))
+		    (if *nlm-debug*
+			(logit "NLM: ==> Success~%"))))
+		;; Remove from list even if the call didn't go through.
+		(setf *nlm-monitored-hosts* 
+		  (delete addr *nlm-monitored-hosts*
+			  :test #'socket:ipaddr-equalp)))))))

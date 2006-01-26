@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.31 2006/01/25 20:35:50 dancy Exp $
+;; $Id: sunrpc.cl,v 1.32 2006/01/26 03:42:59 dancy Exp $
 
 (in-package :user)
 
@@ -531,7 +531,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		      (funcall outproc results)
 		    results))))))
       
-      (error "rpc call failed"))))
+      (error "rpc call failed (no response)"))))
 
 (defun protocol-to-string (proto)
   (if* (or (eq proto :udp) (eql proto #.IPPROTO_UDP))
@@ -570,9 +570,9 @@ Accepting new tcp connection and adding it to the client list.~%"))
 					    IPPROTO_TCP)
 	   ,@body)))))
 
-(defmacro def-rpc-program-main ((program prognum proc-versions usock tsock
-				 lowest-version highest-version)
-				&body prologue)
+;; 'program' is a string.
+(defmacro def-rpc-program-main (program prognum proc-versions usock tsock
+				lowest-version highest-version)
   (let ((buffer (gensym))
 	(server (gensym))
 	(xdr (gensym))
@@ -582,6 +582,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(vers (gensym))
 	(res (gensym))
 	(params (gensym))
+	(init-func (intern (concatenate 'string program "-init")))
 	version-cases)
     
     (dolist (vdef proc-versions)
@@ -610,7 +611,8 @@ Accepting new tcp connection and adding it to the client list.~%"))
 				      :buffer ,buffer)))
        (declare (dynamic-extent ,buffer ,server))
        
-       ,@prologue
+       (if (fboundp ',init-func)
+	   (funcall ',init-func))
        
        (loop
 	 (block nil
@@ -668,7 +670,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 				       ,peer
 				       ,cbody))))))))))))
 
-(defmacro def-rpc-program ((prgname prognum) definitions &body prologue)
+(defmacro def-rpc-program ((prgname prognum) definitions)
   (let ((program (symbol-name prgname))
 	(tsock (gensym))
 	(usock (gensym)))
@@ -690,10 +692,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
       `(defun ,prgname ()
 	 (declare (optimize (speed 3)))
 	 (def-rpc-program-1 (,program ,prognum ,all-versions ,usock ,tsock)
-	     (def-rpc-program-main (,program ,prognum ,proc-versions 
-					     ,usock ,tsock
-					     ,(first all-versions)
-					     ,(car (last all-versions)))
-		 
-		 
-		 ,@prologue))))))
+	     (def-rpc-program-main ,program ,prognum ,proc-versions 
+				   ,usock ,tsock
+				   ,(first all-versions)
+				   ,(car (last all-versions))))))))

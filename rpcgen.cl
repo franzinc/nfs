@@ -145,13 +145,16 @@
     (format t "(defxdrstruct ~a (" typename)
     
     (while (not (eq (rpcgen-peekchar stream) #\}))
-      (multiple-value-bind (slottype slotname)
+      (multiple-value-bind (slottype slotname varfixed len)
 	  (rpcgen-parse-type-and-name stream)
 	(rpcgen-lex stream #\;)
 	(if* first
 	   then (setf first nil)
 	   else (format t "~%~a" indent))
-	(format t "(~a ~a)" slottype slotname)))
+	(format t "(~a ~a" slottype slotname)
+	(if varfixed
+	    (format t " ~s ~a" varfixed len))
+	(format t ")")))
     
     (format t "))~%~%")
     
@@ -199,20 +202,39 @@
     (rpcgen-lex stream #\})
     (rpcgen-lex stream #\;)))
 
-(defun rpcgen-parse-type-and-name (stream)
+(defun rpcgen-parse-type (stream)
   (let ((type (rpcgen-lex stream :word)))
     (if (string= type "struct")
 	(setf type (rpcgen-lex stream :word)))
-    (setf type (lispify-string type))
-    
+    (lispify-string type)))
+
+;; returns values:
+;;  type, name, variable/fixed, length 
+(defun rpcgen-parse-type-and-name (stream)
+  (let ((type (rpcgen-parse-type stream)))
     (if* (string= type "void")
        then "void"
-       else (let ((name (lispify-string (rpcgen-lex stream :word))))
-	      (if* (eq (rpcgen-peekchar stream) #\<)
-		 then (rpcgen-lex stream #\<)
-		      (rpcgen-lex stream :word)
-		      (rpcgen-lex stream #\>))
-	      (values type name)))))
+       else (let ((name (lispify-string (rpcgen-lex stream :word)))
+		  (char (rpcgen-peekchar stream))
+		  variable-fixed len)
+	      (if* (or (eq char #\[) (eq char #\<))
+		 then (rpcgen-lex stream char)
+		      (setf len (constantify-string (rpcgen-lex stream :word)))
+		      (ecase char
+			(#\[
+			 (setf char #\])
+			 (setf variable-fixed :fixed))
+			(#\<
+			 (setf char #\>)
+			 (setf variable-fixed :variable)))
+		      (rpcgen-lex stream char))
+	      
+	      (when (string= type "string")
+		(if (eq variable-fixed :fixed)
+		    (error "string ~a[~a]: Ambigious.  Fixed size string or array of strings? Aborting" name len))
+		(setf variable-fixed nil))
+		      
+	      (values type name variable-fixed len)))))
 
 (defun rpcgen-program (stream main-prg-name)
   (let (prgname prognum vers-defs)
@@ -279,15 +301,12 @@
 
 ;; Returns list of the name, procnum, arg type, and return type
 (defun rpcgen-function (stream)
-  (let ((ret-type (lispify-string (rpcgen-lex stream :word)))
+  (let ((ret-type (rpcgen-parse-type stream))
 	(func-name (lispify-string (rpcgen-lex stream :word)))
 	arg-type procnum)
     (rpcgen-lex stream #\()
     
-    (setf arg-type (rpcgen-lex stream :word))
-    (if (equalp arg-type "struct")
-	(setf arg-type (rpcgen-lex stream :word)))
-    (setf arg-type (lispify-string arg-type))
+    (setf arg-type (rpcgen-parse-type stream))
     
     (rpcgen-lex stream #\))
     (rpcgen-lex stream #\=)
@@ -302,4 +321,6 @@
   (string-downcase (substitute #\- #\_ string)))
 
 (defun constantify-string (string)
-  (concatenate 'string "*" (lispify-string string) "*"))
+  (if (ignore-errors (parse-integer string))
+      string
+    (concatenate 'string "*" (lispify-string string) "*")))

@@ -1,20 +1,15 @@
 
-$Id: TODO.txt,v 1.6 2006/01/25 20:35:50 dancy Exp $
+$Id: TODO.txt,v 1.7 2006/01/26 03:42:58 dancy Exp $
 
-Redo nsm.cl using rpcgen.
-
-nlm: Lock down most operations during grace period.
-nlm: interface w/ nsm.  Find all places where we need to turn
-     monitoring on (when a lock is obtained.. even if we have 
-     not successfully notified, and when a lock is unlocked..
-     for whatever reason.. look at calls to nlm-do-unlock)
-
+nlm: Add grace period support.
+nlm: Test server restart notification.
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
+
+rpcgen: Generate client functions as well.  Use them in nlm.cl
 
 nlm: Check all places in nfs.cl where close-open-file is called.  Make
  sure that they can't conflict with file locks (closing a file
  drops the locks)
 
 Everywhere: Use memcpy in places where it is usable (like in xdr-opaque-fixed).
-
 

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.22 2006/01/25 03:28:29 dancy Exp $
+;; $Id: xdr.cl,v 1.23 2006/01/26 03:42:59 dancy Exp $
 
 (in-package :user)
 
@@ -656,17 +656,59 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (intern (concatenate 'string (symbol-name structname) "-"
 		       (symbol-name slot))))
 
+(defun xdr-varfixed-extract (type varfixed len)
+  (if* (eq type 'opaque)
+     then (ecase varfixed
+	    (:fixed `(xdr-opaque-fixed xdr :len ,len))
+	    (:variable `(xdr-opaque-variable xdr)))
+     else (let ((decoder (xdr-prepend-xdr type)))
+	    (ecase varfixed
+	      (:fixed `(xdr-array-fixed xdr #',decoder :len ,len))
+	      (:variable `(xdr-array-variable xdr #',decoder))))))
+
+
+(defun xdr-varfixed-build (structname obj type slot varfixed)
+  (let ((accessor (xdr-struct-accessor structname slot))
+	(encoder (xdr-prepend-xdr type)))
+    (if* (eq type 'opaque)
+       then `(,(ecase varfixed
+		 (:fixed 'xdr-opaque-fixed)
+		 (:variable 'xdr-opaque-variable))
+		 xdr :vec (,accessor ,obj))
+       else `(,(ecase varfixed
+		 (:fixed 'xdr-array-fixed)
+		 (:variable 'xdr-array-variable))
+		 xdr #',encoder :things (,accessor ,obj)))))
+
+(defun xdr-extractor-form (type varfixed len)
+  (if varfixed
+      (xdr-varfixed-extract type varfixed len)
+    `(,(xdr-prepend-xdr type) xdr)))
+
+(defun xdr-builder-form (structname obj type slot varfixed)
+  (if varfixed
+      (xdr-varfixed-build structname obj type slot varfixed)
+    `(,(xdr-prepend-xdr type) xdr (,(xdr-struct-accessor structname slot)
+				   ,obj))))
+
 (defmacro defxdrstruct (structname members)
   (let* ((maker (intern (concatenate 'string (symbol-name 'make) "-"
 				     (symbol-name structname))))
-	 extractions)
+	 extractions builds)
+    
     (dolist (member members)
-      (let ((type (first member))
-	    (member (second member)))
-	(setf extractions (append extractions
-				  (list (intern member :keyword) 
-					`(,(xdr-prepend-xdr type) xdr))))))
-      
+      (let* ((type (first member))
+	     (name (second member))
+	     (varfixed (third member))
+	     (len (fourth member))
+	     (slotkeyword (intern name :keyword))
+	     (form (xdr-extractor-form type varfixed len)))
+	
+	(setf extractions (append extractions `(,slotkeyword ,form)))
+	(push (xdr-builder-form structname 'arg type name varfixed) builds)))
+    
+    (setf builds (nreverse builds))
+    
     `(progn
        (defstruct ,structname
 	 ,@(mapcar #'second members))
@@ -674,12 +716,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (defun ,(xdr-prepend-xdr structname) (xdr &optional arg)
 	 (ecase (xdr-direction xdr)
 	   (:build
-	    ,@(mapcar #'(lambda (member)
-			  (let* ((type (first member))
-				 (member (second member))
-				 (accessor (xdr-struct-accessor structname member)))
-			    `(,(xdr-prepend-xdr type) xdr (,accessor arg))))
-		      members))
+	    ,@builds)
 	   (:extract
 	    (,maker 
 	     ,@extractions)))))))
@@ -696,7 +733,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
     (dolist (arm arms)
       (let ((case (first arm))
 	    (slot-type (second arm))
-	    (slot-name (third arm)))
+	    (slot-name (third arm))
+	    (varfixed (fourth arm))
+	    (len (fifth arm)))
 	
 	(when (not (eq slot-type 'void))
 	  (push slot-name slots)
@@ -706,12 +745,11 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		    else `(eql discrim ,case))))
 	    
 	    (push `(,conditional
-		    (,(xdr-prepend-xdr slot-type) 
-		     xdr (,(xdr-struct-accessor type slot-name) arg)))
+		    ,(xdr-builder-form type 'arg slot-type slot-name varfixed))
 		  builds)
 	    (push `(,conditional
 		    (setf (,(xdr-struct-accessor type slot-name) res) 
-		      (,(xdr-prepend-xdr slot-type) xdr)))
+		      ,(xdr-extractor-form slot-type varfixed len)))
 		  extractions)))))
     
     (setf slots (nreverse slots))
