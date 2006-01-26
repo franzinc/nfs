@@ -1,7 +1,6 @@
 
-$Id: TODO.txt,v 1.7 2006/01/26 03:42:58 dancy Exp $
+$Id: TODO.txt,v 1.8 2006/01/26 15:23:21 dancy Exp $
 
-nlm: Add grace period support.
 nlm: Test server restart notification.
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
 
