@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.9 2006/01/26 15:23:21 dancy Exp $
+;; $Id: nlm.cl,v 1.10 2006/01/27 00:23:04 dancy Exp $
 
 (in-package :user)
 
@@ -544,13 +544,10 @@
       status)))
 	      
 
-(defun nlm-access-ok (lock cbody)
-  (let ((cred (call-body-cred cbody))
-	(fh (nlm-lock-internal-fh lock)))
-    (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
-      (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
-	     (uid (auth-unix-uid au)))
-	(export-user-write-access-allowed-p (fh-export fh) uid)))))
+;; HP/UX uses auth-null so we can't check against the username.
+;; We just do host access checking.  
+(defun nlm-access-ok (lock addr)
+  (export-host-access-allowed-p (fh-export (nlm-lock-internal-fh lock)) addr))
 
 ;; Procedures
 
@@ -573,6 +570,7 @@
   (nlm-lock arg vers peer cbody))
 
 (defun nlm-lock (arg vers peer cbody &key async (monitor t))
+  (declare (ignore cbody))
   (let* ((exclusive (nlm-lockargs-exclusive arg))
 	 (alock (nlm-lockargs-alock arg))
 	 (cookie (nlm-lockargs-cookie arg))
@@ -606,7 +604,7 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
-     elseif (not (nlm-access-ok lock cbody))
+     elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
 		(logit "==> Access denied by configuration.~%"))
 	    (setf status #.*lck-denied*)
@@ -641,6 +639,7 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
   (nlm-unlock arg vers peer cbody))
 
 (defun nlm-unlock (arg vers peer cbody &key async)
+  (declare (ignore cbody))
   (let* ((lock (nlm-internalize-lock (nlm-unlockargs-alock arg) nil vers))
 	 (fh (nlm-lock-internal-fh lock))
 	 (addr (rpc-peer-addr peer))
@@ -658,7 +657,7 @@ NLM: ~a: UNLOCK~a~a ~a~%"
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
-     elseif (not (nlm-access-ok lock cbody))
+     elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
 		(logit "==> Access denied by configuration.~%"))
 	    (setf status #.*lck-denied*)
@@ -692,20 +691,22 @@ NLM: Unexpected error during UNLOCK call: ~a~%" c)
   (nlm-cancel arg vers peer cbody))
 
 (defun nlm-cancel (arg vers peer cbody &key async)
+  (declare (ignore cbody))
   (let ((lock (nlm-internalize-lock (nlm-cancargs-alock arg) nil vers))
+	(addr (rpc-peer-addr peer))
 	(status #.*lck-granted*)) ;; always report success
     
     (if *nlm-debug*
 	(logit "~
 NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       (socket:ipaddr-to-dotted addr)
 	       (if-nlm-v4 vers "4" "")
 	       (if async "_MSG" "")
 	       lock
 	       (nlm-cancargs-block arg)
 	       (nlm-cancargs-exclusive arg)))
 
-    (if* (nlm-access-ok lock cbody)
+    (if* (nlm-access-ok lock addr)
        then (nlm-cancel-pending-retry lock)
        else (if *nlm-debug*
 		(logit "==> Access denied by configuration.~%"))
@@ -724,18 +725,20 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
   (nlm-test arg vers peer cbody))
 
 (defun nlm-test (arg vers peer cbody &key async)
+  (declare (ignore cbody))
   (let* ((exclusive (nlm-testargs-exclusive arg))
 	 (lock (nlm-internalize-lock (nlm-testargs-alock arg) exclusive
 				     vers))
 	 (fh (nlm-lock-internal-fh lock))
 	 (offset (nlm-lock-internal-offset lock))
 	 (len (nlm-lock-internal-len lock))
+	 (addr (rpc-peer-addr peer))
 	 (status (if-nlm-v4 vers #.*nlm4-failed* #.*lck-denied-nolocks*))
 	 holder)
   
     (if *nlm-debug*
 	(logit "NLM: ~a: TEST~a~a ~a, Exclusive: ~a~%"
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
+	       (socket:ipaddr-to-dotted addr)
 	       (if-nlm-v4 vers "4" "")
 	       (if async "_MSG" "")
 	       lock
@@ -744,7 +747,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
     (if* (not (fh-p fh))
        then (if-nlm-v4 vers 
 		       (setf status #.*nlm4-stale-fh*))
-     elseif (not (nlm-access-ok lock cbody))
+     elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
 		(logit "==> Access denied by configuration.~%"))
 	    (setf status #.*lck-denied*)

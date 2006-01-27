@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.4 2006/01/26 03:42:59 dancy Exp $
+;; $Id: nsm.cl,v 1.5 2006/01/27 00:23:04 dancy Exp $
 
 (in-package :user)
 
@@ -413,23 +413,23 @@
 
 (defun nsm-notify-peers ()
   (mp:with-process-lock (*nsm-state-lock*)
-  
-    (if (null *nsm-our-name*)
+    (when *nsm-monitored-hosts*
+      (when (null *nsm-our-name*)
 	(setf *nsm-our-name* (gethostname)))
   
-    (let ((entries *nsm-monitored-hosts*))
-      (setf *nsm-monitored-hosts* nil)
+      (let ((entries *nsm-monitored-hosts*))
+	(setf *nsm-monitored-hosts* nil)
     
-      (dolist (entry entries)
-	(if *nsm-debug*
-	    (logit "~
+	(dolist (entry entries)
+	  (if *nsm-debug*
+	      (logit "~
 NSM: Notifying ~a of our new state.~%" 
-		   (nsm-monitor-host entry)))
+		     (nsm-monitor-host entry)))
 	
-	(mp:process-run-function 
-	    (format nil "~
+	  (mp:process-run-function 
+	      (format nil "~
 NSM notifying ~a of new state" (nsm-monitor-host entry))
-	  #'nsm-notify-peer (nsm-monitor-host entry) *nsm-state*)))))
+	    #'nsm-notify-peer (nsm-monitor-host entry) *nsm-state*))))))
 
 (defun nsm-notify-peer (host state)
   ;; XXX -- should we ever give up?
@@ -446,7 +446,7 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
       (:no-error (results)
 	(declare (ignore results))
 	(if *nsm-debug*
-	    (logit "NSM: Successfully notified of our new state.~a~%" host))
+	    (logit "NSM: Successfully notified ~a of our new state.~%" host))
 	(return-from nsm-notify-peer)))
     
     (sleep *nsm-notify-retry-interval*)))
