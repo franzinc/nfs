@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.53 2005/11/28 21:56:25 layer Exp $
+# $Id: Makefile,v 1.54 2006/01/30 18:49:11 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 ### IMPORTANT: the nightly builds the product need to use a local copy and
 ###	       and not one in /c/Program Files/...  only change the ../aclxxx
 ###	       when the build machine's copy is updated.
-LISPDIR := $(shell if test -f ../acl80b/mlisp; then echo ../acl80b; else echo '"/c/Program Files/acl80"'; fi)
+LISPDIR = "/c/Program Files/acl80"
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
