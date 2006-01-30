@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.5 2006/01/27 00:23:04 dancy Exp $
+;; $Id: nsm.cl,v 1.6 2006/01/30 15:33:43 dancy Exp $
 
 (in-package :user)
 
@@ -355,10 +355,11 @@
 	(logit "NSM: ~a: NOTIFY (~a, ~a)~%" 
 	       dotted host newstate))
     
-    ;; Notify interested parties.
+    ;; Notify interested parties (if the status actually changed)
     (mp:with-process-lock (*nsm-state-lock*)
       (dolist (entry *nsm-monitored-hosts*)
-	(when (string= (nsm-monitor-host entry) dotted)
+	(when (and (string= (nsm-monitor-host entry) dotted)
+		   (not (equal (nsm-monitor-state entry) newstate)))
 	  (if *nsm-debug*
 	      (logit "==> Adding ~a to callback list.~%" 
 		     (nsm-monitor-to-string entry)))

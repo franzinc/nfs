@@ -1,7 +1,11 @@
 
-$Id: TODO.txt,v 1.8 2006/01/26 15:23:21 dancy Exp $
+$Id: TODO.txt,v 1.9 2006/01/30 15:33:43 dancy Exp $
 
-nlm: Test server restart notification.
+nlm: Test server restart notification (at least get to a place
+     where a linux machine will notice and an hpux machine will
+     notice.. and by notice I mean that I expect them to try to
+     reestablish their locks (which won't work, but they should 
+     try).
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
 
 rpcgen: Generate client functions as well.  Use them in nlm.cl
