@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.6 2006/01/30 15:33:43 dancy Exp $
+;; $Id: nsm.cl,v 1.7 2006/01/30 16:33:50 dancy Exp $
 
 (in-package :user)
 
@@ -420,6 +420,7 @@
   
       (let ((entries *nsm-monitored-hosts*))
 	(setf *nsm-monitored-hosts* nil)
+	(nsm-save-state)
     
 	(dolist (entry entries)
 	  (if *nsm-debug*

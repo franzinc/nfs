@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.33 2006/01/30 16:13:52 dancy Exp $
+;; $Id: sunrpc.cl,v 1.34 2006/01/30 16:33:50 dancy Exp $
 
 (in-package :user)
 
@@ -585,9 +585,6 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(init-func (intern (concatenate 'string program "-init")))
 	version-cases)
 
-    ;; XXX should add a default case to the procedure case
-    ;; so that unrecognized procedures result in a negative reply
-    ;; of some sort.
     (dolist (vdef proc-versions)
       (let (proc-cases)
 	(dolist (procdef (cdr vdef))
@@ -597,6 +594,19 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	     (setf args-decoder (quote ,(xdr-prepend-xdr (third procdef))))
 	     (setf res-encoder (quote ,(xdr-prepend-xdr (fourth procdef)))))
 	   proc-cases))
+	
+	(push `(t 
+		(logit "~
+~a: ~a requested procedure ~d, version ~a, which is unavailable.~%" 
+		       ,program
+		       (socket:ipaddr-to-dotted (rpc-peer-addr ,peer))
+		       (call-body-proc ,cbody) (call-body-vers ,cbody))
+		       
+		(rpc-send-proc-unavail ,peer (rpc-msg-xid ,msg)
+				       (nfsd-null-verf))
+		(return))
+	      proc-cases)
+	
 	(setf proc-cases (nreverse proc-cases))
 	(push 
 	 `(,(car vdef)

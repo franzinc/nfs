@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.26 2006/01/30 16:13:52 dancy Exp $
+;; $Id: portmap.cl,v 1.27 2006/01/30 16:33:50 dancy Exp $
 
 ;; portmapper
 
@@ -147,7 +147,7 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	(if* (/= prog #.*pmapprog*)
 	   then (logit "~
 PMAP: Sending program unavailable response for prog=~D to ~A~%"
-		       prog peer)
+		       prog dotted)
 		(rpc-send-prog-unavail peer xid (null-verf))
 		(return))
 	
@@ -169,8 +169,8 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 	  (#.*pmap-proc-callit* 
 	   (portmap-callit peer xid (call-body-params cbody)))
 	  (t 
-	   ;; should send a negative response
-	   (logit "PMAP: ~a: unhandled procedure ~D~%" dotted proc)))))))
+	   (logit "PMAP: ~a: unhandled procedure ~D~%" dotted proc)
+	   (rpc-send-proc-unavail peer xid (nfsd-null-verf))))))))
 
 
 (defun portmap-null (peer xid)

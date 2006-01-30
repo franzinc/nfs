@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.93 2006/01/30 16:13:52 dancy Exp $
+;; $Id: nfs.cl,v 1.94 2006/01/30 16:33:49 dancy Exp $
 
 (in-package :user)
 
@@ -131,7 +131,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (error "Unexpected data!"))
     
     ;; sanity checks first
-    (when (not (= (call-body-prog cbody) *nfsprog*))
+    (when (not (= (call-body-prog cbody) #.*nfsprog*))
       (if *nfs-debug*
 	  (logit "Sending program unavailable response for prog=~D~%"
 		  (call-body-prog cbody)))
