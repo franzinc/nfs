@@ -1,3 +1,13 @@
+2006-01-30    <dancy@DANCYSOFT>
+	* Allegro NFS now checks for an already-running instance when
+	initializing.  It will abort in a noticable way if there is.  This
+	will help de-obscure this semi-typical failure scenario.
+
+	* Made some logging messages more informative and more consistent.
+
+	* Portmapper now sends proper responses for program-unavailable or
+	mismatched versions [spr31061].
+	
 2006-01-30  Ahmon Dancy  <dancy@dancy>
 
 	* rfc1833.txt: New file. Defines newer versions of the portmapper

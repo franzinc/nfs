@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.32 2006/01/26 03:42:59 dancy Exp $
+;; $Id: sunrpc.cl,v 1.33 2006/01/30 16:13:52 dancy Exp $
 
 (in-package :user)
 
@@ -584,7 +584,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(params (gensym))
 	(init-func (intern (concatenate 'string program "-init")))
 	version-cases)
-    
+
+    ;; XXX should add a default case to the procedure case
+    ;; so that unrecognized procedures result in a negative reply
+    ;; of some sort.
     (dolist (vdef proc-versions)
       (let (proc-cases)
 	(dolist (procdef (cdr vdef))

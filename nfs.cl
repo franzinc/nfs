@@ -22,13 +22,12 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.92 2006/01/25 20:35:50 dancy Exp $
+;; $Id: nfs.cl,v 1.93 2006/01/30 16:13:52 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile) (declaim (optimize (speed 3))))
 
-(defconstant *nfsprog* 100003)
 (defconstant *nfsport* 2049)
 (defconstant *maxdata* 8192)
 (defconstant *maxpathlen* 1024)

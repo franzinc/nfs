@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.25 2006/01/25 03:28:29 dancy Exp $
+;; $Id: portmap.cl,v 1.26 2006/01/30 16:13:52 dancy Exp $
 
 ;; portmapper
 
@@ -129,28 +129,49 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
   
       
 (defun portmap-message-handler (xdr peer)
-  (let (msg cbody)
-    (setf msg (create-rpc-msg xdr))
-    (setf cbody (rpc-msg-cbody msg))
-    ;;(pprint-cbody cbody)
-    (unless (= (rpc-msg-mtype msg) 0)
-      (error "Unexpected data!"))
-    (when (and (= (call-body-prog cbody) *pmapprog*)
-               (= (call-body-vers cbody) *pmapvers*))
-      (case (call-body-proc cbody)
-	(#.*pmap-proc-null*
-	 (portmap-null peer (rpc-msg-xid msg)))
-	(#.*pmap-proc-dump*
-	 (portmap-dump peer (rpc-msg-xid msg)))
-	(#.*pmap-proc-getport*
-	 (portmap-getport peer (rpc-msg-xid msg) (call-body-params cbody)))
-	(#.*pmap-proc-callit* 
-	 (portmap-callit peer (rpc-msg-xid msg) (call-body-params cbody)))
-	(t 
-	 ;; should send a negative response
-	 (logit "PMAP: ~a: unhandled procedure ~D~%"
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer))
-		(call-body-proc cbody)))))))
+  (block nil
+    (let (msg cbody)
+      (setf msg (create-rpc-msg xdr))
+      (setf cbody (rpc-msg-cbody msg))
+      ;;(pprint-cbody cbody)
+      (unless (= (rpc-msg-mtype msg) 0)
+	(error "Unexpected data!"))
+      
+      (let ((prog (call-body-prog cbody))
+	    (proc (call-body-proc cbody))
+	    (vers (call-body-vers cbody))
+	    (xid (rpc-msg-xid msg))
+	    (dotted (if *portmap-debug* 
+			(socket:ipaddr-to-dotted (rpc-peer-addr peer)))))
+	
+	(if* (/= prog #.*pmapprog*)
+	   then (logit "~
+PMAP: Sending program unavailable response for prog=~D to ~A~%"
+		       prog peer)
+		(rpc-send-prog-unavail peer xid (null-verf))
+		(return))
+	
+	(if* (/= vers #.*pmapvers*)
+	   then (logit "~
+PMAP: Sending program version mismatch response (requested version was ~D) to ~A~%" 
+		       vers dotted)
+		(rpc-send-prog-mismatch peer xid (null-verf) 
+					#.*pmapvers* #.*pmapvers*)
+		(return))
+
+	(case proc
+	  (#.*pmap-proc-null*
+	   (portmap-null peer xid))
+	  (#.*pmap-proc-dump*
+	   (portmap-dump peer xid))
+	  (#.*pmap-proc-getport*
+	   (portmap-getport peer xid (call-body-params cbody)))
+	  (#.*pmap-proc-callit* 
+	   (portmap-callit peer xid (call-body-params cbody)))
+	  (t 
+	   ;; should send a negative response
+	   (logit "PMAP: ~a: unhandled procedure ~D~%" dotted proc)))))))
+
 
 (defun portmap-null (peer xid)
   (if *portmap-debug* 
@@ -326,8 +347,8 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 ;; return nil if not.
 (defun ping-portmapper ()
   (ignore-errors
-   (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-null* :udp
-	    nil nil :port *pmapport*)))
+   (callrpc "127.0.0.1" #.*pmapprog* #.*pmapvers* #.*pmap-proc-null* :udp
+	    nil nil :port #.*pmapport*)))
 
 
 ;; vers may be a list

@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.13 2006/01/25 03:54:31 dancy Exp $
+;; $Id: main.cl,v 1.14 2006/01/30 16:13:52 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -36,6 +36,21 @@
 
 ;;#+nfs-debug (eval-when (eval load) (require :trace))
 
+(defun ping-nfsd ()
+  (ignore-errors     
+   (callrpc #.(socket:dotted-to-ipaddr "127.0.0.1")
+	    #.*nfsprog*
+	    2 ;; version
+	    0 ;; null proc
+	    :udp
+	    #'xdr-void
+	    nil)))
+
+(defun check-nfs-already-running ()
+  (if (and (ping-portmapper) (ping-nfsd))
+      (bailout "~
+An NFS server is already running on this machine.  Aborting.~%")))
+
 (defun startem (&rest args)
   (declare (ignore args)
 	   (special *nlm-gate*))
@@ -43,6 +58,7 @@
   (setup-logging)
   (logit "Allegro NFS Server version ~A initializing...~%" 
 	 *nfsd-long-version*)
+  (check-nfs-already-running)
   (setf *pmap-process* (mp:process-run-function "portmapper" #'portmapper))
   (mp:process-wait "Waiting for portmapper to start" 
 		   #'mp:gate-open-p *pmap-gate*)

@@ -9,6 +9,8 @@
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
+(defconstant *nfsprog* 100003)
+
 (defconstant NFS_OK 0)
 
 ;; Not owner. The operation was not allowed because the caller is

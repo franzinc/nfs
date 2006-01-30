@@ -1,5 +1,5 @@
 
-$Id: TODO.txt,v 1.9 2006/01/30 15:33:43 dancy Exp $
+$Id: TODO.txt,v 1.10 2006/01/30 16:13:52 dancy Exp $
 
 nlm: Test server restart notification (at least get to a place
      where a linux machine will notice and an hpux machine will
@@ -16,3 +16,5 @@ nlm: Check all places in nfs.cl where close-open-file is called.  Make
 
 Everywhere: Use memcpy in places where it is usable (like in xdr-opaque-fixed).
 
+def-rpc-program-main (and other places like it):  Send a negative
+response if an unrecognized procedure is called.
