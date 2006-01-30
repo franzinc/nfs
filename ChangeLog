@@ -1,3 +1,8 @@
+2006-01-30  Ahmon Dancy  <dancy@dancy>
+
+	* rfc1833.txt: New file. Defines newer versions of the portmapper
+	(aka rpcbind) protocol.
+
 2006-01-23    <dancy@CANDY2K>
 
 	* Intermediate commit for nsm/nlm support:
