@@ -2,6 +2,11 @@
 4.3.3b1
 *******************************************************************************
 
+2006-01-30    <layer@HOBART>
+
+	* Makefile,
+	* configure/Makefile: always ACL 8.0 to build
+
 2006-01-30    <dancy@DANCYSOFT>
 	* Allegro NFS now checks for an already-running instance when
 	initializing.  It will abort in a noticable way if there is.  This
