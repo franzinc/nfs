@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.94 2006/01/30 16:33:49 dancy Exp $
+;; $Id: nfs.cl,v 1.95 2006/01/31 00:44:23 dancy Exp $
 
 (in-package :user)
 
@@ -694,7 +694,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 (define-nfs-proc readdir ((fh fhandle) (cookie unsigned) (count unsigned))
   (with-dirfh (fh)
     (with-permission (fh :read)
-      (add-direntries *nfsdxdr* fh count cookie 2)
+      (add-direntries *nfsdxdr* fh count count cookie 2 nil nil)
       (update-attr-atime fh))))
 
 
@@ -715,24 +715,27 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 			   (count unsigned))
   (with-dirfh (dirfh)
     (with-permission (dirfh :read)
-      (add-direntries *nfsdxdr* dirfh count cookie 3 cookieverf)
+      (add-direntries *nfsdxdr* dirfh count count cookie 3 cookieverf nil)
       (update-attr-atime dirfh))))
       
     
 ;; totalbytesadded starts at 8 because in the minimal case, we need to
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
-(defun add-direntries (xdr dirfh max startindex vers &optional verf)
+(defun add-direntries (xdr dirfh dirmax max startindex vers verf plus)
   (multiple-value-bind (dirlist dc)
       (nfs-lookup-dir dirfh)
     (let ((index startindex)
 	  (totalbytesadded 8)
+	  (dirbytesadded 0)
 	  (complete t)
 	  (entries 0)
 	  bytesadded
+	  innerbytesadded
 	  endindex
 	  p)
-      (declare (fixnum entries totalbytesadded index))
+      (declare (fixnum entries totalbytesadded dirbytesadded index
+		       bytesadded innerbytesadded))
       
       (if (eq *nfs-debug* :verbose)
 	  (logit "~%"))
@@ -764,9 +767,12 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	(setf p (nth index dirlist))
 	  
 	(when p ;; some entries can be nil (due to removal by client)
-	  (setf bytesadded 
-	    (make-direntry-xdr xdr dirfh p (1+ index) vers))
+	  (multiple-value-setq (bytesadded innerbytesadded)
+	    (make-direntry-xdr xdr dirfh p (1+ index) vers plus))
+	  
 	  (incf totalbytesadded bytesadded)
+	  (incf dirbytesadded innerbytesadded)
+	  
 	  (when (> totalbytesadded max)
 	    (if (eq *nfs-debug* :verbose) 
 		(logit " [not added due to size overflow]~%"))
@@ -806,24 +812,31 @@ struct entry {
 
 
 ;; returns number of bytes added to xdr
-(defun make-direntry-xdr (xdr dirfh filename cookie vers)
+(defun make-direntry-xdr (xdr dirfh filename cookie vers plus)
   (let* ((fh (lookup-fh-in-dir dirfh filename 
 			       :create t
 			       :allow-dotnames t))
-	 (fileid (fh-id fh)))
+	 (fileid (fh-id fh))
+	 inner-bytes-added)
     (when (eq *nfs-debug* :verbose)
       (logit "~D: ~A fileid=~A next=~A" 
-	      (1- cookie) filename fileid cookie))
-    (with-xdr-compute-bytes-added (xdr)
-      (xdr-int xdr 1) ;; indicate that data follows
-      (ecase vers
-	(2 (xdr-unsigned-int xdr fileid))
-	(3 (xdr-unsigned-hyper xdr fileid)))
-      (xdr-string xdr filename)
-      (ecase vers
-	(2 (xdr-int xdr cookie))
-	(3 (xdr-unsigned-hyper xdr cookie))))))
-
+	     (1- cookie) filename fileid cookie))
+    (values
+     (with-xdr-compute-bytes-added (xdr)
+       (setf inner-bytes-added
+	 (with-xdr-compute-bytes-added (xdr)
+	   (xdr-int xdr 1) ;; indicate that data follows
+	   (ecase vers
+	     (2 (xdr-unsigned-int xdr fileid))
+	     (3 (xdr-unsigned-hyper xdr fileid)))
+	   (xdr-string xdr filename)
+	   (ecase vers
+	     (2 (xdr-int xdr cookie))
+	     (3 (xdr-unsigned-hyper xdr cookie)))))
+       (when plus
+	 (nfs-xdr-post-op-attr xdr fh)
+	 (nfs-xdr-post-op-fh xdr fh)))
+     inner-bytes-added)))
 
 ;; Errors out if file doesn't exist or something.. otherwise,
 ;; returns file handle.
@@ -1371,10 +1384,15 @@ struct entry {
   (with-permission (dirfh :write)
     (nfs-unsupported)))
 
-;; dir, cookie, cookieverf, dircount, maxcount
-(define-nfs-proc readdirplus ((dirfh fhandle))
-  (with-permission (dirfh :read)
-    (nfs-unsupported)))
+(define-nfs-proc readdirplus ((dirfh fhandle)
+			      (cookie uint64)
+			      (cookieverf uint64)
+			      (dircount unsigned)
+			      (maxcount unsigned)) 
+  (with-dirfh (dirfh)
+    (with-permission (dirfh :read)
+      (add-direntries *nfsdxdr* dirfh dircount maxcount cookie 3 cookieverf t)
+      (update-attr-atime dirfh))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
