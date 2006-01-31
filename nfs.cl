@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.95 2006/01/31 00:44:23 dancy Exp $
+;; $Id: nfs.cl,v 1.96 2006/01/31 04:01:20 dancy Exp $
 
 (in-package :user)
 
@@ -773,7 +773,8 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  (incf totalbytesadded bytesadded)
 	  (incf dirbytesadded innerbytesadded)
 	  
-	  (when (> totalbytesadded max)
+	  (when (or (> totalbytesadded max)
+		    (> dirbytesadded dirmax))
 	    (if (eq *nfs-debug* :verbose) 
 		(logit " [not added due to size overflow]~%"))
 	    (xdr-backspace xdr bytesadded)
