@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.96 2006/01/31 04:01:20 dancy Exp $
+;; $Id: nfs.cl,v 1.97 2006/02/01 19:04:00 dancy Exp $
 
 (in-package :user)
 
@@ -257,6 +257,8 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 		(logit " => [Not found]~%"))
 	       (#.*enotempty*
 		(logit " => [Not empty]~%"))
+	       (#.*eexist*
+		(logit " => [Already exists]~%"))
 	       (t
 		(logit "Handling file error: ~A~%" c))))
 	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
@@ -936,7 +938,7 @@ struct entry {
 ;; args: fhandle dir, filename, sattr 
 ;; returns: status, fhandle, attributes (if okay status)
 
-;; Doesn't use sattr.
+;; XXX Doesn't use sattr.
 (define-nfs-proc create ((dirfh fhandle) (filename string) (sattr sattr))
   (with-permission (dirfh :write)
     (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
@@ -949,7 +951,7 @@ struct entry {
       (xdr-fhandle *nfsdxdr* vers fh)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
-;; attributes are ignored
+;; XXX attributes are ignored
 (define-nfs-proc create3 ((dirfh fhandle) 
 			  (filename string) 
 			  (how createhow3))
@@ -958,6 +960,7 @@ struct entry {
 	   (fh (lookup-fh-in-dir dirfh filename :create t))
 	   (newpath (fh-pathname fh))
 	   (res NFS_OK))
+
       (ecase (first how)
 	(:unchecked
 	 (close (open newpath :direction :output)))
@@ -965,18 +968,27 @@ struct entry {
 	 ;; the error handler will handle the *eexist* case.
 	 (close (open newpath :direction :output :if-exists :error)))
 	(:exclusive
-	 ;; We don't do this.
-	 (when *nfs-debug* (logit " exclusive mode not supported~%"))
-	 (setf res NFSERR_NOTSUPP)))
+	 ;; XXX - The verifier information is supposed to be stored in
+	 ;; stable storage but we don't do that because of how 
+	 ;; gross Windows filesystem semantics are with respect to
+	 ;; resolution.  Instead, we fake it by storing some information
+	 ;; in the file handle.
+	 (let ((verifier (second how)))
+	   (if* (eql verifier (fh-verifier fh))
+	      then ;; Must be a duplicate request.  Report success.
+		   (if *nfs-debug* (logit " Duplicate request (OK)~%"))
+	      else ;; the error handler will handle the *eexist* case
+		   (close (open newpath :direction :output :if-exists :error))
+		   (setf (fh-verifier fh) verifier)))))
+
       (if* (= res NFS_OK) 
-	 then
-	      (update-atime-and-mtime dirfh)
+	 then (update-atime-and-mtime dirfh)
 	      (nfs-add-file-to-dir filename dirfh)
 	      (xdr-int *nfsdxdr* NFS_OK)
 	      (nfs-xdr-post-op-fh *nfsdxdr* fh)
 	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
-	 else
-	      (xdr-int *nfsdxdr* res))
+	 else (xdr-int *nfsdxdr* res))
+      
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
   
 

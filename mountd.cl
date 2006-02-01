@@ -21,11 +21,14 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.24 2006/01/23 21:33:49 dancy Exp $
+;; $Id: mountd.cl,v 1.25 2006/02/01 19:04:00 dancy Exp $
 
 (in-package :user)
 
+(eval-when (compile load eval)
 (defconstant *mountprog* 100005)
+)
+
 
 (defparameter *mountd-tcp-socket* nil)
 (defparameter *mountd-udp-socket* nil)
@@ -52,8 +55,12 @@
       (bailout "
 Unexpected error while creating a mountd socket: ~a~%" c)))
   
-  (logit "Mountd using UDP port ~d~%" (socket:local-port *mountd-udp-socket*))
-  (logit "Mountd using TCP port ~d~%" (socket:local-port *mountd-tcp-socket*)))
+  (logit "~
+MNT: Mountd using UDP port ~d~%" 
+	 (socket:local-port *mountd-udp-socket*))
+  (logit "~
+MNT: Mountd Using TCP port ~d~%" 
+	 (socket:local-port *mountd-tcp-socket*)))
     
 (defun close-mountdsockets ()
   (when *mountd-tcp-socket*
@@ -95,7 +102,7 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	      (handler-case (mountd-message-handler xdr peer)
 		(error (c)
 		  (logit 
-		   "Mountd: Error while processing request from ~a: ~a~%"
+		   "MNT: Error while processing request from ~a: ~a~%"
 		   (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		   c))))))))))
 
@@ -107,18 +114,19 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
       
       ;; sanity checks first
       (when (null cbody)
-	(logit "Invalid message from ~A~%" peer)
+	(logit "MNT: Invalid message from ~A~%" 
+	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	(return))
       
-      (when (/= (call-body-prog cbody) *mountprog*)
-	(logit "Mountd: Sending program unavailable response for prog=~D to ~A~%"
+      (when (/= (call-body-prog cbody) #.*mountprog*)
+	(logit "MNT: Sending program unavailable response for prog=~D to ~A~%"
 	       (call-body-prog cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
 	(return))
 
       (unless (<= 1 (call-body-vers cbody) 3)
-	(logit "Mountd: Sending program version mismatch response (requested version was ~D) to ~A~%" 
+	(logit "MNT: Sending program version mismatch response (requested version was ~D) to ~A~%" 
 	       (call-body-vers cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) (null-verf) 1 3)
@@ -126,25 +134,31 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
       
       (case (call-body-proc cbody)
 	(0
-	 (mountd-null peer (rpc-msg-xid msg)))
+	 (mountd-null peer (rpc-msg-xid msg) cbody))
 	(1
 	 (mountd-mount peer (rpc-msg-xid msg) cbody))
 	(2
-	 (mountd-dump peer (rpc-msg-xid msg)))
+	 (mountd-dump peer (rpc-msg-xid msg) cbody))
 	(3
 	 (mountd-umount peer (rpc-msg-xid msg) cbody))
 	(4 
-	 (mountd-umntall peer (rpc-msg-xid msg)))
+	 (mountd-umntall peer (rpc-msg-xid msg) cbody))
 	(5
-	 (mountd-export peer (rpc-msg-xid msg)))
+	 (mountd-export peer (rpc-msg-xid msg) cbody))
 	(t
-	 ;; should send a negative response
-	 (logit "mountd: unhandled procedure ~D requested by ~A~%"
+	 (logit "MNT~d: unhandled procedure ~D requested by ~A~%"
+		(call-body-vers cbody)
 		(call-body-proc cbody)
-		(socket:ipaddr-to-dotted (rpc-peer-addr peer))))))))
+		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
+	 (rpc-send-proc-unavail peer (rpc-msg-xid msg)
+				(nfsd-null-verf)))))))
 
-(defun mountd-null (peer xid)
-  (if *mountd-debug* (logit "mountd-null~%~%"))
+
+(defun mountd-null (peer xid cbody)
+  (if *mountd-debug* 
+      (logit "MNT~a: ~a: NULL~%" 
+	     (call-body-vers cbody)
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (send-successful-reply peer xid (null-verf) xdr)))
 
@@ -166,7 +180,7 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	     (dirpath (xdr-string params))
 	     (exp (locate-export dirpath)))
 	(if *mountd-debug* 
-	    (logit "Mountd(v~D): ~A requests mount of ~A.~%"
+	    (logit "MNT~d: ~a: MOUNT ~a.~%"
 		   vers
 		   (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		   dirpath))
@@ -174,15 +188,15 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	  (cond 
 	   ((null exp)
 	    (if *mountd-debug*
-		(logit "Mount request denied (no such export).~%"))
+		(logit "==> Denied (no such export).~%"))
 	    (xdr-int res NFSERR_NOENT))
 	   ((not (export-host-access-allowed-p exp (rpc-peer-addr peer)))
 	    (if *mountd-debug* 
-		(logit "Mount request denied (host not allowed).~%"))
+		(logit "==> Denied (host not allowed).~%"))
 	    (xdr-int res NFSERR_ACCES))
 	   (t
 	    (if *mountd-debug*
-		(logit "Mount request accepted.~%"))
+		(logit "==> Accepted.~%"))
 	    (pushnew (list (rpc-peer-addr peer) dirpath) *mounts* 
 		     :test #'equalp)
 	    (xdr-int res NFS_OK)
@@ -193,9 +207,10 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	      (xdr-int res 1) ;; one entry
 	      (xdr-int res *AUTH_UNIX*)))))))))
 
-(defun mountd-dump (peer xid)
+(defun mountd-dump (peer xid cbody)
   (if *mountd-debug* 
-      (logit "Mountd: ~A mountd-dump.~%"
+      (logit "MNT~d: ~a: DUMP~%"
+	     (call-body-vers cbody)
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (with-successful-reply (res peer xid (null-verf))
     (dolist (entry *mounts*)
@@ -209,7 +224,8 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 		   (xdr-string x)))
 	(xdr (create-xdr :direction :build)))
     (if *mountd-debug* 
-	(logit "Mountd: ~A requests unmount of ~A.~%"
+	(logit "MNT~d: ~a: UMOUNT ~a.~%"
+	       (call-body-vers cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 	       dirpath))
     (setf *mounts* 
@@ -218,17 +234,21 @@ Unexpected error while creating a mountd socket: ~a~%" c)))
 	      :test #'equalp))
     (send-successful-reply peer xid (null-verf) xdr)))
 
-(defun mountd-umntall (peer xid)
+(defun mountd-umntall (peer xid cbody)
   (let ((xdr (create-xdr :direction :build)))
     (if *mountd-debug* 
-	(logit "Mountd: ~A: umntall~%"
+	(logit "MNT~d: ~a: UMNTALL~%"
+	       (call-body-vers cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     (setf *mounts* 
       (remove (rpc-peer-addr peer) *mounts* :key #'first))
     (send-successful-reply peer xid (null-verf) xdr)))
 
-(defun mountd-export (peer xid)
-  (if *mountd-debug* (logit "mountd-export~%~%"))
+(defun mountd-export (peer xid cbody)
+  (if *mountd-debug* 
+      (logit "MNT~d: ~a: EXPORT~%" 
+	     (call-body-vers cbody)
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
     (dotimes (n (length *exports*))
       (xdr-int xdr 1) ;; indicate that data follows

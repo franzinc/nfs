@@ -1,11 +1,6 @@
 
-$Id: TODO.txt,v 1.11 2006/01/30 16:33:49 dancy Exp $
+$Id: TODO.txt,v 1.12 2006/02/01 19:04:00 dancy Exp $
 
-nlm: Test server restart notification (at least get to a place
-     where a linux machine will notice and an hpux machine will
-     notice.. and by notice I mean that I expect them to try to
-     reestablish their locks (which won't work, but they should 
-     try).
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
 
 rpcgen: Generate client functions as well.  Use them in nlm.cl
@@ -15,3 +10,7 @@ nlm: Check all places in nfs.cl where close-open-file is called.  Make
  drops the locks)
 
 Everywhere: Use memcpy in places where it is usable (like in xdr-opaque-fixed).
+
+nfs.cl, create/create3: Why do we ignore sattr? Laziness or something real?
+If the former, fix.  If the latter, document in comments.
+

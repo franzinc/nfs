@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.21 2006/01/25 16:47:02 dancy Exp $
+;; $Id: fhandle.cl,v 1.22 2006/02/01 19:04:00 dancy Exp $
 
 ;; file handle stuff
 
@@ -54,7 +54,8 @@
   (refs 0)
   export
   parent ;; nil if root
-  children) ;; hash of basenames of directory children. values are fh's
+  children ;; hash of basenames of directory children. values are fh's
+  verifier) ;; used by create call w/ exclusive mode.
 
 (defun add-filename-to-dirname (dir filename)
   (if (char= (schar dir (1- (length dir))) #\\)
