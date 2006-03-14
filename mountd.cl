@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.25 2006/02/01 19:04:00 dancy Exp $
+;; $Id: mountd.cl,v 1.26 2006/03/14 16:52:34 dancy Exp $
 
 (in-package :user)
 
@@ -122,14 +122,14 @@ MNT: Mountd Using TCP port ~d~%"
 	(logit "MNT: Sending program unavailable response for prog=~D to ~A~%"
 	       (call-body-prog cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(rpc-send-prog-unavail peer (rpc-msg-xid msg) (null-verf))
+	(rpc-send-prog-unavail peer (rpc-msg-xid msg) *nullverf*)
 	(return))
 
       (unless (<= 1 (call-body-vers cbody) 3)
 	(logit "MNT: Sending program version mismatch response (requested version was ~D) to ~A~%" 
 	       (call-body-vers cbody)
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer)))
-	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) (null-verf) 1 3)
+	(rpc-send-prog-mismatch peer (rpc-msg-xid msg) *nullverf* 1 3)
 	(return))
       
       (case (call-body-proc cbody)
@@ -151,7 +151,7 @@ MNT: Mountd Using TCP port ~d~%"
 		(call-body-proc cbody)
 		(socket:ipaddr-to-dotted (rpc-peer-addr peer)))
 	 (rpc-send-proc-unavail peer (rpc-msg-xid msg)
-				(nfsd-null-verf)))))))
+				*nullverf*))))))
 
 
 (defun mountd-null (peer xid cbody)
@@ -160,7 +160,7 @@ MNT: Mountd Using TCP port ~d~%"
 	     (call-body-vers cbody)
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 (defparameter *mounts* nil)
 
@@ -184,7 +184,7 @@ MNT: Mountd Using TCP port ~d~%"
 		   vers
 		   (socket:ipaddr-to-dotted (rpc-peer-addr peer))
 		   dirpath))
-	(with-successful-reply (res peer xid (null-verf))
+	(with-successful-reply (res peer xid *nullverf*)
 	  (cond 
 	   ((null exp)
 	    (if *mountd-debug*
@@ -212,7 +212,7 @@ MNT: Mountd Using TCP port ~d~%"
       (logit "MNT~d: ~a: DUMP~%"
 	     (call-body-vers cbody)
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
-  (with-successful-reply (res peer xid (null-verf))
+  (with-successful-reply (res peer xid *nullverf*)
     (dolist (entry *mounts*)
       (xdr-int res 1) ;; data follows
       (xdr-string res (socket:ipaddr-to-dotted (first entry)))
@@ -232,7 +232,7 @@ MNT: Mountd Using TCP port ~d~%"
       (remove (list (rpc-peer-addr peer) dirpath) 
 	      *mounts*
 	      :test #'equalp))
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 (defun mountd-umntall (peer xid cbody)
   (let ((xdr (create-xdr :direction :build)))
@@ -242,7 +242,7 @@ MNT: Mountd Using TCP port ~d~%"
 	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
     (setf *mounts* 
       (remove (rpc-peer-addr peer) *mounts* :key #'first))
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 (defun mountd-export (peer xid cbody)
   (if *mountd-debug* 
@@ -255,7 +255,7 @@ MNT: Mountd Using TCP port ~d~%"
       (xdr-string xdr (nfs-export-name (svref *exports* n)))
       (xdr-int xdr 0)) ;; no group information
     (xdr-int xdr 0) ;; no more exports
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 ;; debugging/informational.  No callers.
 (defun showmounts ()

@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.7 2006/01/30 16:33:50 dancy Exp $
+;; $Id: nsm.cl,v 1.8 2006/03/14 16:52:34 dancy Exp $
 
 (in-package :user)
 
@@ -120,7 +120,7 @@
 (defvar *nsm-our-name* nil)
 
 (defparameter *nsm-state-file* "sys:nsm-state")
-(defparameter *nsm-debug* t)
+(defparameter *nsm-debug* nil)
 (defparameter *nsm-callback-retry-interval* 10) ;; seconds
 (defparameter *nsm-notify-retry-interval* 10) ;; seconds
 (defparameter *nsm-gate* (mp:make-gate nil))

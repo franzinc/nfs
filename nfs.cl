@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.97 2006/02/01 19:04:00 dancy Exp $
+;; $Id: nfs.cl,v 1.98 2006/03/14 16:52:34 dancy Exp $
 
 (in-package :user)
 
@@ -135,7 +135,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (if *nfs-debug*
 	  (logit "Sending program unavailable response for prog=~D~%"
 		  (call-body-prog cbody)))
-      (rpc-send-prog-unavail peer xid (nfsd-null-verf))
+      (rpc-send-prog-unavail peer xid *nullverf*)
       (return-from nfsd-message-handler))
 
     (case vers
@@ -163,7 +163,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	 (100 (nfsd-get-config-file-path peer xid cbody))
 	 (101 (nfsd-reload-configuration peer xid cbody))
 	 (t
-	  (rpc-send-proc-unavail peer xid (nfsd-null-verf))
+	  (rpc-send-proc-unavail peer xid *nullverf*)
 	  (logit "nfsv2: unhandled procedure ~D~%" proc))))
       (3
        (case proc
@@ -193,24 +193,14 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	 (100 (nfsd-get-config-file-path peer xid cbody))
 	 (101 (nfsd-reload-configuration peer xid cbody))
 	 (t
-	  (rpc-send-proc-unavail peer xid (nfsd-null-verf))
+	  (rpc-send-proc-unavail peer xid *nullverf*)
 	  (logit "nfsv3: unhandled procedure ~D~%" proc))))
       (t
        (if *nfs-debug*
 	   (write-line "Sending program version mismatch response"))
-       (rpc-send-prog-mismatch peer xid (nfsd-null-verf) 2 3)
+       (rpc-send-prog-mismatch peer xid *nullverf* 2 3)
        (return-from nfsd-message-handler)))))
        
-
-(defparameter *nfsdnullverf* nil)
-
-(defun nfsd-null-verf ()
-  (unless *nfsdnullverf*
-    (let ((xdr (create-xdr :direction :build)))
-      (xdr-auth-null xdr)
-      (setf *nfsdnullverf* xdr)))
-  *nfsdnullverf*)
-
 
 (defmacro with-backtrace-on-non-file-error (() &body body)
   `(handler-bind
@@ -244,14 +234,14 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	 (illegal-filename-error (c)
 	   (declare (ignore c))
 	   (setf (xdr-pos ,xdr) ,savepossym)
-	   (when *nfs-debug* (logit "Illegal filename~%"))
+	   (when debug-this-procedure (logit "Illegal filename~%"))
 	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (file-error (c)
 	   (setf (xdr-pos ,xdr) ,savepossym)
 	   ;; Make some errors look less alarming. 
-	   (when *nfs-debug* 
+	   (when debug-this-procedure
 	     (case (excl::syscall-error-errno c)
 	       (#.*enoent* 
 		(logit " => [Not found]~%"))
@@ -280,7 +270,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
        (dolist (,fh (list ,@fhs))
 	 (case ,fh
 	   (:inval
-	    (when *nfs-debug* (logit " Invalid file handle~%"))
+	    (when debug-this-procedure (logit " Invalid file handle~%"))
 	    (ecase ,vers
 	      (2 
 	       (xdr-int ,xdr NFSERR_STALE))
@@ -289,7 +279,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	    (return-from ,block))
 	   (:stale
-	    (when *nfs-debug* (logit " Stale file handle~%"))
+	    (when debug-this-procedure (logit " Stale file handle~%"))
 	    (xdr-int ,xdr NFSERR_STALE)
 	    (if (= ,vers 3)
 		(nfs-xdr-wcc-data ,xdr nil nil))
@@ -302,7 +292,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       then
 	   ,@body
       else
-	   (when *nfs-debug* (logit " Host access denied~%"))
+	   (when debug-this-procedure (logit " Host access denied~%"))
 	   (xdr-int ,xdr NFSERR_ACCES)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil))))
@@ -319,7 +309,15 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 (defmacro define-nfs-proc (name arglist &body body)
   (let ((funcname (intern (format nil "~A-~A" 'nfsd name)))
 	(first t)
-	argdefs debugs fhsyms host-access-check-fh)
+	argdefs debugs fhsyms host-access-check-fh debugtype)
+    
+    (setf debugtype
+      (let* ((x (symbol-name name))
+	     (y (1- (length x))))
+	(if (char= (schar x y) #\3)
+	    (setf x (subseq x 0 y)))
+	(intern x)))
+    
     (macrolet ((add-debug (expr)
 		 `(progn
 		    (if (not first)
@@ -378,9 +376,10 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     `(defun ,funcname (peer xid cbody)
        (with-xdr-xdr ((call-body-params cbody) :name params)
 	 (let* ((vers (call-body-vers cbody))
-		procedure-start-time
+		procedure-start-time debug-this-procedure
 		,@argdefs)
-	   (when *nfs-debug*
+	   (when (nfs-debug-filter-on ,debugtype)
+	     (setf debug-this-procedure t)
 	     (if *nfs-debug-timestamps*
 		 (nfs-log-time))
 	     (logit "~a (nfsv~d) ~a(" 
@@ -389,7 +388,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	     ,@debugs
 	     (if *nfs-debug-timestamps*
 		 (setf procedure-start-time (get-internal-real-time))))
-	   (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf))
+	   (with-successful-reply (*nfsdxdr* peer xid *nullverf*)
 	     (with-valid-fh (*nfsdxdr* vers ,fhsyms)
 	       (with-allowed-host-access (vers *nfsdxdr* 
 					       ,host-access-check-fh 
@@ -421,7 +420,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 				      :count t :all t)))))))))
 		     ,@body)
 		   #-nfs-debug ,@body
-		   (when *nfs-debug*
+		   (when debug-this-procedure
 		     (if *nfs-debug-timestamps*
 			 (logit " ==> ~dms~%" 
 				(- (get-internal-real-time) 
@@ -436,7 +435,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 		(:write 'nfs-okay-to-write))))
     `(if* (not (,func ,fh (call-body-cred cbody)))
 	then
-	     (if *nfs-debug* (logit " permission denied~%") )
+	     (if debug-this-procedure (logit " permission denied~%") )
 	     (xdr-int *nfsdxdr* NFSERR_ACCES)
 	     (if (= vers 3)
 		 (nfs-xdr-wcc-data *nfsdxdr* nil nil))
@@ -451,7 +450,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  then
 	       ,@body
 	  else
-	       (when *nfs-debug* (logit " Not a directory~%"))
+	       (when debug-this-procedure (logit " Not a directory~%"))
 	       (xdr-int *nfsdxdr* NFSERR_NOTDIR)
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
@@ -464,7 +463,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  then
 	       ,@body
 	  else
-	       (when *nfs-debug* (logit " Not allowed to be a directory~%"))
+	       (when debug-this-procedure (logit " Not allowed to be a directory~%"))
 	       (xdr-int *nfsdxdr* NFSERR_PERM)
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
@@ -474,7 +473,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       then
 	   ,@body
       else
-	   (when *nfs-debug* (logit " Not same export~%"))
+	   (when debug-this-procedure (logit " Not same export~%"))
 	   (ecase vers
 	     (2
 	      (xdr-int *nfsdxdr* NFSERR_ACCES))
@@ -492,7 +491,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 
 (defmacro nfs-unsupported ()
   `(progn
-     (when *nfs-debug* (logit " Unsupported~%"))
+     (when debug-this-procedure (logit " Unsupported~%"))
      (ecase vers
        (2 
 	(xdr-int *nfsdxdr* NFSERR_IO))
@@ -503,9 +502,10 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun nfsd-null (peer xid cbody)
-  (if *nfs-debug*  (logit "nfsv~d-null~%" (call-body-vers cbody)))
+  (if (nfs-debug-filter-on null)
+      (logit "nfsv~d-null~%" (call-body-vers cbody)))
   (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (nfsd-null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 
 ;; For v3, the allowable error codes are: NFS3ERR_IO NFS3ERR_STALE
@@ -595,7 +595,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	(ignore-errors (get-filesystem-free-space (fh-pathname fh)))
       (if* (null non-priv-free)
 	 then
-	      (when *nfs-debug* (logit " I/O error~%"))
+	      (when debug-this-procedure (logit " I/O error~%"))
 	      (xdr-int *nfsdxdr* NFSERR_IO)
 	 else
 	      ;; Convert to "blocks"
@@ -635,7 +635,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (ignore-errors (get-filesystem-free-space (fh-pathname fh)))
     (if* (null non-priv-free)
        then
-	    (when *nfs-debug* (logit " I/O error~%"))
+	    (when debug-this-procedure (logit " I/O error~%"))
 	    (xdr-int *nfsdxdr* NFSERR_IO)
 	    (nfs-xdr-wcc-data *nfsdxdr* nil nil)
        else
@@ -720,7 +720,6 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (add-direntries *nfsdxdr* dirfh count count cookie 3 cookieverf nil)
       (update-attr-atime dirfh))))
       
-    
 ;; totalbytesadded starts at 8 because in the minimal case, we need to
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
@@ -735,18 +734,22 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  bytesadded
 	  innerbytesadded
 	  endindex
-	  p)
+	  p
+	  debug)
       (declare (fixnum entries totalbytesadded dirbytesadded index
 		       bytesadded innerbytesadded))
       
-      (if (eq *nfs-debug* :verbose)
-	  (logit "~%"))
+      (when (nfs-debug-filter-on readdir)
+	(setf debug *nfs-debug*)
+	
+	(if (eq debug :verbose)
+	    (logit "~%")))
       
       ;; HP-UX doesn't do the cookie verifier properly so don't
       ;; complain if we get a verifier of 0.
       (when (and (= vers 3) (/= startindex 0) (/= verf 0)
 		 (/= verf (dircache-id dc)))
-	(when *nfs-debug* (logit " Bad cookie~%"))
+	(when debug (logit " Bad cookie~%"))
 	(xdr-int xdr NFSERR_BAD_COOKIE)
 	(nfs-xdr-post-op-attr xdr dirfh)
 	(return-from add-direntries))
@@ -777,22 +780,23 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	  
 	  (when (or (> totalbytesadded max)
 		    (> dirbytesadded dirmax))
-	    (if (eq *nfs-debug* :verbose) 
+	    (if (eq debug :verbose) 
 		(logit " [not added due to size overflow]~%"))
 	    (xdr-backspace xdr bytesadded)
 	    (setf complete nil)
 	    (return)) ;; break from loop
 
 	  (incf entries)
-	  (if (eq *nfs-debug* :verbose) (logit " [added]~%")))
+	  (if (eq debug :verbose) (logit " [added]~%")))
 	  
 	(incf index))
 	
       (xdr-int xdr 0) ;; no more entries
       (xdr-bool xdr complete)
-      (when *nfs-debug* (logit " ~d entries" entries))
-      (if (and *nfs-debug* complete)
-	  (logit " EOF~%")))))
+      (when debug 
+	(logit " ~d entries" entries)
+	(if complete
+	    (logit " EOF~%"))))))
 
 
 #|
@@ -813,7 +817,6 @@ struct entry {
       };
 |#
 
-
 ;; returns number of bytes added to xdr
 (defun make-direntry-xdr (xdr dirfh filename cookie vers plus)
   (let* ((fh (lookup-fh-in-dir dirfh filename 
@@ -821,7 +824,7 @@ struct entry {
 			       :allow-dotnames t))
 	 (fileid (fh-id fh))
 	 inner-bytes-added)
-    (when (eq *nfs-debug* :verbose)
+    (when (and (nfs-debug-filter-on readdir) (eq *nfs-debug* :verbose))
       (logit "~D: ~A fileid=~A next=~A" 
 	     (1- cookie) filename fileid cookie))
     (values
@@ -927,7 +930,7 @@ struct entry {
 	  (file-position f offset)
 	  (with-xdr-seek (*nfsdxdr* 100)
 	    (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
-	  (if *nfs-debug* (logit " (read ~d bytes)" got))
+	  (if debug-this-procedure (logit " (read ~d bytes)" got))
 	  (update-attr-atime fh)
 	  (xdr-int *nfsdxdr* NFS_OK) 
 	  (nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -976,7 +979,7 @@ struct entry {
 	 (let ((verifier (second how)))
 	   (if* (eql verifier (fh-verifier fh))
 	      then ;; Must be a duplicate request.  Report success.
-		   (if *nfs-debug* (logit " Duplicate request (OK)~%"))
+		   (if debug-this-procedure (logit " Duplicate request (OK)~%"))
 	      else ;; the error handler will handle the *eexist* case
 		   (close (open newpath :direction :output :if-exists :error))
 		   (setf (fh-verifier fh) verifier)))))
@@ -1250,7 +1253,7 @@ struct entry {
       (close-open-file fh)
       (if* (and guard (/= guard (pre-op-attrs-ctime pre-op-attrs)))
 	 then
-	      (when *nfs-debug* (logit " Guard time out of sync~%"))
+	      (when debug-this-procedure (logit " Guard time out of sync~%"))
 	      (xdr-int *nfsdxdr* NFSERR_NOT_SYNC)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
 	 else
@@ -1426,7 +1429,7 @@ struct entry {
 (defun nfsd-get-config-file-path (peer xid cbody)
   (declare (ignore cbody))
   (when (= (socket:dotted-to-ipaddr "127.0.0.1") (rpc-peer-addr peer))
-    (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf)
+    (with-successful-reply (*nfsdxdr* peer xid *nullverf*
 				      :create nil)
       (xdr-string *nfsdxdr* 
 		  (if *configfile*
@@ -1436,7 +1439,7 @@ struct entry {
 (defun nfsd-reload-configuration (peer xid cbody)
   (declare (ignore cbody))
   (when (= (socket:dotted-to-ipaddr "127.0.0.1") (rpc-peer-addr peer))
-    (with-successful-reply (*nfsdxdr* peer xid (nfsd-null-verf)
+    (with-successful-reply (*nfsdxdr* peer xid *nullverf*
 				      :create nil)
       (logit "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)

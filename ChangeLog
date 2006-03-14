@@ -1,4 +1,23 @@
 *******************************************************************************
+4.3.3b4
+*******************************************************************************
+
+2006-03-14    <dancy@DANCYSOFT>
+
+	* *.cl: Replaced calls to (null-verf) and (nfsd-null-verf) with
+	*nullverf*.  Replaced all calls to (null-auth) with *nullauth*.
+	
+	* nfs-common.cl/nfs.cl: Added support for debugging of individual
+	NFS procedures. 
+
+	* nlm.cl, nsm.cl: Disable debugging by default.
+
+	* portmap.cl: Don't log CALLIT procedure unless debugging is on.
+
+	* configure/*: Moved debugging options into their own tab.  Added
+	checkboxes for individual NFS procedures.
+
+*******************************************************************************
 4.3.3b3
 *******************************************************************************
 

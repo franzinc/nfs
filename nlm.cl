@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.10 2006/01/27 00:23:04 dancy Exp $
+;; $Id: nlm.cl,v 1.11 2006/03/14 16:52:34 dancy Exp $
 
 (in-package :user)
 
@@ -31,7 +31,7 @@
 ;; Ref: http://www.opengroup.org/onlinepubs/009629799/chap9.htm
 
 (defparameter *nlm-gate* (mp:make-gate nil))
-(defparameter *nlm-debug* t)
+(defparameter *nlm-debug* nil)
 (defparameter *nlm-retry-interval* 2) ;; seconds
 (defparameter *nlm-grant-notify-interval* 30) ;; seconds
 

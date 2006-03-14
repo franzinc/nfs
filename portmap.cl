@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.27 2006/01/30 16:33:50 dancy Exp $
+;; $Id: portmap.cl,v 1.28 2006/03/14 16:52:34 dancy Exp $
 
 ;; portmapper
 
@@ -148,14 +148,14 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
 	   then (logit "~
 PMAP: Sending program unavailable response for prog=~D to ~A~%"
 		       prog dotted)
-		(rpc-send-prog-unavail peer xid (null-verf))
+		(rpc-send-prog-unavail peer xid *nullverf*)
 		(return))
 	
 	(if* (/= vers #.*pmapvers*)
 	   then (logit "~
 PMAP: Sending program version mismatch response (requested version was ~D) to ~A~%" 
 		       vers dotted)
-		(rpc-send-prog-mismatch peer xid (null-verf) 
+		(rpc-send-prog-mismatch peer xid *nullverf* 
 					#.*pmapvers* #.*pmapvers*)
 		(return))
 
@@ -170,7 +170,7 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 	   (portmap-callit peer xid (call-body-params cbody)))
 	  (t 
 	   (logit "PMAP: ~a: unhandled procedure ~D~%" dotted proc)
-	   (rpc-send-proc-unavail peer xid (nfsd-null-verf))))))))
+	   (rpc-send-proc-unavail peer xid *nullverf*)))))))
 
 
 (defun portmap-null (peer xid)
@@ -178,7 +178,7 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
       (logit "PMAP: ~a: NULL~%"
 	     (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
   (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 
 (defun portmap-dump (peer xid)
@@ -193,7 +193,7 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
       (xdr-int xdr (mapping-prot mapping))
       (xdr-int xdr (mapping-port mapping)))
     (xdr-int xdr 0) ;; no more data
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 (defun portmap-getport (peer xid params)
   (let* ((m (with-xdr-xdr (params)
@@ -211,7 +211,7 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
        then (xdr-unsigned-int xdr (mapping-port m2))
        else (xdr-unsigned-int xdr 0))
     
-    (send-successful-reply peer xid (null-verf) xdr)))
+    (send-successful-reply peer xid *nullverf* xdr)))
 
 #|
 (defun portmap-callit (peer xid params)
@@ -225,8 +225,9 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 
 (defun portmap-callit (peer xid params)
   (declare (ignore xid params))
-  (logit "PMAP: ~a: CALLIT (not supported)~%"
-	 (socket:ipaddr-to-dotted (rpc-peer-addr peer))))
+  (if *portmap-debug*
+      (logit "PMAP: ~a: CALLIT (not supported)~%"
+	     (socket:ipaddr-to-dotted (rpc-peer-addr peer)))))
     
 (defun locate-matching-mapping (m)
   (dolist (m2 *mappings*)

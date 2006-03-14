@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.0 [Windows] (Jan 19, 2006 11:42)"; cg: "1.81"; form: configform; -*-
+;; -*- lisp-version: "8.0 [Windows] (Mar 8, 2006 11:41)"; cg: "1.79"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -17,7 +17,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 8 162 548 505)) (name :configform)
+     (interior (make-box 739 37 1272 379)) (name :configform)
      (title "NFS Server for Windows Configuration Utility")
      (border :frame) (child-p nil) form-p)
   (let ((owner
@@ -136,73 +136,221 @@
                        'configform-okay-button-on-change :title "~OK"
                        :top 304)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :nfs-debug-checkbox :on-change
                        'configform-nfs-debug-checkbox-on-change
-                       :tab-control '(:tab-control :global) :title
-                       "Turn on NF~S protocol debugging" :top 50 :width
+                       :tab-control '(:tab-control :debug) :title
+                       "Turn on NF~S protocol debugging" :top 41 :width
                        203)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :portmap-debug-checkbox :on-change
                        'configform-portmap-debug-checkbox-on-change
-                       :tab-control '(:tab-control :global) :title
-                       "Turn on ~Portmap protocol debugging" :top 130
+                       :tab-control '(:tab-control :debug) :title
+                       "Turn on ~Portmap protocol debugging" :top 121
                        :width 201)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :mountd-debug-checkbox :on-change
                        'configform-mountd-debug-checkbox-on-change
-                       :tab-control '(:tab-control :global) :title
-                       "Turn on ~Mount protocol debugging" :top 70
+                       :tab-control '(:tab-control :debug) :title
+                       "Turn on ~Mount protocol debugging" :top 61
                        :width 197)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :gc-debug-checkbox :on-change
                        'configform-gc-debug-checkbox-on-change
-                       :tab-control '(:tab-control :global) :title
-                       "Memory management debugging" :top 110 :width
+                       :tab-control '(:tab-control :debug) :title
+                       "Memory management debugging" :top 101 :width
                        196)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 27
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :nfs-debug-timestamps-checkbox :on-change
                        'configform-nfs-debug-timestamps-checkbox-on-change
-                       :tab-control '(:tab-control :global) :title
+                       :tab-control '(:tab-control :debug) :title
                        "Use timestamps on NFS protocol debug output"
-                       :top 90 :width 253)
+                       :top 81 :width 253)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 24
+                       :name :debug-nfs-read :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "READ" :top 180 :width 52)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 175
+                       :name :debug-nfs-remove :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "REMOVE" :top 220 :width 62)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 248
+                       :name :debug-nfs-null :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "NULL" :top 240 :width 52)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 95
+                       :name :debug-nfs-link :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "LINK" :top 220 :width 52)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 95
+                       :name :debug-nfs-symlink :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "SYMLINK" :top 240 :width 74)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 248
+                       :name :debug-nfs-commit :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "COMMIT" :top 220 :width 68)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 316
+                       :name :debug-nfs-pathconf :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "PATHCONF" :top 240 :width 74)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 316
+                       :name :debug-nfs-fsinfo :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "FSINFO" :top 220 :width 62)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 316
+                       :name :debug-nfs-fsstat :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "FSSTAT" :top 200 :width 74)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 316
+                       :name :debug-nfs-statfs :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "STATFS" :top 180 :width 74)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 175
+                       :name :debug-nfs-rename :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "RENAME" :top 240 :width 62)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 24
+                       :name :debug-nfs-write :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "WRITE" :top 200 :width 52)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 396
+                       :name :debug-nfs-readdir :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "READDIR" :top 180 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 396
+                       :name :debug-nfs-readlink :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "READLINK" :top 200 :width 99)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 95
+                       :name :debug-nfs-getattr :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "GETATTR" :top 200 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 95
+                       :name :debug-nfs-setattr :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "SETATTR" :top 180 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 24
+                       :name :debug-nfs-lookup :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "LOOKUP" :top 220 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 175
+                       :name :debug-nfs-rmdir :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "RMDIR" :top 200 :width 62)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 248
+                       :name :debug-nfs-create :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "CREATE" :top 180 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 248
+                       :name :debug-nfs-mknod :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "MKNOD" :top 200 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 175
+                       :name :debug-nfs-mkdir :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "MKDIR" :top 180 :width 76)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 24
+                       :name :debug-nfs-access :on-change
+                       'configform-nfs-debug-filter-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "ACCESS" :top 240 :width 76)
+        (make-instance 'group-box :contained-widgets
+                       '(:debug-nfs-read :debug-nfs-remove
+                         :debug-nfs-null :debug-nfs-link
+                         :debug-nfs-symlink :debug-nfs-commit
+                         :debug-nfs-pathconf :debug-nfs-fsinfo
+                         :debug-nfs-fsstat :debug-nfs-statfs
+                         :debug-nfs-rename :debug-nfs-write
+                         :debug-nfs-readdir :debug-nfs-readlink
+                         :debug-nfs-getattr :debug-nfs-setattr
+                         :debug-nfs-lookup :debug-nfs-rmdir
+                         :debug-nfs-create :debug-nfs-mknod
+                         :debug-nfs-mkdir :debug-nfs-access)
+                       :font (make-font-ex nil "Tahoma / ANSI" 11)
+                       :height 103 :left 16 :name :group-box-2
+                       :tab-control '(:tab-control :debug) :title
+                       "Debug NFS Procedures" :top 169 :width 490)
         (make-instance 'combo-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 156
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 154
                        :name :combo-box-port-mapper :on-change
                        'configform-combo-box-port-mapper-on-change
                        :range '(:auto :yes :no) :tab-control
-                       '(:tab-control :global) :top 160 :value :auto
+                       '(:tab-control :global) :top 41 :value :auto
                        :width 55)
         (make-instance 'static-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 28
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :static-text-port-mapper :tab-control
-                       '(:tab-control :global) :top 162 :value
+                       '(:tab-control :global) :top 43 :value
                        "Use system portmapper?" :width 124)
         (make-instance 'radio-button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 34
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 32
                        :name :mountd-port-auto :tab-control
                        '(:tab-control :global) :title "Automatic" :top
-                       203 :width 74)
+                       84 :width 74)
         (make-instance 'radio-button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 34
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 32
                        :name :mountd-port-manual :on-change
                        'configform-mountd-port-manual-on-change
                        :tab-control '(:tab-control :global) :title
-                       "User-defined" :top 225 :width 93)
+                       "User-defined" :top 106 :width 93)
         (make-instance 'editable-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 128
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 126
                        :name :mountd-port-number :on-change
                        'configform-mountd-port-number-on-change
-                       :tab-control '(:tab-control :global) :top 209
+                       :tab-control '(:tab-control :global) :top 90
                        :value "" :width 45)
         (make-instance 'static-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 39
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 37
                        :name :static-text-6 :tab-control
-                       '(:tab-control :global) :top 256 :value
+                       '(:tab-control :global) :top 137 :value
                        "(Allegro NFS must be restarted for port number changes to take effect)"
                        :width 345)
         (make-instance 'static-text :font
@@ -352,15 +500,18 @@
                        :left 26 :name :static-text-14 :tab-control
                        '(:tab-control :host-lists) :top 139 :value
                        "New address" :width 68)
+        (make-instance 'button :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 10
+                       :name :help-button :on-change
+                       'configform-help-button-on-change :title "~Help"
+                       :top 304)
         (make-instance 'group-box :contained-widgets
                        '(:mountd-port-auto :mountd-port-manual
-                         :mountd-port-number :static-text-6
-                         :help-button)
+                         :mountd-port-number :static-text-6)
                        :font (make-font-ex nil "Tahoma / ANSI" 11)
-                       :height 104 :left 28 :name :group-box-1
+                       :height 104 :left 26 :name :group-box-1
                        :tab-control '(:tab-control :global) :title
-                       "Mount protocol port number" :top 184 :width
-                       364)
+                       "Mount protocol port number" :top 65 :width 364)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range
@@ -412,24 +563,44 @@
                                               :static-text-14))
                              (make-instance 'tab-info :id :global
                                             :label "Global" :widgets
-                                            '(:nfs-debug-checkbox
-                                              :portmap-debug-checkbox
-                                              :mountd-debug-checkbox
-                                              :gc-debug-checkbox
-                                              :nfs-debug-timestamps-checkbox
-                                              :combo-box-port-mapper
+                                            '(:combo-box-port-mapper
                                               :static-text-port-mapper
                                               :mountd-port-auto
                                               :mountd-port-manual
                                               :mountd-port-number
                                               :static-text-6
-                                              :group-box-1)))
+                                              :group-box-1))
+                             (make-instance 'tab-info :id :debug :label
+                                            "Debug" :widgets
+                                            '(:nfs-debug-checkbox
+                                              :portmap-debug-checkbox
+                                              :mountd-debug-checkbox
+                                              :gc-debug-checkbox
+                                              :nfs-debug-timestamps-checkbox
+                                              :debug-nfs-read
+                                              :debug-nfs-remove
+                                              :debug-nfs-null
+                                              :debug-nfs-link
+                                              :debug-nfs-symlink
+                                              :debug-nfs-commit
+                                              :debug-nfs-pathconf
+                                              :debug-nfs-fsinfo
+                                              :debug-nfs-fsstat
+                                              :debug-nfs-statfs
+                                              :debug-nfs-rename
+                                              :debug-nfs-write
+                                              :debug-nfs-readdir
+                                              :debug-nfs-readlink
+                                              :debug-nfs-getattr
+                                              :debug-nfs-setattr
+                                              :debug-nfs-lookup
+                                              :debug-nfs-rmdir
+                                              :debug-nfs-create
+                                              :debug-nfs-mknod
+                                              :debug-nfs-mkdir
+                                              :debug-nfs-access
+                                              :group-box-2)))
                        :top 9 :value :exports :width 514)
-        (make-instance 'button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 68
-                       :name :help-button :on-change
-                       'configform-help-button-on-change :title "~Help"
-                       :top 233)
         (make-instance 'cancel-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 444
                        :name :cancel-button-1 :on-change

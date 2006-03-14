@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.34 2006/01/30 16:33:50 dancy Exp $
+;; $Id: sunrpc.cl,v 1.35 2006/03/14 16:52:34 dancy Exp $
 
 (in-package :user)
 
@@ -134,13 +134,11 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(dolist (s readylist)
 	  (setf record (read-record s buffer))
 	  (if* (null record)
-	     then
-		  (if *rpc-debug* (logit "Client ~s disconnected.~%" s))
+	     then (if *rpc-debug* (logit "Client ~s disconnected.~%" s))
 		  (ignore-errors (close s))
 		  (ignore-errors (close s :abort t))
 		  (setf clientlist (remove s clientlist))
-	     else
-		  (return-from rpc-get-message
+	     else (return-from rpc-get-message
 		    (values (create-xdr :vec record)
 			    (make-rpc-peer :type :stream :socket s
 					   :addr (socket:remote-host s))))))))))
@@ -470,13 +468,15 @@ Accepting new tcp connection and adding it to the client list.~%"))
     (xdr-xdr xdr cbody)
     (rpc-send xdr peer)))
 
-(defun null-verf ()
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-auth-null xdr)
-    xdr))
+(defparameter *nullverf* 
+    (let ((xdr (create-xdr :direction :build)))
+      (xdr-auth-null xdr)
+      xdr))
 
-(defun null-auth ()
-  (null-verf))
+(defparameter *nullauth* 
+    (let ((xdr (create-xdr :direction :build)))
+      (xdr-auth-null xdr)
+      xdr))
 
 ;; unfortunate name... hard to distinguish from create-call-body-from-xdr
 (defun rpc-make-call-body (prog vers proc cred verf rest)
@@ -517,7 +517,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	 peer
 	 xid
 	 (rpc-make-call-body prognum versnum procnum
-			     (null-auth) (null-verf) xdr))
+			     *nullauth* *nullverf* xdr))
 	
 	(if no-reply
 	    (return-from callrpc t))
@@ -603,7 +603,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 		       (call-body-proc ,cbody) (call-body-vers ,cbody))
 		       
 		(rpc-send-proc-unavail ,peer (rpc-msg-xid ,msg)
-				       (nfsd-null-verf))
+				       *nullverf*)
 		(return))
 	      proc-cases)
 	
@@ -649,7 +649,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 			      (socket:ipaddr-to-dotted 
 			       (rpc-peer-addr ,peer)))
 		       (rpc-send-prog-unavail ,peer (rpc-msg-xid ,msg) 
-					      (null-verf))
+					      *nullverf*)
 		       (return))
 	       
 	       (let ((,vers (call-body-vers ,cbody))
@@ -666,14 +666,14 @@ Accepting new tcp connection and adding it to the client list.~%"))
 				(socket:ipaddr-to-dotted 
 				 (rpc-peer-addr ,peer)))
 			 (rpc-send-prog-mismatch 
-			  ,peer (rpc-msg-xid ,msg) (null-verf) 
+			  ,peer (rpc-msg-xid ,msg) *nullverf* 
 			  ,lowest-version ,highest-version)
 			 (return))
 		 
 		 ;; Let 'er rip.
 		 (with-successful-reply (,res ,peer 
 					      (rpc-msg-xid ,msg) 
-					      (null-verf))
+					      *nullverf*)
 		   (with-xdr-xdr ((call-body-params ,cbody) 
 				  :name ,params)
 		     (funcall res-encoder ,res 

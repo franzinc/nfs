@@ -7,7 +7,16 @@
 (in-package :common-graphics-user)
 
 (defparameter *nfs-debug* nil)
+(defparameter *nfs-debug-filter* #x0fffffff)
 (defparameter *nfs-debug-timestamps* nil)
+
+(eval-when (compile)
+  (defparameter *nfs-debug-types* 
+    '(read write lookup access setattr getattr link symlink
+           mkdir rmdir remove rename create mknod commit null
+           statfs fsstat fsinfo pathconf readdir readlink)))
+  
+
 (defparameter *nfs-gc-debug* nil)
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
@@ -86,6 +95,7 @@
     ;; parameters
     (push `(*portmap-debug* ,*portmap-debug*) config)
     (push `(*nfs-debug* ,*nfs-debug*) config)
+    (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
     (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
     (push `(*mountd-debug* ,*mountd-debug*) config)
@@ -116,6 +126,7 @@
 
 
 (defun populate-form (form)
+  ;; Debugging options
   (setf (value (my-find-component :portmap-debug-checkbox form))
     *portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
@@ -127,6 +138,23 @@
   (setf (value (my-find-component :mountd-debug-checkbox form))
     *mountd-debug*)
   
+  (macrolet ((nfs-debug-filters (types)
+                                (let (res)
+                                  (dolist (type types)
+                                    (let ((component-name (intern (format nil "debug-nfs-~a" type) :keyword))
+                                          (filter-constant (intern (format nil "*nfs-debug-~a*" type) :user)))
+                                      (push `(let ((wij (my-find-component ,component-name form)))
+                                               (setf (value wij)
+                                                 (if (/= 0 (logand *nfs-debug-filter* ,filter-constant)) 
+                                                     t))
+                                               (setf (available wij) *nfs-debug*))
+                                            res)))
+                                      
+                                  (setf res (nreverse res))
+                                  `(progn ,@res))))
+    
+    (nfs-debug-filters #.*nfs-debug-types*))
+    
   (let ((auto-radio (my-find-component :mountd-port-auto form))
         (manual-radio (my-find-component :mountd-port-manual form))
         (mountd-port (my-find-component :mountd-port-number form)))
@@ -869,10 +897,24 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 new-value
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-debug* new-value)
-  #+ignore(format t "~&NFS debugging: ~a.~%" new-value)
-  (refresh-apply-button (parent widget))
-  t) ; Accept the new value
+  (let ((form (parent widget)))
+    (setf *nfs-debug* new-value)
+    
+    (macrolet ((set-filters-availability (types)
+                                         (let (res)
+                                           (dolist (type types)
+                                             (let ((component-name (intern (format nil "debug-nfs-~a" type) :keyword)))
+                                               (push `(let ((wij (my-find-component ,component-name form)))
+                                                        (setf (available wij) *nfs-debug*))
+                                                     res)))
+                                           
+                                           (setf res (nreverse res))
+                                           `(progn ,@res))))
+      
+      (set-filters-availability #.*nfs-debug-types*))
+    
+    (refresh-apply-button (parent widget))
+    t)) ; Accept the new value
 
 (defun configform-nfs-debug-timestamps-checkbox-on-change (widget
                                                 new-value
@@ -971,4 +1013,15 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (declare (ignore-if-unused widget new-value old-value))
   (setf *portmap-debug* new-value)
   (refresh-apply-button (parent widget))  
+  t) ; Accept the new value
+
+(defun configform-nfs-debug-filter-on-change (widget
+                                              new-value
+                                              old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (let ((code (symbol-value (intern (format nil "*nfs-debug-~a*" (string-downcase (title widget))) :user))))
+    (if* new-value
+       then (setf *nfs-debug-filter* (logior *nfs-debug-filter* code))
+       else (setf *nfs-debug-filter* (logand *nfs-debug-filter* (lognot code)))))
+  (refresh-apply-button (parent widget))
   t) ; Accept the new value
