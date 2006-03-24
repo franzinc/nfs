@@ -5,7 +5,7 @@
   (use-package :excl.osi))
 
 ;;;
-(defvar *nfsd-version* "4.3.3b4")
+(defvar *nfsd-version* "4.3.3b5")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
