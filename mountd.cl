@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.26 2006/03/14 16:52:34 dancy Exp $
+;; $Id: mountd.cl,v 1.27 2006/04/25 21:14:26 dancy Exp $
 
 (in-package :user)
 
@@ -87,13 +87,8 @@ MNT: Mountd Using TCP port ~d~%"
 				'(1 2 3)
 				(socket:local-port *mountd-udp-socket*) 
 				IPPROTO_UDP)
-	(let* ((buffer (make-array #.(* 64 1024) 
-				   :element-type '(unsigned-byte 8)))
-	       (server (make-rpc-server :tcpsock *mountd-tcp-socket*
-					:udpsock *mountd-udp-socket*
-					:buffer buffer)))
-	  (declare (dynamic-extent buffer server))
-
+	(let ((server (make-rpc-server :tcpsock *mountd-tcp-socket*
+					:udpsock *mountd-udp-socket*)))
 	  (mp:open-gate *mountd-gate*)
 	  
 	  (loop

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.28 2006/03/14 16:52:34 dancy Exp $
+;; $Id: portmap.cl,v 1.29 2006/04/25 21:14:26 dancy Exp $
 
 ;; portmapper
 
@@ -115,11 +115,8 @@ Unexpected error while creating portmapper udp socket: ~a~%" c)))))
     (make-pmap-sockets)
     (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_TCP)
     (portmap-add-program *pmapprog* *pmapvers* *pmapport* IPPROTO_UDP)
-    (let* ((buffer (make-array #.(* 64 1024) :element-type '(unsigned-byte 8)))
-	   (server (make-rpc-server :tcpsock *pmap-tcp-socket*
-				    :udpsock *pmap-udp-socket*
-				    :buffer buffer)))
-      (declare (dynamic-extent buffer server))
+    (let ((server (make-rpc-server :tcpsock *pmap-tcp-socket*
+				   :udpsock *pmap-udp-socket*)))
       (mp:open-gate *pmap-gate*)
       (loop
 	(multiple-value-bind (xdr peer)

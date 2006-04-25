@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.98 2006/03/14 16:52:34 dancy Exp $
+;; $Id: nfs.cl,v 1.99 2006/04/25 21:14:26 dancy Exp $
 
 (in-package :user)
 
@@ -100,13 +100,9 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	(mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
 	(mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
 	(mp:process-run-function "dir cache reaper" #'dircache-reaper)
-	(let* ((buffer (make-array #.(* 64 1024) 
-				   :element-type '(unsigned-byte 8)))
-	       (server (make-rpc-server :tcpsock *nfsd-tcp-socket*
-					:udpsock *nfsd-udp-socket*
-					:buffer buffer)))
-	  (declare (dynamic-extent buffer server))
-	  
+	(let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket*
+				       :udpsock *nfsd-udp-socket*)))
+
 	  (logit "Allegro NFS Server version ~A started.~%" 
 		 *nfsd-long-version*)
 	  (if* *nfs-gc-debug*

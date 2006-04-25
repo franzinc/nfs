@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.35 2006/03/14 16:52:34 dancy Exp $
+;; $Id: sunrpc.cl,v 1.36 2006/04/25 21:14:26 dancy Exp $
 
 (in-package :user)
 
@@ -573,8 +573,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 ;; 'program' is a string.
 (defmacro def-rpc-program-main (program prognum proc-versions usock tsock
 				lowest-version highest-version)
-  (let ((buffer (gensym))
-	(server (gensym))
+  (let ((server (gensym))
 	(xdr (gensym))
 	(peer (gensym))
 	(msg (gensym))
@@ -616,14 +615,8 @@ Accepting new tcp connection and adding it to the client list.~%"))
     
     (setf version-cases (nreverse version-cases))
     
-    `(let* ((,buffer (make-array #.(* 64 1024) 
-				 :element-type 
-				 '(unsigned-byte 8)))
-	    (,server (make-rpc-server :tcpsock ,tsock
-				      :udpsock ,usock
-				      :buffer ,buffer)))
-       (declare (dynamic-extent ,buffer ,server))
-       
+    `(let ((,server (make-rpc-server :tcpsock ,tsock
+				     :udpsock ,usock)))
        (if (fboundp ',init-func)
 	   (funcall ',init-func))
        
