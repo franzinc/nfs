@@ -4,7 +4,7 @@
 
 2006-04-25    <dancy@CANDY2K>
 
-	* mountd.cl, nfs.cl, portmap.cl, sunrpc.cl: Bugfix for clients
+	* BUGFIX: mountd.cl, nfs.cl, portmap.cl, sunrpc.cl: Bugfix for clients
 	using 64KB buffers.  
 
 *******************************************************************************
@@ -24,15 +24,15 @@
 	* *.cl: Replaced calls to (null-verf) and (nfsd-null-verf) with
 	*nullverf*.  Replaced all calls to (null-auth) with *nullauth*.
 	
-	* nfs-common.cl/nfs.cl: Added support for debugging of individual
-	NFS procedures. 
+	* ENHANCEMENT: nfs-common.cl/nfs.cl: Added support for debugging
+	of individual NFS procedures.
 
 	* nlm.cl, nsm.cl: Disable debugging by default.
 
 	* portmap.cl: Don't log CALLIT procedure unless debugging is on.
 
-	* configure/*: Moved debugging options into their own tab.  Added
-	checkboxes for individual NFS procedures.
+	* ENHANCEMENT: configure/*: Moved debugging options into their own
+	tab.  Added checkboxes for individual NFS procedures.
 
 *******************************************************************************
 4.3.3b3
@@ -40,12 +40,12 @@
 
 2006-02-01    <dancy@DANCYSOFT>
 
-	* Cleaned up mountd logging.
+	* ENHANCEMENT: Cleaned up mountd logging.
 
 	* Made *eexist* error reporting less alarming.
 
-	* Support EXCLUSIVE create3 mode.  Not completely to spec but good
-	enough.  [spr31178]
+	* ENHANCEMENT: Support EXCLUSIVE create3 mode.  Not completely to
+	spec but good enough.  [spr31178]
 	
 *******************************************************************************
 4.3.3b2
@@ -53,7 +53,7 @@
 
 2006-01-31    <dancy@DANCYSOFT>
 
-	* READDIRPLUS support.
+	* INTEROPERABILITY ENHANCEMENT: READDIRPLUS support.
 
 *******************************************************************************
 4.3.3b1
@@ -65,14 +65,17 @@
 	* configure/Makefile: always ACL 8.0 to build
 
 2006-01-30    <dancy@DANCYSOFT>
-	* Allegro NFS now checks for an already-running instance when
-	initializing.  It will abort in a noticable way if there is.  This
-	will help de-obscure this semi-typical failure scenario.
+	* ENHANCEMENT: Allegro NFS now checks for an already-running
+	instance when initializing.  It will abort in a noticable way if
+	there is.  This will help de-obscure this semi-typical failure
+	scenario.
 
-	* Made some logging messages more informative and more consistent.
+	* ENHANCEMENT: Made some logging messages more informative and
+	more consistent.
 
-	* Portmapper now sends proper responses for program-unavailable or
-	mismatched versions [spr31061].
+	* INTEROPERABILITY ENHANCEMENT: Portmapper now sends proper
+	responses for program-unavailable or mismatched versions
+	[spr31061].
 	
 2006-01-30  Ahmon Dancy  <dancy@dancy>
 
@@ -119,17 +122,18 @@
 2006-01-19    <dancy@GOBY>
 v4.3.2
 	
-	* Added option to the configure program to enable portmapper
-	debugging.  Augmented the debugging info that portmapper generates
-	to include the IP address of the requestor.
+	* ENHANCEMENT: Added option to the configure program to enable
+	portmapper debugging.  Augmented the debugging info that
+	portmapper generates to include the IP address of the requestor.
 
 2005-11-22    <dancy@DANCYSOFT>
 v4.3.1
 
 	* Makefile, configure/Makefile:  Use c:/program files/acl80 now.
 
-	* Bugfix for the configure program (where the mountd port would
-	change to 5000 instead of automatic, without user intervention).
+	* BUGFIX: bugfix for the configure program (where the mountd port
+	would change to 5000 instead of automatic, without user
+	intervention).
 	(spr30929, spr30924)
 
 *******************************************************************************
