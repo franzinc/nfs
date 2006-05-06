@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.29 2006/04/25 21:14:26 dancy Exp $
+;; $Id: portmap.cl,v 1.30 2006/05/06 19:42:16 dancy Exp $
 
 ;; portmapper
 
@@ -29,6 +29,7 @@
 (in-package :user)
 
 (eval-when (compile load eval)
+  ;; Many of these are also defined in sunrpc-common.cl
 (defconstant *pmapport* 111)
 (defconstant *pmapprog* 100000)
 (defconstant *pmapvers* 2)
@@ -298,21 +299,12 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 	    (setf (mapping-port m) (xdr-unsigned-int xdr))
 	    m)))
 
-(defun portmap-getport-client (host prognum versnum proto)
-  (let ((m (make-mapping :prog prognum
-			 :vers versnum
-			 :prot proto)))
-    (callrpc host *pmapprog* *pmapvers* *pmap-proc-getport* 
-	     :udp #'xdr-portmap-mapping m :port *pmapport*
-	     :outproc #'xdr-unsigned-int)))
-
-
 (defun portmap-dump-client (host)
   (let ((mappings
-	 (callrpc host *pmapprog* *pmapvers* *pmap-proc-dump* :udp nil nil 
-		  :port *pmapport*
-		  :outproc 
-		  #'(lambda (xdr) (xdr-list xdr #'xdr-portmap-mapping)))))
+	 (callrpc-1 host *pmapprog* *pmapvers* *pmap-proc-dump* :udp nil nil 
+		    :port *pmapport*
+		    :outproc 
+		    #'(lambda (xdr) (xdr-list xdr #'xdr-portmap-mapping)))))
     (logit "   program vers proto   port~%")
     (dolist (m mappings)
       (logit "~10d ~4d ~5@a ~6d~%" 
@@ -326,15 +318,15 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 	     (mapping-port m)))))
 
 (defun portmap-set-client (mapping)
-  (if (/= (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-set*
-		   :udp #'xdr-portmap-mapping mapping 
-		   :port *pmapport*
-		   :outproc #'xdr-unsigned-int)
+  (if (/= (callrpc-1 "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-set*
+		     :udp #'xdr-portmap-mapping mapping 
+		     :port *pmapport*
+		     :outproc #'xdr-unsigned-int)
 	  1)
       (error "portmap_set failed")))
 
 (defun portmap-unset-client (mapping)
-  (if (/= (callrpc "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-unset*
+  (if (/= (callrpc-1 "127.0.0.1" *pmapprog* *pmapvers* *pmap-proc-unset*
 		   :udp #'xdr-portmap-mapping mapping 
 		   :port *pmapport*
 		   :outproc #'xdr-unsigned-int)
@@ -345,7 +337,7 @@ PMAP: Sending program version mismatch response (requested version was ~D) to ~A
 ;; return nil if not.
 (defun ping-portmapper ()
   (ignore-errors
-   (callrpc "127.0.0.1" #.*pmapprog* #.*pmapvers* #.*pmap-proc-null* :udp
+   (callrpc-1 "127.0.0.1" #.*pmapprog* #.*pmapvers* #.*pmap-proc-null* :udp
 	    nil nil :port #.*pmapport*)))
 
 

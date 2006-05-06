@@ -24,7 +24,7 @@
  * Use is subject to license terms.
  */
 
-%#pragma ident	"@(#)nfs_prot.x	1.8	05/06/08 SMI"
+/* %#pragma ident	"@(#)nfs_prot.x	1.8	05/06/08 SMI" */
 
 #ifdef RPC_HDR
 %

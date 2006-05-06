@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.23 2006/01/26 03:42:59 dancy Exp $
+;; $Id: xdr.cl,v 1.24 2006/05/06 19:42:16 dancy Exp $
 
 (in-package :user)
 
@@ -634,6 +634,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (xdr-int xdr (first timeval))
       (xdr-int xdr (second timeval))))))
 
+;; deprecated.  Only portmap.cl uses this.. and that program
+;; needs to be rewritten using rpcgen.
 (defun xdr-list (xdr typefunc &key things)
   (ecase (xdr-direction xdr)
     (:extract
@@ -646,6 +648,17 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (xdr-unsigned-int xdr 1)
        (funcall typefunc xdr thing))
      (xdr-unsigned-int xdr 0))))
+
+(defun xdr-optional (xdr typefunc &optional arg)
+  (ecase (xdr-direction xdr)
+    (:build
+     (if* arg
+	then (xdr-unsigned-int xdr 1)
+	     (funcall typefunc xdr arg)
+	else (xdr-unsigned-int xdr 0)))
+    (:extract
+     (when (= 1 (xdr-unsigned-int xdr))
+       (funcall typefunc xdr)))))
 
 ;;;;;;;;;;;;;;;;;
 
@@ -742,7 +755,12 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	  (let ((conditional 
 		 (if* (eq case :default)
 		    then t
-		    else `(eql discrim ,case))))
+		    else (if* (listp case)
+			    then (let (res)
+				   (dolist (c case)
+				     (push `(eql discrim ,c) res))
+				   `(or ,@res))
+			    else `(eql discrim ,case)))))
 	    
 	    (push `(,conditional
 		    ,(xdr-builder-form type 'arg slot-type slot-name varfixed))
@@ -775,4 +793,4 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	      (cond
 	       ,@extractions)
 	      res)))))))
-	    
+

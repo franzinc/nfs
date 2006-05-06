@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.14 2006/01/30 16:13:52 dancy Exp $
+;; $Id: main.cl,v 1.15 2006/05/06 19:42:16 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -38,7 +38,7 @@
 
 (defun ping-nfsd ()
   (ignore-errors     
-   (callrpc #.(socket:dotted-to-ipaddr "127.0.0.1")
+   (callrpc-1 #.(socket:dotted-to-ipaddr "127.0.0.1")
 	    #.*nfsprog*
 	    2 ;; version
 	    0 ;; null proc

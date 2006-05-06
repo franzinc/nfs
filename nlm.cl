@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.11 2006/03/14 16:52:34 dancy Exp $
+;; $Id: nlm.cl,v 1.12 2006/05/06 19:42:16 dancy Exp $
 
 (in-package :user)
 
@@ -823,7 +823,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
     `(eval-when (compile load eval)
        (defun ,funcname (arg vers peer cbody)
 	 (ignore-errors
-	  (callrpc (rpc-peer-addr peer) #.*nlm-prog* vers ,res-procnum :udp 
+	  (callrpc-1 (rpc-peer-addr peer) #.*nlm-prog* vers ,res-procnum :udp 
 		   (if-nlm-v4 vers #',encoder4 #',encoder)
 		   (,realfunc arg vers peer cbody :async t)
 		   :no-reply t)))
@@ -876,7 +876,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	       (socket:ipaddr-to-dotted addr)))
     
     (ignore-errors
-     (callrpc addr
+     (callrpc-1 addr
 	      #.*nlm-prog*  
 	      vers
 	      #.*nlm-granted-msg* ;; Same number in all versions.
@@ -991,7 +991,7 @@ NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
 		;; XXX make rpcgen generate nice defuns to encapsulate this
 		;; nonsense.
 		(handler-case
-		    (callrpc 
+		    (callrpc-1 
 		     #.(socket:dotted-to-ipaddr "127.0.0.1")
 		     #.*sm-prog*
 		     #.*sm-vers*
@@ -1037,7 +1037,7 @@ NLM: Unexpected error while calling NSM MON: ~a~%" c))
 			   dotted))
 		
 		(handler-case
-		    (callrpc 
+		    (callrpc-1
 		     #.(socket:dotted-to-ipaddr "127.0.0.1")
 		     #.*sm-prog*
 		     #.*sm-vers*

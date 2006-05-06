@@ -1,3 +1,28 @@
+2006-05-06  Ahmon Dancy  <dancy@dancy>
+
+	* *.cl: Changed calls to callrpc to callrpc-1.  All of these
+	eventually need to be changed back to calls to callrpc, but using
+	the new calling sequence.
+
+	* portmap.cl: Moved portmap-getport-client out and into
+	sunrpc.cl.  portmap.cl should be strictly for portmap service
+	functions, not client functions.
+
+	* rpcgen.cl: Fleshed out a bit more.  Generates separate files for
+	common stuff, client calls, and server definitions.
+
+	* sunrpc-common.cl: Added a few more constants.
+
+	* sunrpc-service.cl: Revived.  Ideally sunrpc.cl will become a
+	standalone file that does not have any Allegro NFS-related code in
+	it.  Then it can be packaged up for general use.
+
+	* sunrpc.cl:  Added an rpc client interface.  Imported
+	portmap-getport-client from portmap.cl.  Moved some rpc service
+	stuff out into sunrpc-service.cl.
+
+	* xdr.cl:  Added xdr-optional function.  Improved xdr union macro.
+
 *******************************************************************************
 4.3.3b6
 *******************************************************************************

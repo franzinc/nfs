@@ -23,7 +23,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc-common.cl,v 1.3 2006/01/25 03:28:29 dancy Exp $
+;; $Id: sunrpc-common.cl,v 1.4 2006/05/06 19:42:16 dancy Exp $
 
 ;; Large enough to allow for 64KB read/writes in NFS V3.
 (defconstant *rpc-buffer-size* (* 70 1024))
@@ -31,4 +31,10 @@
 (eval-when (compile load eval)
 (defconstant IPPROTO_TCP 6)
 (defconstant IPPROTO_UDP 17)
+(defconstant *true* 1)
+(defconstant *false* 0)
+(defconstant *pmapport* 111)
+(defconstant *pmapprog* 100000)
+(defconstant *pmapvers* 2)
+(defconstant *pmap-proc-getport* 3)
 )

@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.8 2006/03/14 16:52:34 dancy Exp $
+;; $Id: nsm.cl,v 1.9 2006/05/06 19:42:16 dancy Exp $
 
 (in-package :user)
 
@@ -369,15 +369,15 @@
 ;; Returns t if we got a reply of some sort.
 (defun sm-do-callback (entry)
   (handler-case 
-      (callrpc (nsm-monitor-requestor entry)
-	       (nsm-monitor-prog entry)
-	       (nsm-monitor-vers entry)
-	       (nsm-monitor-proc entry)
-	       :udp
-	       #'xdr-nsm-callback-status 
-	       (make-nsm-callback-status :mon-name (nsm-monitor-host entry)
-					 :state (nsm-monitor-state entry)
-					 :priv (nsm-monitor-priv entry)))
+      (callrpc-1 (nsm-monitor-requestor entry)
+		 (nsm-monitor-prog entry)
+		 (nsm-monitor-vers entry)
+		 (nsm-monitor-proc entry)
+		 :udp
+		 #'xdr-nsm-callback-status 
+		 (make-nsm-callback-status :mon-name (nsm-monitor-host entry)
+					   :state (nsm-monitor-state entry)
+					   :priv (nsm-monitor-priv entry)))
     (error (c)
       (if *nsm-debug*
 	  (logit "NSM: Error while sending callback ~a: ~a~%"
@@ -437,10 +437,10 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
   ;; XXX -- should we ever give up?
   (loop
     (handler-case 
-	(callrpc host #.*sm-prog* #.*sm-vers* #.*sm-notify* :udp
-		 #'xdr-stat-chge
-		 (make-stat-chge :mon-name *nsm-our-name*
-				 :state state))
+	(callrpc-1 host #.*sm-prog* #.*sm-vers* #.*sm-notify* :udp
+		   #'xdr-stat-chge
+		   (make-stat-chge :mon-name *nsm-our-name*
+				   :state state))
       (error (c)
 	(if *nsm-debug*
 	    (logit "NSM: Error while sending notify to ~a: ~a~%"

@@ -1,5 +1,10 @@
+$Id: TODO.txt,v 1.14 2006/05/06 19:42:16 dancy Exp $
 
-$Id: TODO.txt,v 1.13 2006/03/14 16:52:34 dancy Exp $
+Move portmap client stuff into sunrpc.cl
+
+Fix now-broken stuff in portmap.cl (defstruct mapping.. fix uses).
+
+Get rid of calls to callrpc-1.
 
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
 
@@ -15,3 +20,5 @@ nfs.cl, create/create3: Why do we ignore sattr? Laziness or something real?
 If the former, fix.  If the latter, document in comments.
 
 Redo mountd using new rpcgen.
+Redo portmap using rpcgen.
+
