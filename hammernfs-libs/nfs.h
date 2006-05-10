@@ -14,13 +14,9 @@ extern "C" {
 #endif
 
 
-/*
- * Definitions for uint64, int64, uint32, and int32
- */
-#include <rpc/rpc_sztypes.h>
+typedef u_int uint32;
 
-#define TRUE 1
-#define FALSE 0
+typedef uint64_t uint64;
 #define NFS_PORT 2049
 #define NFS_MAXDATA 8192
 #define NFS_MAXPATHLEN 1024
@@ -1423,6 +1419,8 @@ extern int nfs3_program_3_freeresult ();
 /* the xdr functions */
 
 #if defined(__STDC__) || defined(__cplusplus)
+extern  bool_t xdr_uint32 (XDR *, uint32*);
+extern  bool_t xdr_uint64 (XDR *, uint64*);
 extern  bool_t xdr_nfsstat (XDR *, nfsstat*);
 extern  bool_t xdr_ftype (XDR *, ftype*);
 extern  bool_t xdr_nfs_fh (XDR *, nfs_fh*);
@@ -1581,6 +1579,8 @@ extern  bool_t xdr_COMMIT3resfail (XDR *, COMMIT3resfail*);
 extern  bool_t xdr_COMMIT3res (XDR *, COMMIT3res*);
 
 #else /* K&R C */
+extern bool_t xdr_uint32 ();
+extern bool_t xdr_uint64 ();
 extern bool_t xdr_nfsstat ();
 extern bool_t xdr_ftype ();
 extern bool_t xdr_nfs_fh ();

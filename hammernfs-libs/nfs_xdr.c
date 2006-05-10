@@ -6,6 +6,26 @@
 #include "nfs.h"
 
 bool_t
+xdr_uint32 (XDR *xdrs, uint32 *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_u_int (xdrs, objp))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_uint64 (XDR *xdrs, uint64 *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_uint64_t (xdrs, objp))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
 xdr_nfsstat (XDR *xdrs, nfsstat *objp)
 {
 	register int32_t *buf;
