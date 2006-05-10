@@ -81,7 +81,7 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
   fhstatus=mountproc_mnt_1(&export, clnt);
 
   if (fhstatus->fhs_status != 0) {
-    printf("mount failed: status ~d\n", fhstatus->fhs_status);
+    printf("mount failed: status %d\n", fhstatus->fhs_status);
     exit(1);
   }
 
