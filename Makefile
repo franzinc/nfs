@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.54 2006/01/30 18:49:11 layer Exp $
+# $Id: Makefile,v 1.55 2006/05/10 23:28:24 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -43,7 +43,15 @@ build: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
-do_build: prereqs FORCE
+rpc: FORCE
+	echo '(load (compile-file-if-needed "rpcgen"))' > b.tmp
+	echo '(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x")) (write-line file) (rpcgen file))' >> b.tmp
+	echo '(rpcgen "nfs.x" :out-base "gen-nfs")' >> b.tmp
+	echo '(exit 0)' >> b.tmp
+	$(LISPEXE) +B +cn +s b.tmp -batch
+	rm b.tmp
+
+do_build: prereqs rpc FORCE
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp
 	echo '(setq excl::*break-on-warnings* t)' >> b.tmp
@@ -134,29 +142,15 @@ install: FORCE
 ###############################################################################
 # testing
 
-hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c \
-			hammernfs-libs/nfs_prot_clnt.c
-	cc -O -o hammernfs hammernfs.c hammernfs-libs/mount_xdr.c \
-				       hammernfs-libs/nfs_prot_clnt.c \
-				       hammernfs-libs/nfs_prot_xdr.c \
+hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c hammernfs-libs/nfs_clnt.c
+	cc -O -o hammernfs \
+			hammernfs.c 	\
+			hammernfs-libs/mount_xdr.c \
+			hammernfs-libs/mount_clnt.c \
+			hammernfs-libs/nfs_clnt.c \
+			hammernfs-libs/nfs_xdr.c \
+			hammernfs-libs/compat.c \
 			-lrpc 
-
-hammernfs-libs: 
-
-hammernfs-libs-dir:
-	mkdir -p hammernfs-libs
-
-hammernfs-libs/mount.x: hammernfs-libs-dir
-	ln -sdf /usr/include/rpcsvc/mount.x hammernfs-libs/mount.x
-
-hammernfs-libs/nfs_prot.x: hammernfs-libs-dir
-	ln -sdf /usr/include/rpcsvc/nfs_prot.x hammernfs-libs/nfs_prot.x
-
-hammernfs-libs/mount_clnt.c: hammernfs-libs/mount.x
-	(cd hammernfs-libs && rpcgen mount.x)
-
-hammernfs-libs/nfs_prot_clnt.c: hammernfs-libs/nfs_prot.x
-	(cd hammernfs-libs && rpcgen nfs_prot.x)
 
 ###############################################################################
 # misc
