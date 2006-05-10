@@ -26,14 +26,12 @@
 
 /* %#pragma ident	"@(#)nfs_prot.x	1.8	05/06/08 SMI" */
 
-#ifdef RPC_HDR
-%
-%/*
-% * Definitions for uint64, int64, uint32, and int32
-% */
-%#include <rpc/rpc_sztypes.h>
-%
-#endif
+/*
+ * Definitions for uint64, int64, uint32, and int32
+ */
+
+typedef unsigned int uint32;
+typedef unsigned hyper uint64;
 
 const NFS_PORT          = 2049;
 const NFS_MAXDATA       = 8192;
