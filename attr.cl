@@ -158,6 +158,7 @@
 (defun set-cached-file-size (fh size)
   (let ((attr (lookup-attr fh)))
     (setf (nfs-attr-size attr) size)
+    (setf (nfs-attr-used attr) size)
     (update-attr-ctime fh)))
 
 (defun set-cached-file-atime (fh atime)

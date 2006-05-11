@@ -21,12 +21,57 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.24 2006/05/06 19:42:16 dancy Exp $
+;; $Id: xdr.cl,v 1.25 2006/05/11 21:58:59 dancy Exp $
 
-(in-package :user)
+(defpackage :xdr
+  (:use :lisp :excl)
+  (:export
+   #:xdr-vec
+   #:xdr-pos
+   #:xdr-size
+   #:xdr-direction
+   #:create-xdr
+   #:xdr-get-vec
+   #:xdr-flush
+   #:with-xdr-seek
+   #:xdr-backspace
+   #:with-xdr-compute-bytes-added
+   #:xdr-void
+   #:xdr-unsigned-int
+   #:xdr-unsigned
+   #:xdr-uint32
+   #:xdr-int
+   #:xdr-long
+   #:xdr-int32
+   #:xdr-bool
+   #:xdr-unsigned-hyper
+   #:xdr-uint64
+   #:xdr-hyper
+   #:make-opaque
+   #:opaque-vec
+   #:opaque-offset
+   #:opaque-len
+   #:opaque-data
+   #:xdr-opaque-fixed
+   #:xdr-opaque-variable
+   #:xdr-opaque-variable-from-stream
+   #:with-opaque-xdr
+   #:xdr-array-fixed
+   #:xdr-array-variable
+   #:xdr-string
+   #:xdr-xdr
+   #:xdr-timeval
+   #:xdr-optional
+   #:defxdrstruct
+   #:defxdrunion))
+
+(in-package :xdr)
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
+
+(eval-when (compile load eval)
+  (require :streamp)) ;; for memcpy
 
 (defstruct xdr
   (vec nil :type (simple-array (unsigned-byte 8) (*)))
@@ -37,39 +82,21 @@
 
 (defparameter *xdrdefaultsize* 1024)
 
-(eval-when (compile eval load)
-  (defmacro with-xdr-seek ((xdr pos &key absolute) &body body)
-    (let ((oldpos (gensym)))
-      `(let ((,oldpos (xdr-pos ,xdr)))
-	 (if ,absolute 
-	     (setf (xdr-pos ,xdr) ,pos)
-	   (incf (xdr-pos ,xdr) ,pos))
-	 (multiple-value-prog1 
-	     (progn ,@body)
-	   (setf (xdr-pos ,xdr) ,oldpos))))))
+(defmacro with-xdr-seek ((xdr pos &key absolute) &body body)
+  (let ((oldpos (gensym)))
+    `(let ((,oldpos (xdr-pos ,xdr)))
+       (if* ,absolute 
+	  then (setf (xdr-pos ,xdr) ,pos)
+	  else (incf (xdr-pos ,xdr) ,pos))
+       (multiple-value-prog1 
+	   (progn ,@body)
+	 (setf (xdr-pos ,xdr) ,oldpos)))))
 
-(eval-when (compile eval load)
-  (defmacro with-xdr-compute-bytes-added ((xdr) &body body)
-    (let ((oldpos (gensym)))
-      `(let ((,oldpos (xdr-pos ,xdr)))
-	 ,@body
-	 (- (xdr-pos ,xdr) ,oldpos)))))
-
-(eval-when (compile eval load)
-  (defmacro with-xdr-xdr ((pair &key name) &body body)
-    (let ((thexdr (gensym))
-	  (offset (gensym))
-	  (pairval (gensym)))
-      (if (null name)
-	  (setf name pair))
-      `(let* ((,pairval ,pair)
-	      (,thexdr (car ,pairval))
-	      (,offset (cdr ,pairval))
-	      (,name ,thexdr))
-	 ;;(logit "seeking to offset ~D~%" ,offset)
-	 (with-xdr-seek (,thexdr ,offset :absolute t)
-	   ;;(logit "offset is currently ~D~%" (xdr-pos ,thexdr))
-	   ,@body)))))
+(defmacro with-xdr-compute-bytes-added ((xdr) &body body)
+  (let ((oldpos (gensym)))
+    `(let ((,oldpos (xdr-pos ,xdr)))
+       ,@body
+       (- (xdr-pos ,xdr) ,oldpos))))
 
 ;; used during extraction
 (defmacro xdr-advance (xdr size)
@@ -244,6 +271,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 (defun xdr-unsigned (xdr &optional int)
   (xdr-unsigned-int xdr int))
 
+(defun xdr-uint32 (xdr &optional int)
+  (xdr-unsigned-int xdr int))
+
 (defun xdr-int (xdr &optional int)
   (declare
    (type xdr xdr))
@@ -339,70 +369,81 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (pprint vec)
        (xdr-update-pos xdr 8)))))
 
-(defun xdr-extract-vec (vec)
-  (if* (listp vec)
-     then (subseq (first vec) (second vec) (+ (second vec) (third vec)))
-     else vec))
+(defstruct opaque
+  vec
+  offset
+  len)
 
-(defun xdr-opaque-fixed (xdr &key vec offset len makevec)
-  (declare
-   (type xdr xdr))
+(defun opaque-data (o)
+  (subseq (opaque-vec o) (opaque-offset o) (+ (opaque-offset o)
+					      (opaque-len o))))
+
+(defmacro with-opaque-xdr ((xdr o) &body body)
+  (let ((offset (gensym))
+	(oo (gensym)))
+    `(let* ((,oo ,o)
+	    (,offset (opaque-offset ,oo))
+	    (,xdr 
+	     (create-xdr :direction :extract 
+			 :vec (opaque-vec ,oo)
+			 :size (+ ,offset (the fixnum (opaque-len ,oo))))))
+       (declare (optimize (speed 3))
+		(fixnum ,offset))
+       (setf (xdr-pos ,xdr) ,offset)
+       ,@body)))
+
+
+;; Build:
+;;  arg can be a vector, or an opaque struct (in which case 'len' is ignored)
+;; Extract:
+;;  returns opaque struct
+(defun xdr-opaque-fixed (xdr &optional arg len)
   (ecase (xdr-direction xdr)
-    (:extract
-     (if (not len)
-	 (error "xdr-opaque-fixed: 'len' parameter is required"))
-     (prog1 
-	 (if* makevec
-	    then (subseq (xdr-vec xdr) (xdr-pos xdr) (+ (xdr-pos xdr) len))
-	    else (list (xdr-vec xdr) (xdr-pos xdr) len))
-       (xdr-advance xdr (compute-padded-len len))))
     (:build
-     (if (null vec)
-	 (error "xdr-opaque-fixed: 'vec' parameter is required"))
-     (if* (listp vec)
-	then (setf offset (second vec))
-	     (setf len (third vec))
-	     (setf vec (first vec)))
-     
+     (let (offset vec plen)
+       (if (null arg)
+	   (error "xdr-opaque-fixed: 'arg' must be specified when building"))
+       (if* (vectorp arg)
+	  then (setf vec arg)
+	       (setf offset 0)
+	       (if (null len)
+		   (setf len (length vec)))
+	elseif (opaque-p arg)
+	  then (setf vec (opaque-vec arg))
+	       (setf offset (opaque-offset arg))
+	       (setf len (opaque-len arg))
+	  else (error "Unexpected value: ~s" arg))
+       
+       (setf plen (compute-padded-len len))
+       (excl::memcpy (xdr-expand-check xdr plen) (xdr-pos xdr)
+		     vec offset len)
+       (xdr-update-pos xdr plen)))
+    (:extract
      (if (null len)
-	 (setf len (length vec)))
-     (if (null offset)
-	 (setf offset 0))
+	 (error "xdr-opaque-fixed: 'len' must be specified when extracting"))
+	 
+     (prog1 
+	 (make-opaque :vec (xdr-vec xdr) :offset (xdr-pos xdr) :len len)
+       (xdr-advance xdr (compute-padded-len len))))))
+
+
+;; Build: arg can be a vector, or an opaque struct
+;; Extract: returns an opaque struct
+(defun xdr-opaque-variable (xdr &optional arg)
+  (ecase (xdr-direction xdr)
+    (:build
+     (if (null arg)
+	 (error "xdr-opaque-variable: 'arg' must be specified when building"))
      
-     (let* ((plen (compute-padded-len len))
-	    (destvec (xdr-expand-check xdr plen))
-	    (pos (xdr-pos xdr)))
-       (declare ;;(:explain :calls :types)
-		(optimize (speed 3) (safety 0))
-		(type (simple-array (unsigned-byte 8) (*)) vec destvec))
-       (dotimes (i len)
-	 (declare (fixnum i offset len))
-	 (setf (aref destvec (+ i pos)) (aref vec (+ i offset))))
-       (xdr-update-pos xdr plen)))))
-
-
- ;;; extract:  returns (vec offset length)
-(defun xdr-opaque-variable (xdr &key vec offset len makevec)
-  (declare 
-   (type xdr xdr))
-  (let ((direction (xdr-direction xdr)))
-    (cond
-     ((eq direction :extract)
-      (xdr-opaque-fixed xdr :len (xdr-int xdr) :makevec makevec))
-     ((eq direction :build)
-      (if (null vec)
-	  (error "xdr-opaque-variable: 'vec' parameter is required"))
-      (if* (listp vec)
-	 then (setf offset (second vec))
-	      (setf len (third vec))
-	      (setf vec (first vec)))
-
-      (if (null len)
-	  (setf len (length vec)))
-      (if (null offset)
-	  (setf offset 0))
-      (xdr-int xdr len)
-      (xdr-opaque-fixed xdr :vec vec :len len :offset offset)))))
+     (if* (vectorp arg)
+	then (xdr-unsigned-int xdr (length arg))
+	     (xdr-opaque-fixed xdr arg)
+      elseif (opaque-p arg)
+	then (xdr-unsigned-int xdr (opaque-len arg))
+	     (xdr-opaque-fixed xdr arg)
+	else (error "Unexpected value: ~s" arg)))
+    (:extract
+     (xdr-opaque-fixed xdr nil (xdr-unsigned-int xdr)))))
 
 ;; Returns number of bytes actually read.
 (defun xdr-opaque-variable-from-stream (xdr stream count)
@@ -436,9 +477,9 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
         (error "xdr-array-fixed: 'len' parameter is required"))
       (dotimes (i len)
         (push (funcall typefunc xdr) res))
-      (reverse res))
+      (nreverse res))
      ((eq direction :build)
-      (unless (consp things)
+      (if (not (listp things))
         (error "xdr-array-fixed: 'things' parameter must be a list"))
       (dolist (thing things)
         (funcall typefunc xdr thing))))))
@@ -457,100 +498,6 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (setf len (length things))
       (xdr-int xdr len)
       (xdr-array-fixed xdr typefunc :len len :things things)))))
-
-
-;; auth_flavor: AUTH_NULL = 0 AUTH_UNIX = 1 AUTH_SHORT = 2 AUTH_DES =
-;; 3
-
-(defstruct opaque-auth
-  (flavor :type fixnum) ;; int
-  body-xdr
-  (body-offset :type fixnum))
-
-(defun xdr-opaque-auth (xdr &optional flavor body)
-  (declare
-   (type xdr xdr))
-  (let ((direction (xdr-direction xdr)))
-    (cond
-     ((eq direction :extract)
-      (let ((oa (make-opaque-auth)))
-	;;(logit "xdr-opaque-auth:  current xdr pos is ~D~%" (xdr-pos xdr))
-        (setf (opaque-auth-flavor oa) (xdr-int xdr))
-	;;(logit "xdr-opaque-auth: auth-flavor is ~D~%" (opaque-auth-flavor oa))
-	(setf (opaque-auth-body-xdr oa) xdr)
-	(setf (opaque-auth-body-offset oa) (+ 4 (xdr-pos xdr))) ;; add 4 to skip the integer which contains the size of the body
-	(xdr-advance xdr (compute-variable-bytes-used xdr))
-	;;(logit "xdr-opaque-auth: new xdr pos is ~D~%" (xdr-pos xdr))
-        oa))
-     ((eq direction :build)
-      (if (null body)
-	  (error "xdr-opaque-auth: 'body' keyword arg required when building"))
-      (xdr-int xdr flavor)
-      (xdr-opaque-variable xdr :vec body)))))
-
-(defun xdr-auth-null (xdr)
-  (declare 
-   (type xdr xdr))
-  (unless (eq (xdr-direction xdr) :build)
-    (error "xdr-auth-null: Not ready for extraction yet"))
-  (xdr-opaque-auth xdr 0 #()))
-
-(defstruct auth-unix 
-  stamp
-  machinename ;; string machinename<255>
-  uid
-  gid
-  gids ;; unsigned int gids<16>
-  ) 
-
-(defun xdr-auth-unix (xdr &optional au)
-  (declare 
-   (type xdr xdr))
-  (let ((direction (xdr-direction xdr)))
-    (cond 
-     ((eq direction :extract)
-      (let* ((stamp (xdr-int xdr))
-             (machinename (xdr-string xdr))
-             (uid (xdr-int xdr))
-             (gid (xdr-int xdr))
-             (gids (xdr-array-variable xdr #'xdr-int))
-             (newau (make-auth-unix
-                     :stamp stamp
-                     :machinename machinename
-                     :uid uid
-                     :gid gid
-                     :gids gids)))
-        newau))
-     ((eq direction :build)
-      (if (null au)
-	  (error "xdr-auth-unix: 'au' keyword arg required when building"))
-      (xdr-int xdr (auth-unix-stamp au))
-      (xdr-string xdr (auth-unix-machinename au))
-      (xdr-int xdr (auth-unix-uid au))
-      (xdr-int xdr (auth-unix-gid au))
-      (xdr-array-variable xdr #'xdr-int (auth-unix-gids au))))))
-
-(defun xdr-opaque-auth-struct-to-auth-unix-struct (oa)
-  (let ((xdr (opaque-auth-body-xdr oa))
-	(au (make-auth-unix))
-	(pos (opaque-auth-body-offset oa)))
-    (declare
-     (type xdr xdr)
-     (type auth-unix au)
-     (type fixnum pos))
-    (with-xdr-seek (xdr pos :absolute t)
-      ;;(logit "seeked to position ~D within xdr~%" pos)
-      (setf (auth-unix-stamp au) (xdr-int xdr))
-      ;;(logit "stamp is ~D~%" (auth-unix-stamp au))
-      (setf (auth-unix-machinename au) (xdr-string xdr))
-      ;;(logit "machine name is ~A~%" (auth-unix-machinename au))
-      (setf (auth-unix-uid au) (xdr-int xdr))
-      (setf (auth-unix-gid au) (xdr-int xdr))
-      (setf (auth-unix-gids au)
-	(xdr-array-variable xdr #'xdr-int)))
-    au))
-
-
 
 (defun compute-padded-len (len)
   (declare
@@ -614,9 +561,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		(type (simple-array (unsigned-byte 8) (*)) destvec srcvec)
 		(type fixnum pos))
        ;; do the copy....
-       (dotimes (i size)
-	 (setf (aref destvec (+ i pos))
-	   (aref srcvec i)))
+       (excl::memcpy destvec pos srcvec 0 size)
        (xdr-update-pos xdr size)))
     (:extract
      (cons xdr (xdr-pos xdr)))))
@@ -669,10 +614,14 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (intern (concatenate 'string (symbol-name structname) "-"
 		       (symbol-name slot))))
 
+(defun xdr-predicate (structname)
+  (intern (concatenate 'string (symbol-name structname) "-"
+		       (symbol-name 'p))))
+
 (defun xdr-varfixed-extract (type varfixed len)
-  (if* (eq type 'opaque)
+  (if* (string= (symbol-name type) "opaque")
      then (ecase varfixed
-	    (:fixed `(xdr-opaque-fixed xdr :len ,len))
+	    (:fixed `(xdr-opaque-fixed xdr nil ,len))
 	    (:variable `(xdr-opaque-variable xdr)))
      else (let ((decoder (xdr-prepend-xdr type)))
 	    (ecase varfixed
@@ -683,20 +632,20 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 (defun xdr-varfixed-build (structname obj type slot varfixed)
   (let ((accessor (xdr-struct-accessor structname slot))
 	(encoder (xdr-prepend-xdr type)))
-    (if* (eq type 'opaque)
+    (if* (string= (symbol-name type) "opaque")
        then `(,(ecase varfixed
 		 (:fixed 'xdr-opaque-fixed)
 		 (:variable 'xdr-opaque-variable))
-		 xdr :vec (,accessor ,obj))
+		 xdr (,accessor ,obj))
        else `(,(ecase varfixed
 		 (:fixed 'xdr-array-fixed)
 		 (:variable 'xdr-array-variable))
-		 xdr #',encoder :things (,accessor ,obj)))))
+		 xdr #',encoder (,accessor ,obj)))))
 
 (defun xdr-extractor-form (type varfixed len)
-  (if varfixed
-      (xdr-varfixed-extract type varfixed len)
-    `(,(xdr-prepend-xdr type) xdr)))
+  (if* varfixed
+     then  (xdr-varfixed-extract type varfixed len)
+     else `(,(xdr-prepend-xdr type) xdr)))
 
 (defun xdr-builder-form (structname obj type slot varfixed)
   (if varfixed
@@ -705,9 +654,13 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 				   ,obj))))
 
 (defmacro defxdrstruct (structname members)
-  (let* ((maker (intern (concatenate 'string (symbol-name 'make) "-"
+  (let (optional maker extractions builds accessors)
+    (when (listp structname)
+      (setf optional (second structname))
+      (setf structname (first structname)))
+    
+    (setf maker (intern (concatenate 'string (symbol-name 'make) "-"
 				     (symbol-name structname))))
-	 extractions builds)
     
     (dolist (member members)
       (let* ((type (first member))
@@ -716,23 +669,41 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	     (len (fourth member))
 	     (slotkeyword (intern name :keyword))
 	     (form (xdr-extractor-form type varfixed len)))
-	
+
+	(push (xdr-struct-accessor structname name) accessors)
 	(setf extractions (append extractions `(,slotkeyword ,form)))
 	(push (xdr-builder-form structname 'arg type name varfixed) builds)))
     
     (setf builds (nreverse builds))
+    (setf accessors (nreverse accessors))
     
-    `(progn
+    `(eval-when (compile load eval)
        (defstruct ,structname
 	 ,@(mapcar #'second members))
        
        (defun ,(xdr-prepend-xdr structname) (xdr &optional arg)
 	 (ecase (xdr-direction xdr)
 	   (:build
-	    ,@builds)
+	    (if* arg
+	       then ,(if* optional
+			then '(xdr-int xdr 1))
+		    ,@builds
+	       else ,(if* optional
+			then '(xdr-int xdr 0)
+			else '(error "arg must be non-null"))))
 	   (:extract
-	    (,maker 
-	     ,@extractions)))))))
+	    (when ,(if* optional
+		      then '(= 1 (xdr-int xdr))
+		      else t)
+	      (,maker 
+	       ,@extractions)))))
+       
+       (export '(,(xdr-prepend-xdr structname) ,maker 
+		 ,(xdr-predicate structname)
+		 ,@accessors)))))
+
+	       
+	       
 			   
 (defmacro defxdrunion (type discrim arms)
   (let* ((maker (intern (concatenate 'string (symbol-name 'make) "-"
@@ -740,27 +711,42 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	 (discrim-type (first discrim))
 	 (discrim-slot (second discrim))
 	 (discrim-accessor (xdr-struct-accessor type discrim-slot))
+	 (accessors (list discrim-accessor))
+	 (boolean (string= (symbol-name discrim-type) "bool"))
 	 slots
 	 builds
 	 extractions)
+    
     (dolist (arm arms)
-      (let ((case (first arm))
-	    (slot-type (second arm))
-	    (slot-name (third arm))
-	    (varfixed (fourth arm))
-	    (len (fifth arm)))
+      (let* ((cases (first arm))
+	     (default (eq cases :default))
+	     (slot-type (second arm))
+	     (slot-name (third arm))
+	     (varfixed (fourth arm))
+	     (len (fifth arm)))
 	
-	(when (not (eq slot-type 'void))
+	(when (string/= (symbol-name slot-type) "void")
+	  (if (not (listp cases))
+	      (setf cases (list cases)))
+	  
 	  (push slot-name slots)
 	  (let ((conditional 
-		 (if* (eq case :default)
+		 (if* default
 		    then t
-		    else (if* (listp case)
-			    then (let (res)
-				   (dolist (c case)
-				     (push `(eql discrim ,c) res))
-				   `(or ,@res))
-			    else `(eql discrim ,case)))))
+		    else (let (res)
+			   (dolist (case cases)
+			     (if* boolean
+				then (case case
+				       (0 
+					(push '(null discrim) res))
+				       (1 
+					(push 'discrim res))
+				       (t
+					(error "cases must be either #.*true*, #.*false*, or :default when the discriminant type is 'bool")))
+				else (push `(= discrim ,case) res)))
+			   `(or ,@res)))))
+
+	    (push (xdr-struct-accessor type slot-name) accessors)
 	    
 	    (push `(,conditional
 		    ,(xdr-builder-form type 'arg slot-type slot-name varfixed))
@@ -769,12 +755,12 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		    (setf (,(xdr-struct-accessor type slot-name) res) 
 		      ,(xdr-extractor-form slot-type varfixed len)))
 		  extractions)))))
-    
+
     (setf slots (nreverse slots))
     (setf builds (nreverse builds))
     (setf extractions (nreverse extractions))
     
-    `(progn
+    `(eval-when (compile load eval)
        (defstruct ,type 
 	 ,(second discrim)
 	 ,@slots)
@@ -787,10 +773,14 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	      (cond
 	       ,@builds)))
 	   (:extract
-	    (let* ((discrim (,(xdr-prepend-xdr discrim-type) xdr))
+	    (let ((discrim (,(xdr-prepend-xdr discrim-type) xdr))
 		   (res (,maker)))
 	      (setf (,discrim-accessor res) discrim)
 	      (cond
 	       ,@extractions)
-	      res)))))))
+	      res))))
+
+       (export '(,(xdr-prepend-xdr type) ,maker 
+		 ,(xdr-predicate type)
+		 ,@accessors)))))
 

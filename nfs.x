@@ -33,6 +33,9 @@
 typedef unsigned int uint32;
 typedef unsigned hyper uint64;
 
+const TRUE = 1;
+const FALSE = 0;
+
 const NFS_PORT          = 2049;
 const NFS_MAXDATA       = 8192;
 const NFS_MAXPATHLEN    = 1024;

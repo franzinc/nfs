@@ -1,3 +1,18 @@
+*******************************************************************************
+4.3.3b7 (unreleased)
+*******************************************************************************
+2006-05-11    <dancy@DANCYSOFT>
+
+	* Overhauled all the subprograms (portmap, mountd, nsm, nlm) to
+	use an rpcgen-generated framework.
+
+	* BUGFIX: [spr31587] It's not clearly stated in the spec but if
+	the CREATE procedure is called on a file that already exists, it
+	should report success anyway.  This is fixed now.
+
+	* BUGFIX: create3 procedure was ignoring supplied file attributes.
+	Fixed.
+	
 2006-05-06  Ahmon Dancy  <dancy@dancy>
 
 	* *.cl: Changed calls to callrpc to callrpc-1.  All of these

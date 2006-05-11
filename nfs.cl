@@ -22,180 +22,134 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.99 2006/04/25 21:14:26 dancy Exp $
+;; $Id: nfs.cl,v 1.100 2006/05/11 21:58:59 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile) (declaim (optimize (speed 3))))
 
-(defconstant *nfsport* 2049)
-(defconstant *maxdata* 8192)
-(defconstant *maxpathlen* 1024)
-(defconstant *maxnamlen* 255)
-(defparameter *nfsd-tcp-socket* nil)
-(defparameter *nfsd-udp-socket* nil)
+(eval-when (compile load eval)
+  (use-package :gen-nfs)
+  (use-package :xdr))
+
 (defparameter *socketbuffersize* (* 128 1024))
 (defparameter *nfsd-start-time* nil)
 
-
-;; XXX -- Commented out reuse-address since Windows allows
-;; multiple sockets to be bound to the same local port.
-
-(defun make-nfsdsockets ()
-  (unless *nfsd-tcp-socket*
-    (handler-case 
-	(setf *nfsd-tcp-socket*
-	  (socket:make-socket :type :hiper
-			      :connect :passive
-			      :local-port *nfsport*
-			      ;;:reuse-address t
-			      ))
-      (socket-error (c)
-	(if (eq (stream-error-identifier c) :address-in-use)
-	    (bailout "Cannot start nfsd.  Address already in use.~%")
-	  (bailout "~
-Unexpected error while creating nfsd tcp socket: ~A~%" c)))
-      (error (c)
-	(bailout "~
-Unexpected error while creating nfsd tcp socket: ~A~%" c)))
-
-    (socket:set-socket-options *nfsd-tcp-socket*
-			       :receive-buffer-size *socketbuffersize*
-			       :send-buffer-size *socketbuffersize*))
-  
-  (unless *nfsd-udp-socket*
-    (handler-case 
-	(setf *nfsd-udp-socket*
-	  (socket:make-socket :type :datagram
-			      :local-port *nfsport*))
-      (error (c)
-	(bailout "~
-Unexpected error while creating nfsd udp socket: ~A~%" c)))
-    
-    (socket:set-socket-options *nfsd-udp-socket*
-			       :receive-buffer-size *socketbuffersize*
-			       :send-buffer-size *socketbuffersize*)))
-
-(defun close-nfsdsockets ()
-  (when *nfsd-tcp-socket*
-    (close *nfsd-tcp-socket*)
-    (setf *nfsd-tcp-socket* nil))
-  (when *nfsd-udp-socket*
-    (close *nfsd-udp-socket*)
-    (setf *nfsd-udp-socket* nil)))
-
-(defmacro with-nfsdsockets (() &body body)
-  `(progn
-     (make-nfsdsockets)
-     ,@body
-     (close-nfsdsockets)))
-
-
 (defun nfsd ()
   (setf *nfsd-start-time* (get-universal-time))
-  
-  (with-nfsdsockets ()
-    (with-portmapper-mapping (*nfsprog* '(2 3) *nfsport* IPPROTO_TCP)
-      (with-portmapper-mapping (*nfsprog* '(2 3) *nfsport* IPPROTO_UDP)
-	(mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
-	(mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
-	(mp:process-run-function "dir cache reaper" #'dircache-reaper)
-	(let ((server (make-rpc-server :tcpsock *nfsd-tcp-socket*
-				       :udpsock *nfsd-udp-socket*)))
 
-	  (logit "Allegro NFS Server version ~A started.~%" 
-		 *nfsd-long-version*)
-	  (if* *nfs-gc-debug*
-	     then (logit "~&Turning on memory management debugging.~%")
-		  (setf (sys:gsgc-switch :print) t)
-		  (setf (sys:gsgc-switch :stats) t)
-		  (setq excl:*global-gc-behavior* nil)
-	     else (setf (sys:gsgc-switch :print) nil))	  
+  (sunrpc:with-rpc-sockets ("NFS" usock tsock :port #.*nfs-port*)
+    (sunrpc:with-portmapper-mappings ("NFS" #.*nfs-program*
+					    '(2 3)
+					    #.*nfs-port*
+					    #.*nfs-port*)
+      (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
+      (mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
+      (mp:process-run-function "dir cache reaper" #'dircache-reaper)
+      (let ((server (sunrpc:make-rpc-server :udpsock usock :tcpsock tsock)))
+	
+	(dolist (sock (list usock tsock))
+	  (socket:set-socket-options sock
+				     :receive-buffer-size *socketbuffersize*
+				     :send-buffer-size *socketbuffersize*))
+
+	(logit "Allegro NFS Server version ~A started.~%" 
+	       *nfsd-long-version*)
+	(if* *nfs-gc-debug*
+	   then (logit "~&Turning on memory management debugging.~%")
+		(setf (sys:gsgc-switch :print) t)
+		(setf (sys:gsgc-switch :stats) t)
+		(setq excl:*global-gc-behavior* nil)
+	   else (setf (sys:gsgc-switch :print) nil))	  
 	  
-	  (loop
-	    (multiple-value-bind (xdr peer)
-		(rpc-get-message server)
-	      (nfsd-message-handler xdr peer))))))))
+	(loop
+	  (nfsd-message-handler (sunrpc:rpc-get-message server)
+				(sunrpc:rpc-server-peer server)))))))
+	    
 
 (defun nfsd-message-handler (xdr peer)
-  (let* ((msg (create-rpc-msg xdr))
-	 (cbody (rpc-msg-cbody msg))
-	 (xid (rpc-msg-xid msg))
-	 (vers (call-body-vers cbody))
-	 (proc (call-body-proc cbody)))
-    (when (/= (rpc-msg-mtype msg) 0)
-      (error "Unexpected data!"))
-    
-    ;; sanity checks first
-    (when (not (= (call-body-prog cbody) #.*nfsprog*))
-      (if *nfs-debug*
-	  (logit "Sending program unavailable response for prog=~D~%"
-		  (call-body-prog cbody)))
-      (rpc-send-prog-unavail peer xid *nullverf*)
-      (return-from nfsd-message-handler))
-
-    (case vers
-      (2
-       (case proc
-	 (0 (nfsd-null peer xid cbody))
-	 (1 (nfsd-getattr peer xid cbody))
-	 (2 (nfsd-setattr peer xid cbody))
-	 ;; 3 = ROOT
-	 (4 (nfsd-lookup peer xid cbody))
-	 (5 (nfsd-readlink peer xid cbody))
-	 (6 (nfsd-read peer xid cbody))
-	 ;; 7 = WRITECACHE
-	 (8 (nfsd-write peer xid cbody))
-	 (9 (nfsd-create peer xid cbody))
-	 (10 (nfsd-remove peer xid cbody))
-	 (11 (nfsd-rename peer xid cbody))
-	 (12 (nfsd-link peer xid cbody))
-	 (13 (nfsd-symlink peer xid cbody))
-	 (14 (nfsd-mkdir peer xid cbody))
-	 (15 (nfsd-rmdir peer xid cbody))
-	 (16 (nfsd-readdir peer xid cbody))
-	 (17 (nfsd-statfs peer xid cbody))
-	 ;; secret functions used by the configuration program
-	 (100 (nfsd-get-config-file-path peer xid cbody))
-	 (101 (nfsd-reload-configuration peer xid cbody))
-	 (t
-	  (rpc-send-proc-unavail peer xid *nullverf*)
-	  (logit "nfsv2: unhandled procedure ~D~%" proc))))
-      (3
-       (case proc
-	 (0 (nfsd-null peer xid cbody))
-	 (1 (nfsd-getattr peer xid cbody))
-	 (2 (nfsd-setattr3 peer xid cbody))
-	 (3 (nfsd-lookup peer xid cbody))
-	 (4 (nfsd-access peer xid cbody))
-	 (5 (nfsd-readlink peer xid cbody))
-	 (6 (nfsd-read3 peer xid cbody))
-	 (7 (nfsd-write3 peer xid cbody))
-	 (8 (nfsd-create3 peer xid cbody))
-	 (9 (nfsd-mkdir peer xid cbody))
-	 (10 (nfsd-symlink3 peer xid cbody))
-	 (11 (nfsd-mknod peer xid cbody))
-	 (12 (nfsd-remove peer xid cbody))
-	 (13 (nfsd-rmdir peer xid cbody))
-	 (14 (nfsd-rename peer xid cbody))
-	 (15 (nfsd-link peer xid cbody))
-	 (16 (nfsd-readdir3 peer xid cbody))
-	 (17 (nfsd-readdirplus peer xid cbody))
-	 (18 (nfsd-fsstat peer xid cbody))
-	 (19 (nfsd-fsinfo peer xid cbody))
-	 (20 (nfsd-pathconf peer xid cbody))
-	 (21 (nfsd-commit peer xid cbody))
-	 ;; secret functions used by the configuration program
-	 (100 (nfsd-get-config-file-path peer xid cbody))
-	 (101 (nfsd-reload-configuration peer xid cbody))
-	 (t
-	  (rpc-send-proc-unavail peer xid *nullverf*)
-	  (logit "nfsv3: unhandled procedure ~D~%" proc))))
-      (t
-       (if *nfs-debug*
-	   (write-line "Sending program version mismatch response"))
-       (rpc-send-prog-mismatch peer xid *nullverf* 2 3)
-       (return-from nfsd-message-handler)))))
+  (let ((msg (sunrpc:xdr-rpc-msg xdr)))
+    (sunrpc:with-valid-call (msg peer cbody)
+      (let ((xid (sunrpc:rpc-msg-xid msg))
+	    (vers (sunrpc:call-body-vers cbody))
+	    (proc (sunrpc:call-body-proc cbody)))
+	
+	;; sanity checks first
+	(when (not (= (sunrpc:call-body-prog cbody) #.*nfs-program*))
+	  (if *nfs-debug*
+	      (logit "~
+NFS: ~a: Sending program unavailable response for prog=~D~%"
+		     (sunrpc:peer-dotted peer)
+		     (sunrpc:call-body-prog cbody)))
+	  (sunrpc:send-prog-unavail-reply peer xid sunrpc:*nullverf*)
+	  (return-from nfsd-message-handler))
+	
+	(case vers
+	  (2
+	   (case proc
+	     (0 (nfsd-null peer xid xdr cbody))
+	     (1 (nfsd-getattr peer xid xdr cbody))
+	     (2 (nfsd-setattr peer xid xdr cbody))
+	     ;; 3 = ROOT
+	     (4 (nfsd-lookup peer xid xdr cbody))
+	     (5 (nfsd-readlink peer xid xdr cbody))
+	     (6 (nfsd-read peer xid xdr cbody))
+	     ;; 7 = WRITECACHE
+	     (8 (nfsd-write peer xid xdr cbody))
+	     (9 (nfsd-create peer xid xdr cbody))
+	     (10 (nfsd-remove peer xid xdr cbody))
+	     (11 (nfsd-rename peer xid xdr cbody))
+	     (12 (nfsd-link peer xid xdr cbody))
+	     (13 (nfsd-symlink peer xid xdr cbody))
+	     (14 (nfsd-mkdir peer xid xdr cbody))
+	     (15 (nfsd-rmdir peer xid xdr cbody))
+	     (16 (nfsd-readdir peer xid xdr cbody))
+	     (17 (nfsd-statfs peer xid xdr cbody))
+	     ;; secret functions used by the configuration program
+	     (100 (nfsd-get-config-file-path peer xid xdr cbody))
+	     (101 (nfsd-reload-configuration peer xid xdr cbody))
+	     (t
+	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
+	      (logit "NFSv2: ~a: unhandled procedure ~D~%" 
+		     (sunrpc:peer-dotted peer)  proc))))
+	  (3
+	   (case proc
+	     (0 (nfsd-null peer xid xdr cbody))
+	     (1 (nfsd-getattr peer xid xdr cbody))
+	     (2 (nfsd-setattr3 peer xid xdr cbody))
+	     (3 (nfsd-lookup peer xid xdr cbody))
+	     (4 (nfsd-access peer xid xdr cbody))
+	     (5 (nfsd-readlink peer xid xdr cbody))
+	     (6 (nfsd-read3 peer xid xdr cbody))
+	     (7 (nfsd-write3 peer xid xdr cbody))
+	     (8 (nfsd-create3 peer xid xdr cbody))
+	     (9 (nfsd-mkdir peer xid xdr cbody))
+	     (10 (nfsd-symlink3 peer xid xdr cbody))
+	     (11 (nfsd-mknod peer xid xdr cbody))
+	     (12 (nfsd-remove peer xid xdr cbody))
+	     (13 (nfsd-rmdir peer xid xdr cbody))
+	     (14 (nfsd-rename peer xid xdr cbody))
+	     (15 (nfsd-link peer xid xdr cbody))
+	     (16 (nfsd-readdir3 peer xid xdr cbody))
+	     (17 (nfsd-readdirplus peer xid xdr cbody))
+	     (18 (nfsd-fsstat peer xid xdr cbody))
+	     (19 (nfsd-fsinfo peer xid xdr cbody))
+	     (20 (nfsd-pathconf peer xid xdr cbody))
+	     (21 (nfsd-commit peer xid xdr cbody))
+	     ;; secret functions used by the configuration program
+	     (100 (nfsd-get-config-file-path peer xid xdr cbody))
+	     (101 (nfsd-reload-configuration peer xid xdr cbody))
+	     (t
+	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
+	      (logit "NFSv3: ~a: unhandled procedure ~D~%" 
+		     (sunrpc:peer-dotted peer)
+		     proc))))
+	  (t
+	   (if *nfs-debug*
+	       (logit "NFS: ~a: Sending program version mismatch response"
+		      (sunrpc:peer-dotted peer)))
+	   (sunrpc:send-prog-mismatch-reply peer xid sunrpc:*nullverf* 2 3)
+	   (return-from nfsd-message-handler)))))))
        
 
 (defmacro with-backtrace-on-non-file-error (() &body body)
@@ -221,40 +175,47 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 		    (tpl:do-command "zoom" :from-read-eval-print-loop nil))))))))
      ,@body))
 
+(defun file-or-syscall-error (c xdr savedpos vers debug-this-procedure)
+  (setf (xdr:xdr-pos xdr) savedpos)
+  ;; Make some errors look less alarming. 
+  (when debug-this-procedure
+    (case (excl::syscall-error-errno c)
+      (#.*enoent* 
+       (logit " => [Not found]~%"))
+      (#.*enotempty*
+       (logit " => [Not empty]~%"))
+      (#.*eexist*
+       (logit " => [Already exists]~%"))
+      (t
+       (logit "Handling file error: ~A~%" c))))
+  (xdr-int xdr (map-errno-to-nfs-error-code 
+		(excl::syscall-error-errno c)))
+  (if (= vers 3)
+      (nfs-xdr-wcc-data xdr nil nil)))
+  
+
 (defmacro with-nfs-err-handler ((xdr vers) &body body)
   (let ((savepossym (gensym)))
-    `(let ((,savepossym (xdr-pos ,xdr)))
+    `(let ((,savepossym (xdr:xdr-pos ,xdr)))
        (handler-case
 	   (with-backtrace-on-non-file-error ()
 	     ,@body)
 	 (illegal-filename-error (c)
 	   (declare (ignore c))
-	   (setf (xdr-pos ,xdr) ,savepossym)
+	   (setf (xdr:xdr-pos ,xdr) ,savepossym)
 	   (when debug-this-procedure (logit "Illegal filename~%"))
-	   (xdr-int ,xdr NFSERR_ACCES) ;; rfc1813 says to use this
+	   (xdr-int ,xdr #.*nfserr-acces*) ;; rfc1813 says to use this
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	 (file-error (c)
-	   (setf (xdr-pos ,xdr) ,savepossym)
-	   ;; Make some errors look less alarming. 
-	   (when debug-this-procedure
-	     (case (excl::syscall-error-errno c)
-	       (#.*enoent* 
-		(logit " => [Not found]~%"))
-	       (#.*enotempty*
-		(logit " => [Not empty]~%"))
-	       (#.*eexist*
-		(logit " => [Already exists]~%"))
-	       (t
-		(logit "Handling file error: ~A~%" c))))
-	   (xdr-int ,xdr (map-errno-to-nfs-error-code 
-			  (excl::syscall-error-errno c)))
-	   (if (= ,vers 3)
-	       (nfs-xdr-wcc-data ,xdr nil nil)))
+	   (file-or-syscall-error c ,xdr ,savepossym ,vers debug-this-procedure))
+	 (syscall-error (c)
+	   (file-or-syscall-error c ,xdr ,savepossym ,vers debug-this-procedure))
+	   
 	 (error (c)
-	   (setf (xdr-pos ,xdr) ,savepossym)
+	   (setf (xdr:xdr-pos ,xdr) ,savepossym)
 	   (logit "Handling unexpected error: ~A~%" c)
-	   (xdr-int ,xdr NFSERR_IO)
+	   (xdr-int ,xdr #.*nfserr-io*)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))))))
     
@@ -269,14 +230,14 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	    (when debug-this-procedure (logit " Invalid file handle~%"))
 	    (ecase ,vers
 	      (2 
-	       (xdr-int ,xdr NFSERR_STALE))
+	       (xdr-int ,xdr #.*nfserr-stale*))
 	      (3 
-	       (xdr-int ,xdr NFSERR_BADHANDLE)
+	       (xdr-int ,xdr #.*nfs3err-badhandle*)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))
 	    (return-from ,block))
 	   (:stale
 	    (when debug-this-procedure (logit " Stale file handle~%"))
-	    (xdr-int ,xdr NFSERR_STALE)
+	    (xdr-int ,xdr #.*nfserr-stale*)
 	    (if (= ,vers 3)
 		(nfs-xdr-wcc-data ,xdr nil nil))
 	    (return-from ,block))))
@@ -289,7 +250,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	   ,@body
       else
 	   (when debug-this-procedure (logit " Host access denied~%"))
-	   (xdr-int ,xdr NFSERR_ACCES)
+	   (xdr-int ,xdr #.*nfserr-acces*)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil))))
 
@@ -337,9 +298,9 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	   (push `(,(first pair) (xdr-unsigned-hyper params)) argdefs)
 	   (add-debug `(logit "~D" ,(first pair))))
 	  (sattr
-	   (push `(,(first pair) (xdr-sattr-to-struct-sattr params vers)) 
+	   (push `(,(first pair) (xdr-tweaked-sattr params vers)) 
 		 argdefs)
-	   (add-debug `(logit "~A" ,(first pair))))
+	   (add-debug `(logit "~A" (tweaked-sattr-to-string ,(first pair)))))
 	  (sattrguard3 
 	   (push `(,(first pair) 
 		   (if (xdr-bool params)
@@ -351,13 +312,17 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	   (push `(,(first pair) 
 		   (ecase (xdr-unsigned-int params)
 		     (0 ;; unchecked
-		      (list :unchecked (xdr-sattr-to-struct-sattr params 3)))
+		      (list :unchecked (xdr-tweaked-sattr params 3)))
 		     (1 ;; guarded
-		      (list :guarded (xdr-sattr-to-struct-sattr params 3)))
+		      (list :guarded (xdr-tweaked-sattr params 3)))
 		     (2 ;; exclusive
 		      (list :exclusive (xdr-unsigned-hyper params)))))
 		 argdefs)
-	   (add-debug `(logit "~S" ,(first pair))))
+	   (add-debug `(logit "~a, ~a" (first ,(first pair))
+			      (if* (eq (first ,(first pair)) :exclusive)
+				 then (second ,(first pair))
+				 else (tweaked-sattr-to-string 
+				       (second ,(first pair)))))))
 	  (data
 	   (push `(,(first pair) (xdr-opaque-variable params)) argdefs)
 	   (add-debug `(logit "<data>"))))
@@ -369,59 +334,59 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     (if (null host-access-check-fh)
 	(error 
 	 "define-nfs-proc:  There must be at least one fhandle variable"))
-    `(defun ,funcname (peer xid cbody)
-       (with-xdr-xdr ((call-body-params cbody) :name params)
-	 (let* ((vers (call-body-vers cbody))
-		procedure-start-time debug-this-procedure
-		,@argdefs)
-	   (when (nfs-debug-filter-on ,debugtype)
-	     (setf debug-this-procedure t)
-	     (if *nfs-debug-timestamps*
-		 (nfs-log-time))
-	     (logit "~a (nfsv~d) ~a(" 
-		    (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-		    vers (quote ,name))
-	     ,@debugs
-	     (if *nfs-debug-timestamps*
-		 (setf procedure-start-time (get-internal-real-time))))
-	   (with-successful-reply (*nfsdxdr* peer xid *nullverf*)
-	     (with-valid-fh (*nfsdxdr* vers ,fhsyms)
-	       (with-allowed-host-access (vers *nfsdxdr* 
-					       ,host-access-check-fh 
-					       (rpc-peer-addr peer))
-		 (with-nfs-err-handler (*nfsdxdr* vers)
-		   #+nfs-debug
-		   (handler-bind
-		       ((error
-			 (lambda (c)
-			   (when *nfs-debug*
-			     (with-standard-io-syntax
-			       (let ((*print-readably* nil)
-				     (*print-miser-width* 40)
-				     (*print-pretty* t)
-				     (*print-structure* nil)
-				     (*print-array* nil)
-				     (tpl:*zoom-print-circle* t)
-				     (tpl:*zoom-print-level* nil)
-				     (tpl:*zoom-print-length* nil))
-				 (ignore-errors
-				  (logit "Error: ~a.~%" c))
-				 (ignore-errors ;prevent recursion
-				  (let* ((s *log-stream*)
-					 (*terminal-io* s)
-					 (*standard-output* s))
-				    (tpl:do-command "zoom"
-				      :brief t
-				      :from-read-eval-print-loop nil
-				      :count t :all t)))))))))
-		     ,@body)
-		   #-nfs-debug ,@body
-		   (when debug-this-procedure
-		     (if *nfs-debug-timestamps*
-			 (logit " ==> ~dms~%" 
-				(- (get-internal-real-time) 
-				   procedure-start-time))
-		       (logit "~%"))))))))))))
+    `(defun ,funcname (peer xid params cbody)
+       (let* ((vers (sunrpc:call-body-vers cbody))
+	      procedure-start-time debug-this-procedure
+	      ,@argdefs)
+	 (when (nfs-debug-filter-on ,debugtype)
+	   (setf debug-this-procedure t)
+	   (if *nfs-debug-timestamps*
+	       (nfs-log-time))
+	   (logit "NFSv~d: ~a: ~a(" 
+		  vers
+		  (sunrpc:peer-dotted peer)
+		  (quote ,name))
+	   ,@debugs
+	   (if *nfs-debug-timestamps*
+	       (setf procedure-start-time (get-internal-real-time))))
+	 (sunrpc:with-successful-reply (*nfsdxdr* peer xid sunrpc:*nullverf*)
+	   (with-valid-fh (*nfsdxdr* vers ,fhsyms)
+	     (with-allowed-host-access (vers *nfsdxdr* 
+					     ,host-access-check-fh 
+					     (sunrpc:rpc-peer-addr peer))
+	       (with-nfs-err-handler (*nfsdxdr* vers)
+		 #+nfs-debug
+		 (handler-bind
+		     ((error
+		       (lambda (c)
+			 (when *nfs-debug*
+			   (with-standard-io-syntax
+			     (let ((*print-readably* nil)
+				   (*print-miser-width* 40)
+				   (*print-pretty* t)
+				   (*print-structure* nil)
+				   (*print-array* nil)
+				   (tpl:*zoom-print-circle* t)
+				   (tpl:*zoom-print-level* nil)
+				   (tpl:*zoom-print-length* nil))
+			       (ignore-errors
+				(logit "Error: ~a.~%" c))
+			       (ignore-errors ;prevent recursion
+				(let* ((s *log-stream*)
+				       (*terminal-io* s)
+				       (*standard-output* s))
+				  (tpl:do-command "zoom"
+				    :brief t
+				    :from-read-eval-print-loop nil
+				    :count t :all t)))))))))
+		   ,@body)
+		 #-nfs-debug ,@body
+		 (when debug-this-procedure
+		   (if *nfs-debug-timestamps*
+		       (logit " ==> ~dms~%" 
+			      (- (get-internal-real-time) 
+				 procedure-start-time))
+		     (logit "~%")))))))))))
 
 		   
 
@@ -429,10 +394,10 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
   (let ((func (ecase type
 		(:read 'nfs-okay-to-read)
 		(:write 'nfs-okay-to-write))))
-    `(if* (not (,func ,fh (call-body-cred cbody)))
+    `(if* (not (,func ,fh (sunrpc:call-body-cred cbody)))
 	then
 	     (if debug-this-procedure (logit " permission denied~%") )
-	     (xdr-int *nfsdxdr* NFSERR_ACCES)
+	     (xdr-int *nfsdxdr* #.*nfserr-acces*)
 	     (if (= vers 3)
 		 (nfs-xdr-wcc-data *nfsdxdr* nil nil))
 	else
@@ -442,12 +407,12 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 (defmacro with-dirfh ((fh) &body body)
   (let ((attr (gensym)))
     `(let ((,attr (lookup-attr ,fh)))
-       (if* (= (nfs-attr-type ,attr) *NFDIR*)
+       (if* (= (nfs-attr-type ,attr) #.*nfdir*)
 	  then
 	       ,@body
 	  else
 	       (when debug-this-procedure (logit " Not a directory~%"))
-	       (xdr-int *nfsdxdr* NFSERR_NOTDIR)
+	       (xdr-int *nfsdxdr* #.*nfserr-notdir*)
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
 
@@ -455,12 +420,12 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 (defmacro with-non-dir-fh ((fh) &body body)
   (let ((attr (gensym)))
     `(let ((,attr (lookup-attr ,fh)))
-       (if* (/= (nfs-attr-type ,attr) *NFDIR*)
+       (if* (/= (nfs-attr-type ,attr) #.*nfdir*)
 	  then
 	       ,@body
 	  else
 	       (when debug-this-procedure (logit " Not allowed to be a directory~%"))
-	       (xdr-int *nfsdxdr* NFSERR_PERM)
+	       (xdr-int *nfsdxdr* #.*nfserr-perm*)
 	       (if (= vers 3)
 		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
 
@@ -472,9 +437,9 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 	   (when debug-this-procedure (logit " Not same export~%"))
 	   (ecase vers
 	     (2
-	      (xdr-int *nfsdxdr* NFSERR_ACCES))
+	      (xdr-int *nfsdxdr* #.*nfserr-acces*))
 	     (3
-	      (xdr-int *nfsdxdr* NFSERR_XDEV)
+	      (xdr-int *nfsdxdr* #.*nfserr-xdev*)
 	      (ecase ,function
 		(:rename
 		 (nfs-xdr-wcc-data *nfsdxdr* nil nil) ;; from
@@ -490,27 +455,105 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
      (when debug-this-procedure (logit " Unsupported~%"))
      (ecase vers
        (2 
-	(xdr-int *nfsdxdr* NFSERR_IO))
+	(xdr-int *nfsdxdr* #.*nfserr-io*))
        (3
-	(xdr-int *nfsdxdr* NFSERR_NOTSUPP)
+	(xdr-int *nfsdxdr* #.*nfs3err-notsupp*)
 	(nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
 
+;; This is good for nfstime and nfstime2 (where the second slot
+;; is nanoseconds, not microseconds) because we don't use the 
+;; second slot.
+(defmacro nfstime-to-universal-time (nfstime)
+  ;; We ignore the microseconds slot since universal time only has
+  ;; 1-second resolution.
+  `(unix-to-universal-time (nfstime-seconds ,nfstime)))
+
+(defun tweak-sattr (s vers)
+  (ecase vers
+    (2 
+     (macrolet ((tweak (slot)
+		  `(if (= (,slot s) #xffffffff)
+		       (setf (,slot s) nil)))
+		(tweak-time (slot)
+		  `(let ((x (,slot s)))
+		     (if* (= (nfstime-seconds x) #xffffffff)
+			then (setf (,slot s) nil)
+			else (setf (,slot s) 
+			       (nfstime-to-universal-time x))))))
+       (tweak sattr-mode)
+       (tweak sattr-uid)
+       (tweak sattr-gid)
+       (tweak sattr-size)
+       (tweak-time sattr-atime)
+       (tweak-time sattr-mtime)
+       s))
+    (3
+     (macrolet ((getslot (slot)
+		  (let ((reader 
+			 (intern (format nil "sattr3-~a" slot)
+				 :gen-nfs))
+			(set-it
+			 (intern (format nil "set-~a3-set-it" slot)
+				 :gen-nfs))
+			(reader2
+			 (intern (format nil "set-~a3-~a" slot slot)
+				 :gen-nfs)))
+		    `(let ((x (,reader s)))
+		       (if (,set-it x)
+			   (,reader2 x)))))
+		(get-time-slot (slot)
+		  (let ((reader
+			 (intern (format nil "sattr3-~a" slot)))
+			(set-it
+			 (intern (format nil "set-~a-set-it" slot)))
+			(reader2
+			 (intern (format nil "set-~a-~a" slot slot))))
+		    `(let ((x (,reader s)))
+		       (case (,set-it x)
+			 (#.*set-to-client-time*
+			  (nfstime-to-universal-time (,reader2 x)))
+			 (#.*set-to-server-time*
+			  (get-universal-time))
+			 (t nil))))))
+
+       (make-sattr :mode (getslot mode)
+		   :uid (getslot uid)
+		   :gid (getslot gid)
+		   :size (getslot size)
+		   :atime (get-time-slot atime)
+		   :mtime (get-time-slot mtime))))))
+
+(defun xdr-tweaked-sattr (xdr vers)
+  (ecase vers
+    (2 (tweak-sattr (xdr-sattr xdr) 2))
+    (3 (tweak-sattr (xdr-sattr3 xdr) 3)))) 
+
+(defun tweaked-sattr-to-string (s)
+  (format nil "[Mode: ~o, uid: ~a, gid: ~a, size: ~a, atime: ~a, mtime: ~a]"
+	  (sattr-mode s) (sattr-uid s) (sattr-gid s) (sattr-size s)
+	  (sattr-atime s) (sattr-mtime s)))
+  
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; PROCEDURES 
 
-(defun nfsd-null (peer xid cbody)
+(defun nfsd-null (peer xid params cbody)
+  (declare (ignore params))
   (if (nfs-debug-filter-on null)
-      (logit "nfsv~d-null~%" (call-body-vers cbody)))
-  (let ((xdr (create-xdr :direction :build)))
-    (send-successful-reply peer xid *nullverf* xdr)))
+      (logit "NFSv~d: ~a: NULL~%" 
+	     (sunrpc:call-body-vers cbody)
+	     (sunrpc:peer-dotted peer)))
 
+  (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
+    ))
 
 ;; For v3, the allowable error codes are: NFS3ERR_IO NFS3ERR_STALE
-;; NFS3ERR_BADHANDLE NFS3ERR_SERVERFAULT In particular, NFSERR_ACCESS
+;; NFS3ERR_BADHANDLE NFS3ERR_SERVERFAULT. In particular, *nfs3err-acces*
 ;; is not in the list, so we don't check for read permission here
 ;; anymore.  The file itself is not being read so that's okay.
 
 (define-nfs-proc getattr ((fh fhandle))
-  (xdr-int *nfsdxdr* NFS_OK)
+  (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-fattr *nfsdxdr* fh vers))
 
 #|
@@ -579,11 +622,11 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     ;; as we're concerned, the types are the same since we always
     ;; put 0 in the second part.
     (xdr-unsigned-int xdr (universal-to-unix-time (nfs-attr-atime attr)))
-    (xdr-unsigned-int xdr 0)
+    (xdr-int xdr 0)
     (xdr-unsigned-int xdr (universal-to-unix-time (nfs-attr-mtime attr)))
-    (xdr-unsigned-int xdr 0)
+    (xdr-int xdr 0)
     (xdr-unsigned-int xdr (universal-to-unix-time (nfs-attr-ctime attr)))
-    (xdr-unsigned-int xdr 0)))
+    (xdr-int xdr 0)))
     
 (define-nfs-proc statfs ((fh fhandle))
   (with-permission (fh :read)
@@ -592,15 +635,15 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (if* (null non-priv-free)
 	 then
 	      (when debug-this-procedure (logit " I/O error~%"))
-	      (xdr-int *nfsdxdr* NFSERR_IO)
+	      (xdr-int *nfsdxdr* #.*nfserr-io*)
 	 else
 	      ;; Convert to "blocks"
 	      (setf non-priv-free (howmany non-priv-free *blocksize*))
 	      (setf priv-free (howmany priv-free *blocksize*))
 	      (setf total (howmany total *blocksize*))
 	    
-	      (xdr-int *nfsdxdr* NFS_OK) 
-	      (xdr-unsigned-int *nfsdxdr* *maxdata*)
+	      (xdr-int *nfsdxdr* #.*nfs-ok*) 
+	      (xdr-unsigned-int *nfsdxdr* 8192)
 	      (xdr-unsigned-int *nfsdxdr* *blocksize*)
 	      (xdr-unsigned-int *nfsdxdr* total)
 	      (xdr-unsigned-int *nfsdxdr* priv-free) 
@@ -632,10 +675,10 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     (if* (null non-priv-free)
        then
 	    (when debug-this-procedure (logit " I/O error~%"))
-	    (xdr-int *nfsdxdr* NFSERR_IO)
+	    (xdr-int *nfsdxdr* #.*nfserr-io*)
 	    (nfs-xdr-wcc-data *nfsdxdr* nil nil)
        else
-	    (xdr-int *nfsdxdr* NFS_OK)
+	    (xdr-int *nfsdxdr* #.*nfs-ok*)
 	    (nfs-xdr-post-op-attr *nfsdxdr* fh)
 	    (xdr-unsigned-hyper *nfsdxdr* total)
 	    (xdr-unsigned-hyper *nfsdxdr* priv-free)
@@ -668,7 +711,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 |#
 
 (define-nfs-proc fsinfo ((fh fhandle))
-  (xdr-int *nfsdxdr* NFS_OK)
+  (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (xdr-unsigned-int *nfsdxdr* 65536) ;; rtmax
   (xdr-unsigned-int *nfsdxdr* 65536) ;; rtpref
@@ -715,7 +758,17 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
     (with-permission (dirfh :read)
       (add-direntries *nfsdxdr* dirfh count count cookie 3 cookieverf nil)
       (update-attr-atime dirfh))))
-      
+
+(define-nfs-proc readdirplus ((dirfh fhandle)
+			      (cookie uint64)
+			      (cookieverf uint64)
+			      (dircount unsigned)
+			      (maxcount unsigned)) 
+  (with-dirfh (dirfh)
+    (with-permission (dirfh :read)
+      (add-direntries *nfsdxdr* dirfh dircount maxcount cookie 3 cookieverf t)
+      (update-attr-atime dirfh))))
+
 ;; totalbytesadded starts at 8 because in the minimal case, we need to
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
@@ -746,11 +799,11 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
       (when (and (= vers 3) (/= startindex 0) (/= verf 0)
 		 (/= verf (dircache-id dc)))
 	(when debug (logit " Bad cookie~%"))
-	(xdr-int xdr NFSERR_BAD_COOKIE)
+	(xdr-int xdr #.*nfs3err-bad-cookie*)
 	(nfs-xdr-post-op-attr xdr dirfh)
 	(return-from add-direntries))
 	
-      (xdr-int xdr NFS_OK)
+      (xdr-int xdr #.*nfs-ok*)
 	
       ;; readdirresok begins here.  This is what is subject to the
       ;; 'count' limit ('max', in this function)
@@ -778,7 +831,7 @@ Unexpected error while creating nfsd udp socket: ~A~%" c)))
 		    (> dirbytesadded dirmax))
 	    (if (eq debug :verbose) 
 		(logit " [not added due to size overflow]~%"))
-	    (xdr-backspace xdr bytesadded)
+	    (xdr:xdr-backspace xdr bytesadded)
 	    (setf complete nil)
 	    (return)) ;; break from loop
 
@@ -824,9 +877,9 @@ struct entry {
       (logit "~D: ~A fileid=~A next=~A" 
 	     (1- cookie) filename fileid cookie))
     (values
-     (with-xdr-compute-bytes-added (xdr)
+     (xdr:with-xdr-compute-bytes-added (xdr)
        (setf inner-bytes-added
-	 (with-xdr-compute-bytes-added (xdr)
+	 (xdr:with-xdr-compute-bytes-added (xdr)
 	   (xdr-int xdr 1) ;; indicate that data follows
 	   (ecase vers
 	     (2 (xdr-unsigned-int xdr fileid))
@@ -864,7 +917,7 @@ struct entry {
   (with-dirfh (dirfh)
     (with-permission (dirfh :read)
       (let ((fh (nfs-probe-file dirfh filename :allow-dotnames t)))
-	(xdr-int *nfsdxdr* NFS_OK)
+	(xdr-int *nfsdxdr* #.*nfs-ok*)
 	(xdr-fhandle *nfsdxdr* vers fh)
 	(ecase vers
 	  (2 
@@ -889,10 +942,10 @@ struct entry {
 ;;      NFS3ERR_SERVERFAULT
 
 (define-nfs-proc access ((fh fhandle) (access unsigned))
-  (xdr-int *nfsdxdr* NFS_OK)
+  (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (let ((res 0)
-	(cred (call-body-cred cbody)))
+	(cred (sunrpc:call-body-cred cbody)))
     (if (nfs-okay-to-read fh cred)
 	(setf res (logior res #x1 #x2 #x20)))
     (if (nfs-okay-to-write fh cred)
@@ -910,11 +963,11 @@ struct entry {
   (with-permission (fh :read)
     (with-nfs-open-file (f fh :input)
       (file-position f offset)
-      ;; 72 = sizeof(fattr)+sizeof(NFS_OK)
+      ;; 72 = sizeof(fattr)+sizeof(*nfs-ok*)
       ;; 72 =       68     +   4
-      (with-xdr-seek (*nfsdxdr* 72) 
+      (xdr:with-xdr-seek (*nfsdxdr* 72) 
 	(xdr-opaque-variable-from-stream *nfsdxdr* f count))
-      (xdr-int *nfsdxdr* NFS_OK) 
+      (xdr-int *nfsdxdr* #.*nfs-ok*) 
       (update-attr-atime fh)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
@@ -928,7 +981,7 @@ struct entry {
 	    (setf got (xdr-opaque-variable-from-stream *nfsdxdr* f count)))
 	  (if debug-this-procedure (logit " (read ~d bytes)" got))
 	  (update-attr-atime fh)
-	  (xdr-int *nfsdxdr* NFS_OK) 
+	  (xdr-int *nfsdxdr* #.*nfs-ok*) 
 	  (nfs-xdr-post-op-attr *nfsdxdr* fh)
 	  (xdr-unsigned-int *nfsdxdr* got)
 	  (xdr-bool *nfsdxdr* (= (file-position f) (file-length f))))))))
@@ -937,20 +990,34 @@ struct entry {
 ;; args: fhandle dir, filename, sattr 
 ;; returns: status, fhandle, attributes (if okay status)
 
-;; XXX Doesn't use sattr.
+;; Most of the supplied attributes are ignored.
+
+;; rfc1094 is silent on what should happen if the file in question
+;; already exists.  However, Linux and Solaris (and probably the rest)
+;; consider it a non-error situation and return success.  The Open
+;; Group document "Protocols for Interworking: XNFS, Version 3W" does
+;; explicitly state that CREATE should treat an already-existing file
+;; as a successful situation.  If the file already exists, linux
+;; ignores all the supplied attributes except for the 'size'.  I'll do
+;; mostly the same here.  I accept atime/mtime updates as well. 
+
 (define-nfs-proc create ((dirfh fhandle) (filename string) (sattr sattr))
   (with-permission (dirfh :write)
     (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
 	   (newpath (fh-pathname fh)))
-      ;; create the file.
-      (close (open newpath :direction :output))
-      (update-atime-and-mtime dirfh)
-      (nfs-add-file-to-dir filename dirfh)
-      (xdr-int *nfsdxdr* NFS_OK)
-      (xdr-fhandle *nfsdxdr* vers fh)
+      ;; Atomicity is nonexistent here.  Bogus.
+      (when (null (probe-file newpath))
+	;; Create the file
+	(close (open newpath :direction :output))
+	(update-atime-and-mtime dirfh)
+	(nfs-add-file-to-dir filename dirfh))
+      
+      (set-file-attributes fh sattr)
+      
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
+      (xdr-fhandle *nfsdxdr* 2 fh)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
-;; XXX attributes are ignored
 (define-nfs-proc create3 ((dirfh fhandle) 
 			  (filename string) 
 			  (how createhow3))
@@ -958,14 +1025,18 @@ struct entry {
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
 	   (fh (lookup-fh-in-dir dirfh filename :create t))
 	   (newpath (fh-pathname fh))
-	   (res NFS_OK))
+	   (sattr (if (sattr-p (second how)) (second how)))
+	   created)
 
       (ecase (first how)
 	(:unchecked
-	 (close (open newpath :direction :output)))
+	 (when (null (probe-file newpath))
+	   (close (open newpath :direction :output))
+	   (setf created t)))
 	(:guarded
 	 ;; the error handler will handle the *eexist* case.
-	 (close (open newpath :direction :output :if-exists :error)))
+	 (close (open newpath :direction :output :if-exists :error))
+	 (setf created t))
 	(:exclusive
 	 ;; XXX - The verifier information is supposed to be stored in
 	 ;; stable storage but we don't do that because of how 
@@ -975,19 +1046,23 @@ struct entry {
 	 (let ((verifier (second how)))
 	   (if* (eql verifier (fh-verifier fh))
 	      then ;; Must be a duplicate request.  Report success.
-		   (if debug-this-procedure (logit " Duplicate request (OK)~%"))
+		   (if debug-this-procedure 
+		       (logit " Duplicate request (OK)~%"))
 	      else ;; the error handler will handle the *eexist* case
 		   (close (open newpath :direction :output :if-exists :error))
-		   (setf (fh-verifier fh) verifier)))))
-
-      (if* (= res NFS_OK) 
-	 then (update-atime-and-mtime dirfh)
-	      (nfs-add-file-to-dir filename dirfh)
-	      (xdr-int *nfsdxdr* NFS_OK)
-	      (nfs-xdr-post-op-fh *nfsdxdr* fh)
-	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
-	 else (xdr-int *nfsdxdr* res))
+		   (setf (fh-verifier fh) verifier)
+		   (setf created t)))))
       
+      (when created
+	(update-atime-and-mtime dirfh)
+	(nfs-add-file-to-dir filename dirfh))
+
+      (if sattr
+	  (set-file-attributes fh sattr))
+      
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
+      (nfs-xdr-post-op-fh *nfsdxdr* fh)
+      (nfs-xdr-post-op-attr *nfsdxdr* fh)
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
   
 
@@ -1009,89 +1084,10 @@ struct entry {
 	    ;; need to incf nlinks for the original file handle (which should
 	    ;; affect all links).  One easy thing would be to just 
 	    ;; de-cache fh attrs.. but that's excessive.
-	    (xdr-int *nfsdxdr* NFS_OK)
+	    (xdr-int *nfsdxdr* #.*nfs-ok*)
 	    (when (= vers 3)
 	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs destdirfh))))))))
-
-
-#|
-          struct sattr {
-              unsigned int mode;
-              unsigned int uid;
-              unsigned int gid;
-              unsigned int size;
-              timeval      atime; (sec, msec)
-              timeval      mtime; (sec, msec)
-	      };
-|#
-
-#|
-      struct sattr3 {
-         set_mode3   mode;    bool, mode3 (uint32) 
-         set_uid3    uid;     bool, uid3 (uint32)
-         set_gid3    gid;     bool, gid3 (uint32)
-         set_size3   size;    bool, size3 (uint64)
-         set_atime   atime;   SET_TO_CLIENT_TIME=2, nfstime3 (sec,nsec)
-         set_mtime   mtime;   SET_TO_CLIENT_TIME=2, nfstime3 (sec,nsec)
-	 }
-|#
-
-
-;; Anything nil means don't change.
-(defstruct sattr
-  mode
-  uid
-  gid
-  size
-  atime ;; universal time
-  mtime ;; universal time
-  )
-
-(defun nfstime-to-universal-time (xdr vers)
-  (ecase vers
-    (2
-     (let ((secs (xdr-unsigned-int xdr)))
-       (if (= secs #xffffffff)
-	   (setf secs nil)
-	 (setf secs (unix-to-universal-time secs)))
-       ;; unused since we're converting to universal time, which only
-       ;; has 1-second resolution.
-       (xdr-unsigned-int xdr)
-       secs))
-    (3
-     (let ((now (get-universal-time)))
-       (ecase (xdr-unsigned-int xdr)
-	 (0 nil)
-	 (1 now)
-	 (2 (prog1 (unix-to-universal-time (xdr-unsigned-int xdr))
-	      (xdr-unsigned-int xdr))))))))
-
-      
-(defun xdr-sattr-to-struct-sattr (xdr vers)
-  (ecase vers
-    (2 
-     (macrolet ((get-value (xdr)
-		  (let ((value (gensym)))
-		    `(let ((,value (xdr-unsigned-int ,xdr)))
-		       (if (= ,value #xffffffff) 
-			   nil
-			 ,value)))))
-       (make-sattr
-	:mode (get-value xdr)
-	:uid (get-value xdr)
-	:gid (get-value xdr)
-	:size (get-value xdr)
-	:atime (nfstime-to-universal-time xdr 2)
-	:mtime (nfstime-to-universal-time xdr 2))))
-    (3
-     (make-sattr
-      :mode (if (xdr-bool xdr) (xdr-unsigned-int xdr))
-      :uid (if (xdr-bool xdr) (xdr-unsigned-int xdr))
-      :gid (if (xdr-bool xdr) (xdr-unsigned-int xdr))
-      :size (if (xdr-bool xdr) (xdr-unsigned-hyper xdr))
-      :atime (nfstime-to-universal-time xdr 3)
-      :mtime (nfstime-to-universal-time xdr 3)))))
 
 ;; args:
 ;; fhandle dir
@@ -1112,7 +1108,7 @@ struct entry {
       (nfs-remove-file-from-dir filename dirfh)
       (remove-fhandle fh filename)
       (uncache-attr fh)
-      (xdr-int *nfsdxdr* NFS_OK)
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
       (if (= vers 3)
 	  (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
 
@@ -1127,12 +1123,12 @@ struct entry {
   (with-permission (fh :write)
     (with-nfs-open-file (f fh :output)
       (file-position f offset)
-      (write-sequence (first data)
+      (write-sequence (opaque-vec data)
 		      f
-		      :start (second data)
-		      :end (+ (third data) (second data)))
+		      :start (opaque-offset data)
+		      :end (+ (opaque-offset data) (+ (opaque-len data))))
       (update-attr-times-and-size f fh)
-      (xdr-int *nfsdxdr* NFS_OK)
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
 #|
@@ -1151,18 +1147,19 @@ struct entry {
   (with-permission (fh :write)
     (with-nfs-open-file (f fh :output)
       (let ((pre-op-attrs (get-pre-op-attrs fh))
+	    (oo (opaque-offset data))
 	    wrote)
 	(file-position f offset)
 	(setf wrote 
-	  (- (write-vector (first data)
+	  (- (write-vector (opaque-vec data)
 			   f
-			   :start (second data)
-			   :end (+ (second data) count))
-	     (second data)))
+			   :start oo
+			   :end (+ oo count))
+	     oo))
 	(update-attr-times-and-size f fh)
 	(if (> stable-how 0) 
 	    (fsync f))
-	(xdr-int *nfsdxdr* NFS_OK)
+	(xdr-int *nfsdxdr* #.*nfs-ok*)
 	(nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
 	(xdr-unsigned-int *nfsdxdr* wrote)
 	(xdr-unsigned-int *nfsdxdr* stable-how) 
@@ -1177,7 +1174,7 @@ struct entry {
   (with-permission (fh :write)
     (with-nfs-open-file (f fh :output)
       (fsync f)
-      (xdr-unsigned-int *nfsdxdr* NFS_OK)
+      (xdr-unsigned-int *nfsdxdr* #.*nfs-ok*)
       (nfs-xdr-wcc-data *nfsdxdr* (get-pre-op-attrs fh) fh)
       (xdr-unsigned-hyper *nfsdxdr* *nfsd-start-time*)))) ;;verf
 	  
@@ -1187,32 +1184,36 @@ struct entry {
 
 (define-nfs-proc setattr ((fh fhandle) (sattr sattr))
   (with-permission (fh :write)
-    (let ((p (fh-pathname fh)))
-      (close-open-file fh)
-      ;; only works on regular files.
-      (let ((current-attr (lookup-attr fh)))
-	(when (= (nfs-attr-type current-attr) *NFREG*)
+    (set-file-attributes fh sattr)
+    ;; report success even if we didn't actually do it
+    (xdr-int *nfsdxdr* #.*nfs-ok*)
+    (nfs-xdr-fattr *nfsdxdr* fh vers)))
+
+;; Used by setattr and create
+(defun set-file-attributes (fh sattr)
+  (let ((p (fh-pathname fh)))
+    (close-open-file fh)
+    ;; only works on regular files.
+    (let ((current-attr (lookup-attr fh)))
+      (when (= (nfs-attr-type current-attr) #.*nfreg*)
 	  
-	  (let ((newsize (sattr-size sattr))
-		(atime (sattr-atime sattr))
-		(mtime (sattr-mtime sattr)))
+	(let ((newsize (sattr-size sattr))
+	      (atime (sattr-atime sattr))
+	      (mtime (sattr-mtime sattr)))
 	    
-	    (when newsize
-	      (os-truncate p newsize)
-	      (set-cached-file-size fh newsize)
-	      (update-atime-and-mtime fh))
+	  (when newsize
+	    (os-truncate p newsize)
+	    (set-cached-file-size fh newsize)
+	    (update-atime-and-mtime fh))
 	    
-	    (when (or atime mtime)
-	      (utime p atime mtime))
+	  (when (or atime mtime)
+	    (utime p atime mtime))
 	  
-	    (if atime
-		(setf (nfs-attr-atime current-attr) atime))
-	    (if mtime
-		(setf (nfs-attr-mtime current-attr) mtime)))))
+	  (if atime
+	      (setf (nfs-attr-atime current-attr) atime))
+	  (if mtime
+	      (setf (nfs-attr-mtime current-attr) mtime)))))))
       
-      ;; report success even if we didn't actually do it
-      (xdr-int *nfsdxdr* NFS_OK)
-      (nfs-xdr-fattr *nfsdxdr* fh vers))))
 
 ;; build-only.  
 ;; size, mtime, ctime
@@ -1244,47 +1245,20 @@ struct entry {
 ;; args: fhandle, sattr3, sattrguard3
 (define-nfs-proc setattr3 ((fh fhandle) (sattr sattr) (guard sattrguard3))
   (with-permission (fh :write)
-    (let ((pre-op-attrs (get-pre-op-attrs fh))
-	  (p (fh-pathname fh)))
-      (close-open-file fh)
+    (let ((pre-op-attrs (get-pre-op-attrs fh)))
       (if* (and guard (/= guard (pre-op-attrs-ctime pre-op-attrs)))
-	 then
-	      (when debug-this-procedure (logit " Guard time out of sync~%"))
-	      (xdr-int *nfsdxdr* NFSERR_NOT_SYNC)
+	 then (when debug-this-procedure (logit " Guard time out of sync~%"))
+	      (xdr-int *nfsdxdr* #.*nfs3err-not-sync*)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)
-	 else
-	      ;; only works on regular files.
-	      (let ((current-attr (lookup-attr fh)))
-		(when (= (nfs-attr-type current-attr) *NFREG*)
-		  
-		  (let ((newsize (sattr-size sattr))
-			(atime (sattr-atime sattr))
-			(mtime (sattr-mtime sattr)))
-	    
-		    (when newsize
-		      (os-truncate p newsize)
-		      (set-cached-file-size fh newsize)
-		      (update-atime-and-mtime fh))
-	    
-		    (when (or atime mtime)
-		      (utime p atime mtime))
-	  
-		    (if atime
-			(setf (nfs-attr-atime current-attr) atime))
-		    (if mtime
-			(setf (nfs-attr-mtime current-attr) mtime)))))
-      
-	      ;; report success even if we didn't actually do it
-	      (xdr-int *nfsdxdr* NFS_OK)
+	 else (set-file-attributes fh sattr)
+	      (xdr-int *nfsdxdr* #.*nfs-ok*)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs fh)))))
-
-
 
 ;;; from:  fhandle dir, filename name
 ;;; to:    fhandle dir, filename name
 ;; Renames across exports are not allowed.
-;; for NFSv3, we'd return NFSERR_XDEV.  
-;; for NFSv2, we return NFSERR_ACCES (ala Linux)
+;; for NFSv3, we'd return *nfserr-xdev*.  
+;; for NFSv2, we return *nfserr-acces* (ala Linux)
 
 (define-nfs-proc rename ((fromdirfh fhandle) 
 			 (fromfilename string)
@@ -1316,7 +1290,7 @@ struct entry {
 	    (update-atime-and-mtime todirfh)
 	    (nfs-remove-file-from-dir fromfilename fromdirfh)
 	    (nfs-add-file-to-dir tofilename todirfh)
-	    (xdr-int *nfsdxdr* NFS_OK)
+	    (xdr-int *nfsdxdr* #.*nfs-ok*)
 	    (when (= vers 3)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-from fromdirfh)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-to todirfh))))))))
@@ -1332,7 +1306,7 @@ struct entry {
       (make-directory (fh-pathname fh))
       (nfs-add-file-to-dir filename dirfh)
       (update-atime-and-mtime dirfh)
-      (xdr-int *nfsdxdr* NFS_OK)
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
       (ecase vers
 	(2
 	 (xdr-fhandle *nfsdxdr* 2 fh)	 
@@ -1352,12 +1326,12 @@ struct entry {
       (nfs-remove-file-from-dir filename dirfh)
       (uncache-attr fh)
       (remove-fhandle fh filename)
-      (xdr-int *nfsdxdr* NFS_OK)
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
       (if (= vers 3)
 	  (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
 
 (define-nfs-proc pathconf ((fh fhandle)) 
-  (xdr-int *nfsdxdr* NFS_OK)
+  (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (xdr-unsigned-int *nfsdxdr* 1023) ;; linkmax (NTFS limit)
   (xdr-unsigned-int *nfsdxdr* 255) ;; name_max
@@ -1396,47 +1370,36 @@ struct entry {
   (with-permission (dirfh :write)
     (nfs-unsupported)))
 
-(define-nfs-proc readdirplus ((dirfh fhandle)
-			      (cookie uint64)
-			      (cookieverf uint64)
-			      (dircount unsigned)
-			      (maxcount unsigned)) 
-  (with-dirfh (dirfh)
-    (with-permission (dirfh :read)
-      (add-direntries *nfsdxdr* dirfh dircount maxcount cookie 3 cookieverf t)
-      (update-attr-atime dirfh))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun nfs-okay-to-write (fh cred)
-  (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
-    (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
-	   (uid (auth-unix-uid au)))
-      (export-user-write-access-allowed-p (fh-export fh) uid))))
+  (when (= #.sunrpc:*auth-unix* (sunrpc:opaque-auth-flavor cred))
+    (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+      (export-user-write-access-allowed-p 
+       (fh-export fh) 
+       (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr))))))
 
 (defun nfs-okay-to-read (fh cred)
-  (when (= #.*AUTH_UNIX* (opaque-auth-flavor cred))
-    (let* ((au (xdr-opaque-auth-struct-to-auth-unix-struct cred))
-	   (uid (auth-unix-uid au)))
-      (export-user-read-access-allowed-p (fh-export fh) uid))))
+  (when (= #.sunrpc:*auth-unix* (sunrpc:opaque-auth-flavor cred))
+    (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+      (export-user-read-access-allowed-p 
+       (fh-export fh) 
+       (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr))))))
 
 ;;; configuration program interface
 
-(defun nfsd-get-config-file-path (peer xid cbody)
-  (declare (ignore cbody))
-  (when (= (socket:dotted-to-ipaddr "127.0.0.1") (rpc-peer-addr peer))
-    (with-successful-reply (*nfsdxdr* peer xid *nullverf*
-				      :create nil)
-      (xdr-string *nfsdxdr* 
-		  (if *configfile*
-		      (namestring *configfile*)
-		    "not set yet")))))
+(defun nfsd-get-config-file-path (peer xid params cbody)
+  (declare (ignore cbody params))
+  (when (sunrpc:local-peer-p peer)
+    (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
+      (xdr-string xdr (if* *configfile*
+			 then (namestring *configfile*)
+			 else "not set yet")))))
 
-(defun nfsd-reload-configuration (peer xid cbody)
-  (declare (ignore cbody))
-  (when (= (socket:dotted-to-ipaddr "127.0.0.1") (rpc-peer-addr peer))
-    (with-successful-reply (*nfsdxdr* peer xid *nullverf*
-				      :create nil)
+(defun nfsd-reload-configuration (peer xid params cbody)
+  (declare (ignore cbody params))
+  (when (sunrpc:local-peer-p peer)
+    (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
       (logit "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)
-      (xdr-unsigned-int *nfsdxdr* 1))))
+      (xdr-unsigned-int xdr 1))))

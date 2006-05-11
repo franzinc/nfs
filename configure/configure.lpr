@@ -5,22 +5,26 @@
 (defpackage :common-graphics-user)
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "..\\nfs-common")
-                 (make-instance 'module :name "..\\nfs-shared")
-                 (make-instance 'module :name "..\\sunrpc-common")
-                 (make-instance 'module :name "..\\xdr")
-                 (make-instance 'module :name "..\\sunrpc")
-                 (make-instance 'module :name "..\\portmap")
-                 (make-instance 'module :name "nfs-server-io")
-                 (make-instance 'module :name "export")
-                 (make-instance 'module :name "ipaddr")
-                 (make-instance 'form-module :name "configform"
-                                :finder-function 'configform
-                                :has-pixmap-file nil :create-on-open t)
-                 (make-instance 'form-module :name "help-form"
-                                :finder-function 'help-form
-                                :has-pixmap-file nil :create-on-open
-                                nil))
+  :modules (list 
+	    (make-instance 'module :name "..\\xdr")
+	    (make-instance 'module :name "..\\sunrpc-common")	        
+	    (make-instance 'module :name "..\\portmap-common")	        
+	    (make-instance 'module :name "..\\mount-common")	        
+	    (make-instance 'module :name "..\\gen-nfs-common")
+	    (make-instance 'module :name "..\\nfs-common")
+	    (make-instance 'module :name "..\\nfs-shared")
+	    (make-instance 'module :name "..\\portmap-client")	        
+	    (make-instance 'module :name "..\\sunrpc")
+	    (make-instance 'module :name "nfs-server-io")
+	    (make-instance 'module :name "export")
+	    (make-instance 'module :name "ipaddr")
+	    (make-instance 'form-module :name "configform"
+			   :finder-function 'configform
+			   :has-pixmap-file nil :create-on-open t)
+	    (make-instance 'form-module :name "help-form"
+			   :finder-function 'help-form
+			   :has-pixmap-file nil :create-on-open
+			   nil))
   :projects nil
   :libraries nil
   :distributed-files '("configuration.txt")

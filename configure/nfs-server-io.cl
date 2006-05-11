@@ -1,20 +1,14 @@
 (in-package :user)
 
-;; $Id: nfs-server-io.cl,v 1.3 2006/01/30 16:33:50 dancy Exp $
-
-(defconstant *nfsvers* 2)
+;; $Id: nfs-server-io.cl,v 1.4 2006/05/11 21:58:59 dancy Exp $
 
 ;; returns nil if no answer
 (defun get-nfs-server-config-file ()
-  (when (ping-portmapper)
-    (ignore-errors
-     (callrpc "127.0.0.1" #.*nfsprog* 2 100 :udp nil nil
-              :outproc #'xdr-string))))
+  (ignore-errors
+   (sunrpc:with-rpc-client (cli "127.0.01" #.gen-nfs:*nfs-program* 2 :udp)
+     (sunrpc:callrpc cli 100 nil nil :outproc #'xdr:xdr-string))))
 
 (defun reload-nfs-server-config ()
-  (when (ping-portmapper)
-    (ignore-errors
-     (= 1 (callrpc "127.0.0.1" #.*nfsprog* 2 101 :udp nil nil
-                 :outproc #'xdr-unsigned-int)))))
-  
-           
+  (ignore-errors
+   (sunrpc:with-rpc-client (cli "127.0.01" #.gen-nfs:*nfs-program* 2 :udp)
+     (= 1 (sunrpc:callrpc cli 101 nil nil :outproc #'xdr:xdr-unsigned-int)))))

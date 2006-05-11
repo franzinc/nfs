@@ -6,3 +6,5 @@ nfs
 nfs.cfg
 diffs
 configure/module-report.txt
+rpc-client.cl
+rpc-server.cl

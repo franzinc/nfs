@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.41 2006/01/23 21:33:49 dancy Exp $
+;; $Id: loadem.cl,v 1.42 2006/05/11 21:58:59 dancy Exp $
 
 (in-package :user)
 
@@ -33,29 +33,38 @@
 
 (eval-when (compile load eval)
 (defparameter *filelist*
-    '("nfs-common" 
-      "nfs-shared" 
-      "sunrpc-common"
+    '(
       "xdr" 
-      "sunrpc" 
+      "sunrpc-common"
+      "gen-nfs-common"
+      "portmap-common"
+      "mount-common"
+      "nsm-common"
+      "nfs-common" 
+      "nfs-shared" 
+      "nlm-common"
+      "sunrpc"
+      "portmap-client"
+      "sunrpc-service"
       "portmap" 
-      ;;"sunrpc-service"
       "ipaddr" 
       "export"
       "configure"
       "fhandle" 
       "mountd" 
+      "nsm-client"
       "nsm"
       "attr" 
       "dir" 
       "openfile"
+      "nlm-client"
+      "nlm"
+      "gen-nfs-client"
       "main" ;; needs to be before "nfs"
       "nfs"
-      "nlm"
       #+nfs-telnet-server "telnet"
       "date/date"
       #+nfs-demo "demoware/demoware"
-      "main"
       ))
 )
 
@@ -64,7 +73,7 @@
   (use-package :excl.osi)
   (with-compilation-unit ()
     (dolist (file *filelist*)
-      (load (compile-file-if-needed (concatenate 'string file ".cl"))))))
+      (load (compile-file-if-needed file)))))
 
 (defun buildit ()
   ;; This will be fixed before 7.0 is released.  Remove then.

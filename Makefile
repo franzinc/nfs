@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.56 2006/05/10 23:33:30 dancy Exp $
+# $Id: Makefile,v 1.57 2006/05/11 21:58:59 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -174,6 +174,8 @@ release_branch: FORCE
 
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
+	rm -f gen-nfs-*.cl mount-*.cl sunrpc-common.cl nlm-*.cl nsm-*.cl 
+	rm -f portmap-*.cl
 	$(MAKE) -C configure clean
 
 FORCE:

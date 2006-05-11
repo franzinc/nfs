@@ -21,14 +21,14 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.22 2006/02/01 19:04:00 dancy Exp $
+;; $Id: fhandle.cl,v 1.23 2006/05/11 21:58:59 dancy Exp $
 
 ;; file handle stuff
-
 
 (in-package :user)
 
 (eval-when (compile)
+  (use-package :xdr)
   (declaim (optimize (speed 3))))
 
 (eval-when (compile load eval)
@@ -247,6 +247,48 @@
 (defun xdr-fhandle3 (xdr &optional fh)
   (xdr-fhandle xdr 3 fh))
 
+;; For use by nlm.cl
+(defun fhandle-to-vec (fh vers)
+  (let ((id (fh-id fh)))
+    (let ((xdr (create-xdr :direction :build)))
+      (xdr-fhandle-build-common xdr (ecase vers
+				      (2 #.*fhsizewords2*)
+				      (3 #.*fhsizewords3*))
+				id)
+      (xdr-get-vec xdr))))
+
+;; For use by nlm.cl
+(defun opaque-to-fhandle3 (o)
+  (with-opaque-xdr (xdr o)
+    (let ((words (/ (- (xdr-size xdr) (xdr-pos xdr)) 4)))
+      (if* (/= words #.*fhsizewords3*)
+	 then (logit "Invalid file handle size (~D words)" words)
+	      :inval
+	 else (xdr-fhandle-extract-common xdr words)))))
+
+(defun xdr-fhandle-build-common (xdr words value)
+  (dotimes (i words)
+    (declare (type fixnum i))
+    (xdr-unsigned-int xdr (logand value #xffffffff))
+    (setf value (ash value -32))))
+
+(defun xdr-fhandle-extract-common (xdr words)
+  (block nil
+    (let ((id 0)
+	  (shift 0))
+      (dotimes (i words)
+	(declare (type fixnum words shift i))
+	(setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
+	(incf shift 32))
+      (when (not (fixnump id))
+	(logit "Invalid file handle (non-fixnum) ~D" id)
+	(return :inval))
+      (without-interrupts
+	(let ((fh (gethash id *fhandles*)))
+	  (if* (null fh)
+	     then :stale
+	     else fh))))))
+
 (defun xdr-fhandle (xdr vers &optional fh)
   (declare (optimize (speed 3) (safety 0))
 	   (type fixnum vers))
@@ -265,16 +307,11 @@
 	 (3 
 	  (setf words #.*fhsizewords3*)
 	  (xdr-int xdr #.*fhsize3*)))
-       (dotimes (i words)
-	 (declare (type fixnum i))
-	 (xdr-unsigned-int xdr (logand value #xffffffff))
-	 (setf value (ash value -32)))))
+       (xdr-fhandle-build-common xdr words value)))
         
     (:extract
      (block nil
-       (let ((id 0)
-	     (shift 0)
-	     words)
+       (let (words)
 	 ;; Can't trust client not to fool with the file handle
 	 ;; so can't declare this.
 	 ;;(declare (type fixnum id))   
@@ -290,16 +327,4 @@
 	   (t 
 	    (logit "Invalid file handle version: ~D" vers)
 	    (return :inval)))
-	 (dotimes (i words)
-	   (declare (type fixnum words shift i))
-	   (setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
-	   (incf shift 32))
-	 (when (not (fixnump id))
-	   (logit "Invalid file handle (non-fixnum) ~D" id)
-	   (return :inval))
-	 (without-interrupts
-	   (let ((fh (gethash id *fhandles*)))
-	     (if (null fh)
-		 :stale
-	       fh))))))))
-  
+	 (xdr-fhandle-extract-common xdr words))))))

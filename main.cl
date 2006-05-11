@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.15 2006/05/06 19:42:16 dancy Exp $
+;; $Id: main.cl,v 1.16 2006/05/11 21:58:59 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -37,43 +37,48 @@
 ;;#+nfs-debug (eval-when (eval load) (require :trace))
 
 (defun ping-nfsd ()
-  (ignore-errors     
-   (callrpc-1 #.(socket:dotted-to-ipaddr "127.0.0.1")
-	    #.*nfsprog*
-	    2 ;; version
-	    0 ;; null proc
-	    :udp
-	    #'xdr-void
-	    nil)))
+  (multiple-value-bind (res error)
+      (ignore-errors 
+       (sunrpc:with-rpc-client (cli "127.0.0.1" gen-nfs:*nfs-program* 2 :udp)
+	 (gen-nfs:call-nfsproc-null-2 cli nil)))
+    (declare (ignore res))
+    (if (not error)
+	t)))
 
 (defun check-nfs-already-running ()
-  (if (and (ping-portmapper) (ping-nfsd))
+  (if (ping-nfsd)
       (bailout "~
 An NFS server is already running on this machine.  Aborting.~%")))
 
 (defun startem (&rest args)
   (declare (ignore args)
-	   (special *nlm-gate*))
+	   (special nlm:*nlm-gate*))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
   (logit "Allegro NFS Server version ~A initializing...~%" 
 	 *nfsd-long-version*)
   (check-nfs-already-running)
-  (setf *pmap-process* (mp:process-run-function "portmapper" #'portmapper))
+  (setf *pmap-process* 
+    (mp:process-run-function "portmapper" #'portmap:portmapper))
   (mp:process-wait "Waiting for portmapper to start" 
-		   #'mp:gate-open-p *pmap-gate*)
-  (setf *mountd-process* (mp:process-run-function "mountd" #'mountd))
+		   #'mp:gate-open-p portmap:*pmap-gate*)
+  (setf *mountd-process* 
+    (mp:process-run-function "mountd" #'mount:MNT))
   (mp:process-wait "Waiting for mountd to start" 
-		   #'mp:gate-open-p *mountd-gate*)
-  (setf *nsm-process* (mp:process-run-function "nsm" #'nsm))
+		   #'mp:gate-open-p mount:*mountd-gate*)
+  (setf *nsm-process* (mp:process-run-function "nsm" #'nsm:NSM))
   (mp:process-wait "Waiting for nsm to start" 
-		   #'mp:gate-open-p *nsm-gate*)
-  (setf *nlm-process* (mp:process-run-function "nlm" #'nlm))
+		   #'mp:gate-open-p nsm:*nsm-gate*)
+  (setf *nlm-process* (mp:process-run-function "nlm" #'nlm:NLM))
   (mp:process-wait "Waiting for nlm to start" 
-		   #'mp:gate-open-p *nlm-gate*)
+		   #'mp:gate-open-p nlm:*nlm-gate*)
   (setf *nfsd-process* (mp:process-run-function "nfsd" #'nfsd)))
 
 (defun stopem ()
+  (if *nlm-process*
+      (ignore-errors (mp:process-kill *nlm-process*)))
+  (if *nsm-process*
+      (ignore-errors (mp:process-kill *nsm-process*)))
   (if *nfsd-process*
       (ignore-errors (mp:process-kill *nfsd-process*)))
   (if *mountd-process*
@@ -88,10 +93,12 @@ An NFS server is already running on this machine.  Aborting.~%")))
 (defun debugmain ()
   (setf *configfile* "nfs.cfg")
   (read-nfs-cfg *configfile*)
-  (setf *mountd-debug* t)
+  (setf mount:*mountd-debug* t)
   (setf *nfs-debug* t)
-  (setf *portmap-debug* t)
+  (setf portmap:*portmap-debug* t)
   ;;(setf *rpc-debug* t)
+  (setf nsm:*nsm-debug* t)
+  (setf nlm:*nlm-debug* t)
   (startem))
 
 (defun main (&rest args)

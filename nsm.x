@@ -1,4 +1,4 @@
-/* $Id: nsm.x,v 1.1 2006/01/31 15:53:15 dancy Exp $ */
+/* $Id: nsm.x,v 1.2 2006/05/11 21:58:59 dancy Exp $ */
 
 /*
  * This defines the maximum length of the string
@@ -42,7 +42,7 @@ struct mon {
 };
 
 struct stat_chge {
-    string    mon_name;
+    string    mon_name<SM_MAXSTRLEN>;
     int    state;
 };
 

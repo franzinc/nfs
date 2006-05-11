@@ -18,9 +18,20 @@
   
 
 (defparameter *nfs-gc-debug* nil)
+
+(in-package :portmap)
+(defparameter *portmap-debug* nil)
+(defparameter *use-system-portmapper* :auto)
+(eval-when (compile load eval)
+  (export '(*portmap-debug* *use-system-portmapper*)))
+
+(in-package :mount)
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
-(defparameter *portmap-debug* nil)
+(eval-when (compile load eval)
+  (export '(*mountd-debug* *mountd-port-number*)))
+
+(in-package :common-graphics-user)
 
 (defparameter *host-lists* nil)
 (defparameter *user-lists* nil)
@@ -93,15 +104,14 @@
              *user-lists*)
     
     ;; parameters
-    (push `(*portmap-debug* ,*portmap-debug*) config)
+    (push `(portmap:*portmap-debug* ,portmap:*portmap-debug*) config)
+    (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
+    (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
+    (push `(mount:*mountd-port-number* ,mount:*mountd-port-number*) config)
     (push `(*nfs-debug* ,*nfs-debug*) config)
     (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
     (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
-    (push `(*mountd-debug* ,*mountd-debug*) config)
-    (push `(*mountd-port-number* ,*mountd-port-number*) config)
-    (push `(user::*use-system-portmapper* ,user::*use-system-portmapper*)
-	  config)
     
     config))
 
@@ -128,7 +138,7 @@
 (defun populate-form (form)
   ;; Debugging options
   (setf (value (my-find-component :portmap-debug-checkbox form))
-    *portmap-debug*)
+    portmap:*portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
     *nfs-debug*)
   (setf (value (my-find-component :nfs-debug-timestamps-checkbox form))
@@ -136,7 +146,7 @@
   (setf (value (my-find-component :gc-debug-checkbox form))
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
-    *mountd-debug*)
+    mount:*mountd-debug*)
   
   (macrolet ((nfs-debug-filters (types)
                                 (let (res)
@@ -158,11 +168,11 @@
   (let ((auto-radio (my-find-component :mountd-port-auto form))
         (manual-radio (my-find-component :mountd-port-manual form))
         (mountd-port (my-find-component :mountd-port-number form)))
-    (if* *mountd-port-number* 
+    (if* mount:*mountd-port-number* 
        then
             (setf (value auto-radio) nil)
             (setf (value manual-radio) t)
-            (setf (value mountd-port) (format nil "~d" *mountd-port-number*))
+            (setf (value mountd-port) (format nil "~d" mount:*mountd-port-number*))
        else
             (setf (value auto-radio) t)
             (setf (value manual-radio) nil)
@@ -853,8 +863,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   
   ;; Finalize mountd port number changes.
   (if* (value (my-find-component :mountd-port-auto form))
-     then (setf *mountd-port-number* nil)
-     else (setf *mountd-port-number* 
+     then (setf mount:*mountd-port-number* nil)
+     else (setf mount:*mountd-port-number* 
             (parse-integer (value (my-find-component :mountd-port-number form)))))
   
   (write-config-file *configfile*)
@@ -927,27 +937,24 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 
 (defun configform-mountd-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *mountd-debug* new-value)
-  #+ignore(format t "~&Mountd debugging: ~a.~%" new-value)
+  (setf mount:*mountd-debug* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
-  #+ignore(format t "~&Memory management debugging: ~a.~%" new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
 (defun configform-combo-box-port-mapper-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setq user::*use-system-portmapper*
+  (setq portmap:*use-system-portmapper*
     (if* (eq :auto new-value)
        then :auto
      elseif (eq :yes new-value)
        then t
        else nil))
-  #+ignore(format t "~&Use system portmapper: ~s~%." user::*use-system-portmapper*)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -1011,7 +1018,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                     new-value
                                                     old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *portmap-debug* new-value)
+  (setf portmap:*portmap-debug* new-value)
   (refresh-apply-button (parent widget))  
   t) ; Accept the new value
 

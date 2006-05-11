@@ -21,46 +21,17 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.37 2006/05/06 19:42:16 dancy Exp $
+;; $Id: sunrpc.cl,v 1.38 2006/05/11 21:58:59 dancy Exp $
 
-(in-package :user)
+(in-package :sunrpc)
 
 (eval-when (compile)
   (declaim (optimize (speed 3) (safety 1))))
 
-;; enum msg_type
 (eval-when (compile load eval)
-(defconstant *CALL* 0)
-(defconstant *REPLY* 1)
-
-;; enum reply_stat
-(defconstant *MSG_ACCEPTED* 0)
-(defconstant *MSG_DENIED* 1)
-
-;; enum accept_stat
-(defconstant *SUCCESS* 0)
-(defconstant *PROG_UNAVAIL* 1)
-(defconstant *PROG_MISMATCH* 2)
-(defconstant *PROC_UNAVAIL* 3)
-(defconstant *GARBAGE_ARGS* 4)
-
-;; enum reject_stat
-(defconstant *RPC_MISMATCH* 0)
-(defconstant *AUTH_ERROR* 1)
-
-;; enum auth_stat
-(defconstant *AUTH_BADCRED* 1)
-(defconstant *AUTH_REJECTEDCRED* 2)
-(defconstant *AUTH_BADVERF* 3)
-(defconstant *AUTH_REJECTEDVERF* 4)
-(defconstant *AUTH_TOOWEAK* 5)
+;; Large enough to allow for 64KB read/writes in NFS V3.
+(defconstant *rpc-buffer-size* (* 70 1024))
 )
-
-;; enum auth_flavor
-(defconstant *AUTH_NULL* 0)
-(defconstant *AUTH_UNIX* 1)
-(defconstant *AUTH_SHORT* 2)
-(defconstant *AUTH_DES* 3)
 
 (defstruct rpc-peer
   type
@@ -69,82 +40,17 @@
   port
   fragments) ;; for TCP peers
 
-(defstruct rpc-server
-  tcpsock
-  udpsock
-  tcpclientlist
-  (buffer (make-array #.*rpc-buffer-size* :element-type '(unsigned-byte 8))))
+(defmacro peer-dotted (peer)
+  `(socket:ipaddr-to-dotted (rpc-peer-addr ,peer)))
+
+(defmacro local-peer-p (peer)
+  `(socket:ipaddr-equalp (rpc-peer-addr ,peer)
+			 #.(socket:dotted-to-ipaddr "127.0.0.1")))
 
 (defparameter *rpc-debug* nil)
  
-;; returns an xdr
-(defun rpc-get-message (server)
-  (symbol-macrolet ((clientlist (rpc-server-tcpclientlist server)))
-    (let ((tcpsock (rpc-server-tcpsock server))
-	  (udpsock (rpc-server-udpsock server))
-	  (buffer (rpc-server-buffer server))
-	  waitlist
-	  readylist
-	  record)
-      (loop
-	(setf waitlist clientlist)
-	(if tcpsock
-	    (push tcpsock waitlist))
-	(if udpsock
-	    (push udpsock waitlist))
-	;;(logit "waiting for input.~%")
-	;;(logit "waitlist is ~S~%" waitlist)
-	(handler-case (setf readylist (mp:wait-for-input-available waitlist))
-	  (socket-error (c)
-	    (case (stream-error-identifier c)
-	      (:connection-reset 
-	       (let ((stream (stream-error-stream c)))
-		 (if *rpc-debug* (logit "closing error socket ~S~%" stream))
-		 (close stream)
-		 (setf clientlist (remove stream clientlist))
-		 nil))
-	      (t 
-	       (error c)))))
-	
-	;;(logit "readylist is ~A~%" readylist)
-	
-	(when (member tcpsock readylist)
-	  (if *rpc-debug* 
-	      (logit "~
-Accepting new tcp connection and adding it to the client list.~%"))
-	  (push (socket:accept-connection tcpsock) clientlist)
-	  (setf readylist (remove tcpsock readylist)))
-	
-	(when (member udpsock readylist)
-	  (multiple-value-bind (vec count addr port)
-	      (handler-case (socket:receive-from udpsock (length buffer) :buffer buffer)
-		(socket-error (c) 
-		  (if *rpc-debug* 
-		      (logit "Ignoring error condition ~S~%" c))
-		  nil))
-	    (when vec
-	      (return-from rpc-get-message 
-		(values (create-xdr :vec vec :size count) 
-			(make-rpc-peer :type :datagram :socket udpsock
-				       :addr addr :port port)))))
-	  
-	  (setf readylist (remove udpsock readylist)))
-	
-	;; all remaining entries on readylist will be tcp clients
-	(dolist (s readylist)
-	  (setf record (read-record s buffer))
-	  (if* (null record)
-	     then (if *rpc-debug* (logit "Client ~s disconnected.~%" s))
-		  (ignore-errors (close s))
-		  (ignore-errors (close s :abort t))
-		  (setf clientlist (remove s clientlist))
-	     else (return-from rpc-get-message
-		    (values (create-xdr :vec record)
-			    (make-rpc-peer :type :stream :socket s
-					   :addr (socket:remote-host s))))))))))
-
-  
-  
+;; See if this can be sped up and simplified by using BSWAP (if duane
+;; gets it to me)
 (defun read-int-from-stream (stream)
   (declare (optimize (speed 3)))
   (let* ((vec (make-array 1 :element-type '(signed-byte 32)))
@@ -178,10 +84,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	;;(logit "Message is ~d bytes~%" size)
 	(read-complete-vector buffer stream size))
     (socket-error (c)
-      (if *rpc-debug* (logit "~a~%" c))
+      (if *rpc-debug* (user::logit "~a~%" c))
       nil)
     (t (c)
-      (logit "read-record got error ~A~%Returning nil~%" c)
+      (user::logit "read-record got error ~A~%Returning nil~%" c)
       nil)))
 
 (defun read-complete-vector (vec stream end)
@@ -195,123 +101,40 @@ Accepting new tcp connection and adding it to the client list.~%"))
   vec)
   
 
-(defstruct rpc-msg 
-  xid
-  mtype ;; CALL = 0, REPLY = 1, nil = invalid type found
-  cbody ;; (for CALL)
-  rbody ;; (for REPLY)
-  )
-
-(defun create-rpc-msg (xdr)
-  (let* ((msg (make-rpc-msg))
-         (xid (xdr-unsigned-int xdr))
-         (mtype (xdr-int xdr)))
-    (setf (rpc-msg-xid msg) xid)
-    (setf (rpc-msg-mtype msg) mtype)
-    (case mtype
-      (#.*CALL* 
-       (setf (rpc-msg-cbody msg) (create-call-body-from-xdr xdr)))
-      (#.*REPLY*
-       (setf (rpc-msg-rbody msg) (create-reply-body-from-xdr xdr))))
-    msg))
-
-(defstruct call-body
-  rpcvers
-  prog
-  vers
-  proc
-  cred
-  verf
-  params
-  )
-
-(defun create-call-body-from-xdr (xdr)
-  (let ((cbody (make-call-body)))
-    (setf (call-body-rpcvers cbody) (xdr-int xdr))
-    (unless (= 2 (call-body-rpcvers cbody))
-      (error "create-call-body-from-xdr: Unsupported RPC Version requested: ~D~%"
-	     (call-body-rpcvers cbody)))
-    (setf (call-body-prog cbody) (xdr-int xdr))
-    (setf (call-body-vers cbody) (xdr-int xdr))
-    (setf (call-body-proc cbody) (xdr-int xdr))
-    ;;(logit "create-call-body-from-xdr: Getting credentials~%")
-    (setf (call-body-cred cbody) (xdr-opaque-auth xdr))
-    ;;(logit "create-call-body-from-xdr: Getting verifier~%")
-    (setf (call-body-verf cbody) (xdr-opaque-auth xdr))
-    (setf (call-body-params cbody) (xdr-xdr xdr))
-    cbody))
-
-(defun pprint-cbody (cbody)
-  (logit "RPC Version: ~D~%" (call-body-rpcvers cbody))
-  (logit "Program: ~D~%" (call-body-prog cbody))
-  (logit "Program version: ~D~%" (call-body-vers cbody))
-  (logit "Program procedure: ~D~%" (call-body-proc cbody))
-  ;;(logit "Cred: ~S~%" (call-body-cred cbody))
-  ;;(logit "Verf: ~S~%" (call-body-verf cbody))
-  )
-
-(defstruct reply-body
-  stat ;; MSG_ACCEPTED = 0, MSG_DENIED = 1
-  areply ;; (for MSG_ACCEPTED)
-  rreply ;; (for MSG_DENIED)
-  )
-
-(defstruct accepted-reply
-  verf
-  stat
-  results ;; (for SUCCESS)
-  mismatch-info ;; (for PROG_MISMATCH)
-  )
-
-(defstruct mismatch-info
-  low
-  high)
-
-(defstruct rejected-reply
-  reject-stat ;; RPC_MISMATCH = 0, AUTH_ERROR = 1
-  mismatch-info ;; (for RPC_MISMATCH)
-  auth-stat ;; (for AUTH_ERROR)
-  )
-
-(defun create-reply-body-from-xdr (xdr)
-  (let* ((reply-stat (xdr-int xdr))
-	 (reply-body (make-reply-body :stat reply-stat)))
-    (ecase reply-stat
-      (#.*MSG_ACCEPTED*
-       (let ((ar (make-accepted-reply :verf (xdr-opaque-auth xdr)
-				      :stat (xdr-int xdr))))
-	 (setf (reply-body-areply reply-body) ar)
-	 (ecase (accepted-reply-stat ar)
-	   (#.*SUCCESS* 
-	    (setf (accepted-reply-results ar) (xdr-xdr xdr)))
-	   (#.*PROG_MISMATCH* 
-	    (setf (accepted-reply-mismatch-info ar)
-	      (make-mismatch-info
-	       :low (xdr-unsigned-int xdr)
-	       :high (xdr-unsigned-int xdr))))
-	   ((#.*PROG_UNAVAIL* #.*PROC_UNAVAIL* #.*GARBAGE_ARGS*)
-	    ))))
-      (#.*MSG_DENIED*
-       (error "MSG_DENIED not done yet")))
-    
-    reply-body))
-
 (defun verbose-accept-stat (code)
   (ecase code
-    (#.*SUCCESS*
+    (#.*success*
      "success")
-    (#.*PROG_UNAVAIL*
+    (#.*prog-unavail*
      "program unavailable")
-    (#.*PROG_MISMATCH*
+    (#.*prog-mismatch*
      "program version mismatch")
-    (#.*PROC_UNAVAIL*
+    (#.*proc-unavail*
      "procedure unavailable")
-    (#.*GARBAGE_ARGS*
+    (#.*garbage-args*
      "garbage arguments")))
-  
 
-;; useful for routines that just want to fail if a reply failed
-;; for some reason.
+
+;; returns rpc-msg struct.
+(defun rpc-get-reply (peer &key buffer)
+  (when (null buffer)
+    (setf buffer (make-array #.*rpc-buffer-size* 
+			     :element-type '(unsigned-byte 8))))
+
+  (xdr-rpc-msg 
+   (ecase (rpc-peer-type peer)
+     (:datagram
+      (multiple-value-bind (vec count)
+	  (socket:receive-from (rpc-peer-socket peer) 
+			       (length buffer)
+			       :buffer buffer)
+	(create-xdr :vec vec :size count)))
+     (:stream
+      (create-xdr :vec (read-record (rpc-peer-socket peer) buffer))))))
+	
+
+;; Sanity checking routine for programs that just want to fail if a
+;; reply is bogus for some reason.
 (defmacro with-good-reply-msg ((msg expected-xid xdrsym) &body body)
   (let ((m (gensym))
 	(xid (gensym))
@@ -320,23 +143,30 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	   (,xid ,expected-xid))
        (if (/= (rpc-msg-xid ,m) ,xid)
 	   (error "Got XID ~D but expected ~D" (rpc-msg-xid ,m) ,xid))
-       (let ((,thing (rpc-msg-rbody ,m)))
-	 (if (/= *MSG_ACCEPTED* (reply-body-stat ,thing))
+       (let ((,thing (rpc-msg-body ,m))) ;; rpc-msg-body-u
+	 (if (/= *reply* (rpc-msg-body-u-mtype ,thing))
+	     (error "Message was not of reply type (got type ~d instead)"
+		    (rpc-msg-body-u-mtype ,thing)))
+	 (setf ,thing (rpc-msg-body-u-rbody ,thing)) ;; reply-body
+	 (if (/= *msg-accepted* (reply-body-stat ,thing))
 	     (error "Message was denied"))
-	 (setf ,thing (reply-body-areply ,thing))
-	 (if (/= *SUCCESS* (accepted-reply-stat ,thing))
+	 (setf ,thing (reply-body-areply ,thing)) ;; accepted-reply
+	 (setf ,thing (accepted-reply-reply-data ,thing)) ;; accepted-reply-reply-data-u
+	 (if (/= *success* (accepted-reply-reply-data-u-stat ,thing))
 	     (error "Reply status: ~A (code: ~D)" 
-		    (verbose-accept-stat (accepted-reply-stat, thing))
-		    (accepted-reply-stat ,thing)))
-	 (let ((,xdrsym (car (accepted-reply-results ,thing))))
+		    (verbose-accept-stat 
+		     (accepted-reply-reply-data-u-stat ,thing))
+		    (accepted-reply-reply-data-u-stat ,thing)))
+	 
+	 (let ((,xdrsym (car (accepted-reply-reply-data-u-results ,thing))))
 	   ,@body)))))
+	 
 
 (defun rpc-send (xdr peer)
   (ecase (rpc-peer-type peer)
     (:stream
      (let ((sizevec (make-array 1 :element-type '(unsigned-byte 32))))
-       (declare (dynamic-extent sizevec)
-		(type xdr xdr))
+       (declare (dynamic-extent sizevec))
        (setf (aref sizevec 0) (logior #x80000000 (xdr-size xdr)))
        (ignore-errors
 	(write-vector sizevec (rpc-peer-socket peer) 
@@ -351,69 +181,70 @@ Accepting new tcp connection and adding it to the client list.~%"))
 				    :remote-host (rpc-peer-addr peer)
 				    :remote-port (rpc-peer-port peer))))))
 
-(defun rpc-send-reply (peer xid rbody)  ;; rbody should be an xdr
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-unsigned-int xdr xid)
-    (xdr-int xdr 1) ;; REPLY
-    (xdr-xdr xdr rbody)
-    (rpc-send xdr peer)))
-    
-(defun send-accepted-reply (peer xid verf stat reply)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-unsigned-int xdr xid)
-    (xdr-int xdr 1) ;; REPLY
-    (xdr-int xdr 0) ;; MSG_ACCEPTED
-    (xdr-xdr xdr verf) 
-    (xdr-int xdr stat) 
-    (xdr-xdr xdr reply)
-    (rpc-send xdr peer)))
-
-(defun send-successful-reply (peer xid verf results)
-  (send-accepted-reply peer xid verf 0 results))
-
-(defmacro with-successful-reply ((xdr-name peer xid verf) &body body)
+(defmacro with-rpc-reply ((xdr peer xid) &body body)
   (let ((xdrbuf (gensym)))
     `(let* ((,xdrbuf (make-array #.*rpc-buffer-size* 
 				 :element-type '(unsigned-byte 8)))
-	    (,xdr-name (create-xdr :direction :build :vec ,xdrbuf)))
+	    (,xdr (create-xdr :direction :build :vec ,xdrbuf)))
        (declare 
 	(dynamic-extent ,xdrbuf))
-       (xdr-unsigned-int ,xdr-name ,xid)
-       (xdr-int ,xdr-name *REPLY*) 
-       (xdr-int ,xdr-name *MSG_ACCEPTED*) 
-       (xdr-xdr ,xdr-name ,verf) 
-       (xdr-int ,xdr-name *SUCCESS*) 
+       (xdr-unsigned-int ,xdr ,xid)
+       (xdr-int ,xdr #.*reply*)
        ,@body
-       (rpc-send ,xdr-name ,peer))))
+       (rpc-send ,xdr ,peer))))
 
+(defmacro with-accepted-reply ((xdr peer xid verf) &body body)
+  `(with-rpc-reply (,xdr ,peer ,xid)
+     (xdr-int ,xdr #.*msg-accepted*)
+     (xdr-opaque-auth ,xdr ,verf)
+     ,@body))
 
+(defmacro with-denied-reply ((xdr peer xid) &body body)
+  `(with-rpc-reply (,xdr ,peer ,xid)
+     (xdr-int ,xdr #.*msg-denied*)
+     ,@body))
 
-(defun rpc-send-rejected-reply (peer xid rreply)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-int xdr 1) ;; MSG_DENIED
-    (xdr-xdr xdr rreply)
-    (rpc-send-reply peer xid xdr)))
+;; denied (rejected) replies include: rpc_mismatch and auth_error
 
-(defun rpc-send-auth-error-rejected-reply (peer xid stat)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-int xdr 1) ;; AUTH_ERROR
-    (xdr-int xdr stat) ;; auth_stat
-    (rpc-send-rejected-reply peer xid xdr)))
+(defun send-rpc-mismatch-reply (peer xid low high)
+  (with-denied-reply (xdr peer xid)
+    (xdr-int xdr #.*rpc-mismatch*)
+    (xdr-unsigned-int xdr low)
+    (xdr-unsigned-int xdr high)))
 
-(defun rpc-send-prog-unavail (peer xid verf)
-  (let ((xdr (create-xdr :direction :build)))
-    (send-accepted-reply peer xid verf 1 xdr)))
+(defun send-auth-error-reply (peer xid stat)
+  (with-denied-reply (xdr peer xid)
+    (xdr-int xdr #.*rpc-mismatch*)
+    (xdr-int xdr stat)))
 
-(defun rpc-send-proc-unavail (peer xid verf)
-  (let ((xdr (create-xdr :direction :build)))
-    (send-accepted-reply peer xid verf 3 xdr)))
+;; accepted but unsuccessful reply types include:
+;; prog_mismatch, prog_unavail, proc_unavail, garbage_args
 
-(defun rpc-send-prog-mismatch (peer xid verf lowest highest)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-unsigned-int xdr lowest)
-    (xdr-unsigned-int xdr highest)
-    (send-accepted-reply peer xid verf 2 xdr)))
+(defun send-prog-mismatch-reply (peer xid verf low high)
+  (with-accepted-reply (xdr peer xid verf)
+    (xdr-unsigned-int xdr low)
+    (xdr-unsigned-int xdr high)))
+
+(defun send-prog-unavail-reply (peer xid verf)
+  (with-accepted-reply (xdr peer xid verf)
+    (xdr-int xdr #.*prog-unavail*)))
   
+(defun send-proc-unavail-reply (peer xid verf)
+  (with-accepted-reply (xdr peer xid verf)
+    (xdr-int xdr #.*proc-unavail*)))
+
+(defun send-garbage-args-reply (peer xid verf)
+  (with-accepted-reply (xdr peer xid verf)
+    (xdr-int xdr #.*garbage-args*)))
+
+
+;; accepted and succesful reply
+
+(defmacro with-successful-reply ((xdr peer xid verf) &body body)
+  `(with-accepted-reply (,xdr ,peer ,xid ,verf)
+     (xdr-int ,xdr #.*success*)
+     ,@body))
+
 ;;;; client stuff
 
 (defun rpc-connect-to-peer (host port proto)
@@ -443,74 +274,73 @@ Accepting new tcp connection and adding it to the client list.~%"))
        (if ,peer
 	   (rpc-disconnect ,peer)))))
 
-;; returns xdr
-(defun rpc-get-reply (peer &key buffer)
-  (when (null buffer)
-    (setf buffer (make-array #.*rpc-buffer-size* 
-			     :element-type '(unsigned-byte 8))))
-  
-  (create-rpc-msg
-   (ecase (rpc-peer-type peer)
-     (:datagram
-      (multiple-value-bind (vec count)
-	  (socket:receive-from (rpc-peer-socket peer) 
-			       (length buffer)
-			       :buffer buffer)
-	(create-xdr :vec vec :size count)))
-     (:stream
-      (let ((record (read-record (rpc-peer-socket peer) buffer)))
-	(create-xdr :vec record))))))
-
-(defun rpc-send-call (peer xid cbody) ;; cbody should be an xdr
+;; called by callrpc
+(defun rpc-send-call (peer xid prog vers proc auth verf data)
+  ;; Construct rpc_msg
   (let ((xdr (create-xdr :direction :build)))
     (xdr-unsigned-int xdr xid)
-    (xdr-int xdr 0) ;; CALL
-    (xdr-xdr xdr cbody)
-    (rpc-send xdr peer)))
-
-(defparameter *nullverf* 
-    (let ((xdr (create-xdr :direction :build)))
-      (xdr-auth-null xdr)
-      xdr))
-
-(defparameter *nullauth* 
-    (let ((xdr (create-xdr :direction :build)))
-      (xdr-auth-null xdr)
-      xdr))
-
-;; unfortunate name... hard to distinguish from create-call-body-from-xdr
-(defun rpc-make-call-body (prog vers proc cred verf rest)
-  (let ((xdr (create-xdr :direction :build)))
-    (xdr-unsigned-int xdr 2) ;; rpcvers
-    (xdr-unsigned-int xdr prog)
+    (xdr-unsigned-int xdr #.*call*) ;; msg_type mtype
+    ;; call body
+    (xdr-unsigned-int xdr 2) ;; rpc vers
+    (xdr-unsigned-int xdr prog) 
     (xdr-unsigned-int xdr vers)
     (xdr-unsigned-int xdr proc)
-    (xdr-xdr xdr cred)
-    (xdr-xdr xdr verf)
-    (xdr-xdr xdr rest)
-    xdr))
+    (xdr-opaque-auth xdr auth)
+    (xdr-opaque-auth xdr verf)
+    (xdr-xdr xdr data)
+    (rpc-send xdr peer)))
 
 (defstruct rpc-client
   peer
   prog
   vers
-  xdr)
+  xdr
+  auth)
 
-(defun rpc-client-create (host prog vers proto &key port)
-  (let ((port (or port (portmap-getport-client host prog vers proto))))
+(defparameter *nullauth* (make-opaque-auth :flavor *auth-null* 
+					   :body #()))
+
+(defparameter *nullverf* (make-opaque-auth :flavor *auth-null* 
+					   :body #()))
+
+(defun rpc-client-create (host prog vers proto &key port uid gid gids)
+  (let ((port (or port (portmap-getport host prog vers proto)))
+	(auth *nullauth*))
     (if (= port 0)
 	(error "program not registered"))
+
+    (when (or uid gid gids)
+      (if (not (and uid gid))
+	  (error "If one of uid, gid, or gids is specified, then uid and gid must be specified"))
+      
+      (let ((x (create-xdr :direction :build)))
+	(xdr-auth-unix 
+	 x 
+	 (make-auth-unix 
+	  :stamp 
+	  (excl.osi:universal-to-unix-time (get-universal-time))
+	  :machinename (excl.osi:gethostname)
+	  :uid uid
+	  :gid gid
+	  :gids gids))
+	(setf auth (make-opaque-auth :flavor *auth-unix*
+				     :body (xdr-get-vec x)))))
     
     (make-rpc-client :peer (rpc-connect-to-peer host port proto)
 		     :prog prog
 		     :vers vers
-		     :xdr (create-xdr :direction :build))))
+		     :xdr (create-xdr :direction :build)
+		     :auth auth)))
 
 (defun rpc-client-close (cli)
   (rpc-disconnect (rpc-client-peer cli)))
 
-(defmacro with-rpc-client ((cli host prog vers proto &key port) &body body)
-  `(let ((,cli (rpc-client-create ,host ,prog ,vers ,proto :port ,port)))
+(defmacro with-rpc-client ((cli host prog vers proto 
+			    &key port uid gid gids) 
+			   &body body)
+  `(let ((,cli (rpc-client-create ,host ,prog ,vers ,proto 
+				  :port ,port :uid ,uid
+				  :gid ,gid :gids ,gids)))
      (unwind-protect (progn ,@body)
        (rpc-client-close ,cli))))
 
@@ -525,16 +355,16 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	 (xdr (rpc-client-xdr cli))
 	 (prog (rpc-client-prog cli))
 	 (vers (rpc-client-vers cli))
+	 (auth (rpc-client-auth cli))
 	 (xid (random #.(expt 2 32))))
     
     (xdr-flush xdr)
-    
+
     (if inproc
 	(funcall inproc xdr in))
-      
+
     (dotimes (i retries) 
-      (rpc-send-call 
-       peer xid (rpc-make-call-body prog vers proc *nullauth* *nullverf* xdr))
+      (rpc-send-call peer xid prog vers proc auth *nullverf* xdr)
       
       (if no-reply
 	  (return-from callrpc t))
@@ -550,68 +380,10 @@ Accepting new tcp connection and adding it to the client list.~%"))
       
     (error "rpc call failed (no response)")))
 
-;; On success, returns the results of the remote procedure call, post-
-;; processed by 'outproc' (if provided).  If 'outproc' is not provided
-;; then an xdr struct is returned.
-(defun callrpc-1 (host prognum versnum procnum proto inproc in
-		&key (retries 3)
-		     (timeout 5)
-		     port
-		     outproc
-		     no-reply) ;; don't wait for a reply
-  
-  (when (null port)
-    (setf port (portmap-getport-client host prognum versnum proto))
-    (if (= port 0)
-	(error "program not registered")))
-  
-  (with-rpc-peer (peer host port proto)
-    (let ((xdr (create-xdr :direction :build))
-	  (xid (random #.(expt 2 32))))
-      
-      (if inproc
-	  (funcall inproc xdr in))
-      
-      (dotimes (i retries) 
-	(rpc-send-call
-	 peer
-	 xid
-	 (rpc-make-call-body prognum versnum procnum
-			     *nullauth* *nullverf* xdr))
-	
-	(if no-reply
-	    (return-from callrpc-1 t))
-	
-	(let ((msg (mp:with-timeout (timeout :timeout)
-		     (rpc-get-reply peer))))
-	  (if (not (eq msg :timeout))
-	      (with-good-reply-msg (msg xid results)
-		(return-from callrpc-1 
-		  (if outproc
-		      (funcall outproc results)
-		    results))))))
-      
-      (error "rpc call failed (no response)"))))
-
-
-(defxdrstruct mapping ((unsigned-int prog)
-		       (unsigned-int vers)
-		       (unsigned-int prot)
-		       (unsigned-int port)))
-
-(defun portmap-getport-client (host prog vers proto)
-  (with-rpc-client (cli host *pmapprog* *pmapvers* :udp :port *pmapport*)
-    (callrpc cli *pmap-proc-getport* #'xdr-portmap-mapping  
-	     (make-mapping :prog prog 
-			   :vers vers 
-			   :prot (proto-to-number proto)
-			   :port 0)
-	     :outproc #'xdr-unsigned-int)))
-
 (defun protocol-to-string (proto)
-  (if* (or (eq proto :udp) (eql proto #.IPPROTO_UDP))
+  (if* (or (eq proto :udp) (eql proto #.portmap:*ipproto-udp*))
      then "UDP"
-   elseif (or (eq proto :tcp) (eql proto #.IPPROTO_TCP))
+   elseif (or (eq proto :tcp) (eql proto #.portmap:*ipproto-tcp*))
      then "TCP"
      else (format nil "~a" proto)))
 
@@ -621,7 +393,52 @@ Accepting new tcp connection and adding it to the client list.~%"))
    elseif (keywordp proto)
      then (ecase proto
 	    (:tcp 
-	     #.IPPROTO_TCP)
+	     #.portmap:*ipproto-tcp*)
 	    (:udp
-	     #.IPPROTO_UDP))
+	     #.portmap:*ipproto-udp*))
      else (error "Unrecognized protocol: ~s" proto)))
+
+(defmacro with-portmapper ((cli host) &body body)
+  `(with-rpc-client (,cli ,host #.portmap:*pmap-prog* #.portmap:*pmap-vers* 
+			  :udp :port #.portmap:*pmap-port*)
+     ,@body))
+
+;; Portmapper client function
+(defun portmap-getport (host prog vers proto)
+  (with-portmapper (cli host)
+    (portmap:call-pmapproc-getport-2 
+     cli 
+     (portmap:make-mapping :prog prog 
+			   :vers vers 
+			   :prot (proto-to-number proto)
+			   :port 0))))
+
+(defun portmap-set (prog vers proto port)
+  (with-portmapper (cli "127.0.0.1")
+    (portmap:call-pmapproc-set-2 
+     cli
+     (portmap:make-mapping :prog prog
+			   :vers vers
+			   :prot (proto-to-number proto)
+			   :port port))))
+
+(defun portmap-unset (prog vers)
+  (with-portmapper (cli "127.0.0.1")
+    (portmap:call-pmapproc-unset-2 
+     cli
+     (portmap:make-mapping :prog prog
+			   :vers vers
+			   :prot 0
+			   :port 0))))
+
+(eval-when (compile load eval)
+  (export '(callrpc portmap-getport portmap-set portmap-unset
+	    send-rpc-mismatch-reply  send-prog-unavail-reply
+	    send-proc-unavail-reply send-prog-mismatch-reply
+	    rpc-peer-addr with-successful-reply
+	    protocol-to-string with-rpc-client callrpc
+	    *nullverf* peer-dotted local-peer-p
+	    rpc-client-create))
+  (provide 'sunrpc))
+
+

@@ -22,79 +22,26 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.9 2006/05/06 19:42:16 dancy Exp $
-
-(in-package :user)
+;; $Id: nsm.cl,v 1.10 2006/05/11 21:58:59 dancy Exp $
 
 ;; This file implements the Network Status Monitor (NSM) protocol. 
 
 ;; Ref: http://www.opengroup.org/onlinepubs/009629799/chap11.htm
 
+(in-package :nsm)
 
-;; Begin auto-generated 
-
-(eval-when (compile load eval)
-  (defconstant *sm-maxstrlen* 1024))
-
-(defxdrstruct sm-name ((string mon-name)))
-
-;; enum res
-(eval-when (compile load eval)
- (defconstant *stat-succ* 0)
- (defconstant *stat-fail* 1))
-
-(defun xdr-res (xdr &optional int)
- (xdr-int xdr int))
-
-(defxdrstruct sm-stat-res ((res res-stat)
-                          (int state)))
-
-(defxdrstruct sm-stat ((int state)))
-
-(defxdrstruct my-id ((string my-name)
-                          (int my-prog)
-                          (int my-vers)
-                          (int my-proc)))
-
-(defxdrstruct mon-id ((string mon-name)
-                          (my-id my-id)))
-
-(defxdrstruct mon ((mon-id mon-id)
-                          (opaque priv :fixed 16)))
-
-(defxdrstruct stat-chge ((string mon-name)
-			 (int state)))
-
-(defxdrstruct nsm-callback-status ((string mon-name)
-                          (int state)
-                          (opaque priv :fixed 16)))
-
-(eval-when (compile load eval)
- (defconstant *sm-prog* 100024)
- (defconstant *sm-vers* 1)
- (defconstant *sm-null* 0)
- (defconstant *sm-stat* 1)
- (defconstant *sm-mon* 2)
- (defconstant *sm-unmon* 3)
- (defconstant *sm-unmon-all* 4)
- (defconstant *sm-simu-crash* 5)
- (defconstant *sm-notify* 6)
-)
-
-(def-rpc-program (nsm #.*sm-prog*)
+(sunrpc:def-rpc-program (NSM 100024)
   (
-   (#.*sm-vers*
-     (#.*sm-null* sm-null void void)
-     (#.*sm-stat* sm-stat sm-name sm-stat-res)
-     (#.*sm-mon* sm-mon mon sm-stat-res)
-     (#.*sm-unmon* sm-unmon mon-id sm-stat)
-     (#.*sm-unmon-all* sm-unmon-all my-id sm-stat)
-     (#.*sm-simu-crash* sm-simu-crash void void)
-     (#.*sm-notify* sm-notify stat-chge void)
+   (1 ;; version
+     (0 sm-null void void)
+     (1 sm-stat sm-name sm-stat-res)
+     (2 sm-mon mon sm-stat-res)
+     (3 sm-unmon mon-id sm-stat)
+     (4 sm-unmon-all my-id sm-stat)
+     (5 sm-simu-crash void void)
+     (6 sm-notify stat-chge void)
    )
   ))
-
-;; End auto-generated
 
 (defvar *nsm-state* 0) ;; down
 
@@ -128,7 +75,7 @@
 
 ;;;;;;;;;
 
-(defun nsm-init ()
+(defun NSM-init ()
   (mp:process-run-function "nsm callback retry loop" 
     #'sm-callback-retry-loop)
   (nsm-load-state) 
@@ -142,11 +89,11 @@
       (with-open-file (f tmpfile :direction :output
 		       :if-exists :supersede)
 	(write (list *nsm-state* *nsm-monitored-hosts*) :stream f)
-	(fsync f))
+	(excl.osi:fsync f))
       ;; No way to do an atomic rename on Windows. *sigh*.
       (if (probe-file *nsm-state-file*)
 	  (delete-file *nsm-state-file*))
-      (rename tmpfile *nsm-state-file*))))
+      (excl.osi:rename tmpfile *nsm-state-file*))))
 
 (defun nsm-load-state ()
   (mp:with-process-lock (*nsm-state-lock*)
@@ -165,18 +112,18 @@
     ;; Make sure it remains a signed-positive.
     (if (> *nsm-state* #.(1- (expt 2 31)))
 	(setf *nsm-state* 1))
-    (if *nsm-debug* (logit "NSM: New state: ~d~%" *nsm-state*))
+    (if *nsm-debug* (user::logit "NSM: New state: ~d~%" *nsm-state*))
     (nsm-save-state)))
 
 (defun nsm-log-status (status)
-  (logit "==> ~a~%"
+  (user::logit "==> ~a~%"
 	 (case status
 	   (#.*stat-fail* "FAIL")
 	   (#.*stat-succ* "SUCC")
 	   (t (format nil "~a" status)))))
 
 (defun nsm-convert-mon-id (mon-id &key priv)
-  (let* ((priv (if priv (xdr-extract-vec priv)))
+  (let* ((priv (if priv (opaque-data priv)))
 	 (name (mon-id-mon-name mon-id)) ;; host to monitor
 	 (my-id (mon-id-my-id mon-id))
 	 (callback-host (my-id-my-name my-id))
@@ -221,8 +168,7 @@
 (defun sm-null (arg vers peer cbody)
   (declare (ignore arg vers cbody))
   (if *nsm-debug*
-      (logit "NSM: ~a: NULL~%" 
-	     (socket:ipaddr-to-dotted (rpc-peer-addr peer)))))
+      (user::logit "NSM: ~a: NULL~%" (sunrpc:peer-dotted peer))))
 
 ;; in: sm-name, out: sm-stat-res
 (defun sm-stat (arg vers peer cbody)
@@ -230,9 +176,7 @@
   (let ((name (sm-name-mon-name arg))
 	(status #.*stat-fail*))
     (if *nsm-debug*
-	(logit "NSM: ~a: STAT (~a)~%" 
-	       (socket:ipaddr-to-dotted (rpc-peer-addr peer))
-	       name))
+	(user::logit "NSM: ~a: STAT (~a) " (sunrpc:peer-dotted peer) name))
     
     ;; This is what linux does.
     (if (ignore-errors (socket:lookup-hostname name))
@@ -250,26 +194,27 @@
   (declare (ignore vers cbody))
   (let* ((mon-id (mon-mon-id arg))
 	 (struct (nsm-convert-mon-id mon-id :priv (mon-priv arg)))
-	 (addr (rpc-peer-addr peer))
 	 (status #.*stat-fail*))
     
     (if *nsm-debug*
-	(logit "NSM: ~a: MON ~a~%" (socket:ipaddr-to-dotted addr) 
+	(user::logit "NSM: ~a: MON ~a~%" (sunrpc:peer-dotted peer)
 	       (nsm-monitor-to-string struct)))
 
     (mp:with-process-lock (*nsm-state-lock*)
-      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
-	(if* (member struct *nsm-monitored-hosts* :test #'equalp)
-	   then (if *nsm-debug*
-		    (logit "==> Already monitored.~%"))
-	   else (push struct *nsm-monitored-hosts*)
-		(nsm-save-state)
-		(if *nsm-debug*
-		    (logit "==> Adding entry to monitor list.~%")))
-	(setf status #.*stat-succ*))
+      (if* (sunrpc:local-peer-p peer)
+	 then (if* (member struct *nsm-monitored-hosts* :test #'equalp)
+		 then (if *nsm-debug*
+			  (user::logit "NSM: ==> Already monitored.~%"))
+		 else (push struct *nsm-monitored-hosts*)
+		      (nsm-save-state)
+		      (if *nsm-debug*
+			  (user::logit "NSM: ==> Adding entry to monitor list.~%")))
+	      (setf status #.*stat-succ*)
+	 else (user::logit "NSM: ==> Rejecting non-local request.~%"))
       
-      (if *nsm-debug*
-	  (nsm-log-status status))
+      (when *nsm-debug*
+	(user::logit "NSM: ")
+	(nsm-log-status status))
       
       (make-sm-stat-res :res-stat status
 			:state *nsm-state*))))
@@ -277,24 +222,25 @@
 ;; in: mon-id, out: sm-stat
 (defun sm-unmon  (arg vers peer cbody)
   (declare (ignore vers cbody))
-  (let ((struct (nsm-convert-mon-id arg))
-	(addr (rpc-peer-addr peer)))
+  (let ((struct (nsm-convert-mon-id arg)))
     
     (if *nsm-debug*
-	(logit "NSM: ~a: UNMON ~a~%" (socket:ipaddr-to-dotted addr) 
+	(user::logit "NSM: ~a: UNMON ~a~%" (sunrpc:peer-dotted peer)
 	       (nsm-monitor-to-string struct)))
     
     (mp:with-process-lock (*nsm-state-lock*)
-      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
-	(let ((entry (nsm-find-entry struct)))
-	  (if* entry
-	     then (if *nsm-debug*
-		      (logit "==> Removing entry from monitor list.~%"))
-		  (setf *nsm-monitored-hosts* 
-		    (delete entry *nsm-monitored-hosts*))
-		  (nsm-save-state)
-	     else (if *nsm-debug*
-		      (logit "==> No matching entry (probably a dupe)~%")))))
+      (if* (sunrpc:local-peer-p peer)
+	 then (let ((entry (nsm-find-entry struct)))
+		(if* entry
+		   then (if *nsm-debug*
+			    (user::logit "NSM: ==> Removing entry from monitor list.~%"))
+			(setf *nsm-monitored-hosts* 
+			  (delete entry *nsm-monitored-hosts*))
+			(nsm-save-state)
+		   else (if *nsm-debug*
+			    (user::logit "NSM: ==> No matching entry (probably a dupe)~%"))))
+	 else (if *nsm-debug*
+		  (user::logit "==> Ignoring non-local request~%")))
       
       (make-sm-stat :state *nsm-state*))))
 
@@ -305,21 +251,21 @@
   (let ((requestor (my-id-my-name arg))
 	(prog (my-id-my-prog arg))
 	(vers (my-id-my-vers arg))
-	(proc (my-id-my-proc arg))
-	(addr (rpc-peer-addr peer)))
+	(proc (my-id-my-proc arg)))
     
     (if *nsm-debug*
-	(logit "NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
-	       (socket:ipaddr-to-dotted addr)
-	       requestor prog vers proc))
+	(user::logit "~
+NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
+		     (sunrpc:peer-dotted peer)
+		     requestor prog vers proc))
     
     (mp:with-process-lock (*nsm-state-lock*)
-      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
+      (when (sunrpc:local-peer-p peer)
 	(let ((entries (nsm-find-entry-by-my-id requestor prog vers proc)))
 	  (when entries
 	    (dolist (entry entries)
 	      (if *nsm-debug*
-		  (logit "NSM: Removing ~a from monitor list.~%" 
+		  (user::logit "NSM: Removing ~a from monitor list.~%" 
 			 (nsm-monitor-to-string entry)))
 	      (setf *nsm-monitored-hosts* 
 		(delete entry *nsm-monitored-hosts*)))
@@ -331,28 +277,25 @@
 ;; in: void, out: void
 (defun sm-simu-crash  (arg vers peer cbody)
   (declare (ignore arg vers cbody))
-  (let ((addr (rpc-peer-addr peer)))
-
-    (if *nsm-debug*
-	(logit "NSM: ~a: SIMU_CRASH~%" (socket:ipaddr-to-dotted addr)))
-    
-    (mp:with-process-lock (*nsm-state-lock*)
-      (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
-	(nsm-advance-state) ;; auto-saves
-	(nsm-notify-peers)))))
+  (if *nsm-debug*
+      (user::logit "NSM: ~a: SIMU_CRASH~%" (sunrpc:peer-dotted peer)))
+  
+  (mp:with-process-lock (*nsm-state-lock*)
+    (when (sunrpc:local-peer-p peer)
+      (nsm-advance-state) ;; auto-saves
+      (nsm-notify-peers))))
 
 ;; Clients call this to notify us that they rebooted.  
 
 ;; in: stat-chge, out: void
 (defun sm-notify  (arg vers peer cbody)
   (declare (ignore vers cbody))
-  (let* ((addr (rpc-peer-addr peer))
-	 (host (stat-chge-mon-name arg))
+  (let* ((host (stat-chge-mon-name arg))
 	 (newstate (stat-chge-state arg))
-	 (dotted (socket:ipaddr-to-dotted addr)))
+	 (dotted (sunrpc:peer-dotted peer)))
 	
     (if *nsm-debug*
-	(logit "NSM: ~a: NOTIFY (~a, ~a)~%" 
+	(user::logit "NSM: ~a: NOTIFY (~a, ~a)~%" 
 	       dotted host newstate))
     
     ;; Notify interested parties (if the status actually changed)
@@ -361,27 +304,29 @@
 	(when (and (string= (nsm-monitor-host entry) dotted)
 		   (not (equal (nsm-monitor-state entry) newstate)))
 	  (if *nsm-debug*
-	      (logit "==> Adding ~a to callback list.~%" 
+	      (user::logit "NSM: ==> Adding ~a to callback list.~%" 
 		     (nsm-monitor-to-string entry)))
 	  (setf (nsm-monitor-state entry) newstate)
 	  (push entry *nsm-callbacks-list*))))))
 
 ;; Returns t if we got a reply of some sort.
+;; called by sm-callback-retry-loop
 (defun sm-do-callback (entry)
   (handler-case 
-      (callrpc-1 (nsm-monitor-requestor entry)
-		 (nsm-monitor-prog entry)
-		 (nsm-monitor-vers entry)
-		 (nsm-monitor-proc entry)
-		 :udp
-		 #'xdr-nsm-callback-status 
-		 (make-nsm-callback-status :mon-name (nsm-monitor-host entry)
-					   :state (nsm-monitor-state entry)
-					   :priv (nsm-monitor-priv entry)))
+      (sunrpc:with-rpc-client (cli (nsm-monitor-requestor entry)
+				   (nsm-monitor-prog entry)
+				   (nsm-monitor-vers entry)
+				   :udp)
+	(sunrpc:callrpc cli (nsm-monitor-proc entry) 
+			#'xdr-nsm-callback-status ;; inproc      
+			(make-nsm-callback-status 
+			 :mon-name (nsm-monitor-host entry)
+			 :state (nsm-monitor-state entry)
+			 :priv (nsm-monitor-priv entry))))
     (error (c)
       (if *nsm-debug*
-	  (logit "NSM: Error while sending callback ~a: ~a~%"
-		 (nsm-monitor-to-string entry) c))
+	  (user::logit "NSM: Error while sending callback ~a: ~a~%"
+		       (nsm-monitor-to-string entry) c))
       nil)
     (:no-error (results)
       (declare (ignore results))
@@ -402,7 +347,7 @@
       (dolist (entry entries)
 	(when (sm-do-callback entry)
 	  (if *nsm-debug*
-	      (logit "NSM: Callback ~a completed.~%" 
+	      (user::logit "NSM: Callback ~a completed.~%" 
 		     (nsm-monitor-to-string entry)))
 	  (push entry completed)))
       
@@ -416,7 +361,7 @@
   (mp:with-process-lock (*nsm-state-lock*)
     (when *nsm-monitored-hosts*
       (when (null *nsm-our-name*)
-	(setf *nsm-our-name* (gethostname)))
+	(setf *nsm-our-name* (excl.osi:gethostname)))
   
       (let ((entries *nsm-monitored-hosts*))
 	(setf *nsm-monitored-hosts* nil)
@@ -424,7 +369,7 @@
     
 	(dolist (entry entries)
 	  (if *nsm-debug*
-	      (logit "~
+	      (user::logit "~
 NSM: Notifying ~a of our new state.~%" 
 		     (nsm-monitor-host entry)))
 	
@@ -434,21 +379,23 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
 	    #'nsm-notify-peer (nsm-monitor-host entry) *nsm-state*))))))
 
 (defun nsm-notify-peer (host state)
-  ;; XXX -- should we ever give up?
+  ;; XXX -- When should we give up?
   (loop
     (handler-case 
-	(callrpc-1 host #.*sm-prog* #.*sm-vers* #.*sm-notify* :udp
-		   #'xdr-stat-chge
-		   (make-stat-chge :mon-name *nsm-our-name*
-				   :state state))
+	(sunrpc:with-rpc-client (cli host #.*sm-prog* #.*sm-vers* :udp)
+	  (call-sm-notify-1 cli (make-stat-chge :mon-name *nsm-our-name*
+						:state state)))
       (error (c)
 	(if *nsm-debug*
-	    (logit "NSM: Error while sending notify to ~a: ~a~%"
+	    (user::logit "NSM: Error while sending notify to ~a: ~a~%"
 		   host c)))
       (:no-error (results)
 	(declare (ignore results))
 	(if *nsm-debug*
-	    (logit "NSM: Successfully notified ~a of our new state.~%" host))
+	    (user::logit "NSM: Successfully notified ~a of our new state.~%" host))
 	(return-from nsm-notify-peer)))
     
     (sleep *nsm-notify-retry-interval*)))
+
+(eval-when (compile load eval)
+  (export '(*nsm-gate* *nsm-debug* NSM)))
