@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.25 2006/05/11 21:58:59 dancy Exp $
+;; $Id: xdr.cl,v 1.26 2006/05/15 23:42:24 dancy Exp $
 
 (defpackage :xdr
   (:use :lisp :excl)
@@ -80,7 +80,9 @@
   direction
   (pos 0 :type fixnum)) ;; current position in vec (extracting and building)
 
-(defparameter *xdrdefaultsize* 1024)
+;; This is also the amount to expand by when expansion of the internal
+;; vector is required
+(defconstant *xdrdefaultsize* 1024)
 
 (defmacro with-xdr-seek ((xdr pos &key absolute) &body body)
   (let ((oldpos (gensym)))
@@ -100,24 +102,26 @@
 
 ;; used during extraction
 (defmacro xdr-advance (xdr size)
-  (let ((sizeval (gensym)))
-  `(let ((,sizeval ,size))
-     (incf (the fixnum (xdr-pos ,xdr)) (the fixnum ,sizeval)))))
+  `(incf (the fixnum (xdr-pos ,xdr)) (the fixnum ,size)))
 
 ;; used during building... bumps the max size (xdr-size) value if 
 ;; necessary.  Probably should be called xdr-update-size
 (defmacro xdr-update-pos (x amt)
   (let ((xdr (gensym))
-	(amount (gensym)))
+	(amount (gensym))
+	(newsize (gensym)))
     `(let ((,xdr ,x)
 	   (,amount ,amt))
-       (declare (optimize (speed 3) (safety 0))
+       (declare (optimize (speed 3) (debug 0) (safety 0))
 		(type fixnum ,amount)
 		(type xdr ,xdr))
-       (incf (xdr-pos ,xdr) ,amount)
-       (if (> (xdr-pos ,xdr) (xdr-size ,xdr))
-	   (setf (xdr-size ,xdr) (xdr-pos ,xdr)))
-       nil)))
+       (let ((,newsize (+ (xdr-pos ,xdr) ,amount)))
+	 (setf (xdr-pos ,xdr) ,newsize)
+	 (if (> ,newsize (xdr-size ,xdr))
+	     (setf (xdr-size ,xdr) ,newsize))
+	 nil))))
+
+
 
 ;; used during building.  This will not work correctly if used within
 ;; a with-xdr-seek
@@ -175,15 +179,11 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 
 (defun xdr-flush (xdr)
-  (declare 
-   (type xdr xdr))
   (setf (xdr-size xdr) 0)
   (setf (xdr-pos xdr) 0))
 
 ;;; avoid!
 (defun xdr-get-vec (xdr)
-  (declare
-   (type xdr xdr))
   (subseq (xdr-vec xdr) 0 (xdr-size xdr)))
 
 ;; Callers need to make sure that they don't have a handle
@@ -193,7 +193,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 ;; For convenience, this function returns the most relevant vec.
 (defun xdr-expand-check (xdr more)
   (declare
-   (optimize (speed 3) (safety 0))
+   (optimize (speed 3) (safety 0) (debug 0))
    ;;(:explain :calls :types)
    (type xdr xdr)
    (type fixnum more))
@@ -204,170 +204,156 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	(make-vec (max *xdrdefaultsize* more)))))
   (xdr-vec xdr))
 
-
-(defmacro xdr-unroll-extract-from-array (size array offset)
-  (let ((shift (* 8 size))
-	(arraysym (gensym))
-	(offsetsym (gensym))
-	body)
-    (dotimes (n size)
-      (decf shift 8)
-      (push `(ash (aref ,arraysym (+ ,offsetsym ,n)) ,shift)
-	    body))
-    `(let ((,arraysym ,array)
-	   (,offsetsym ,offset))
-       (declare (optimize (speed 3) (safety 0))
-		;;(:explain :types :calls)
-		(type fixnum ,offsetsym)
-		(type (simple-array (unsigned-byte 8) (*)) ,arraysym))
-       (logior ,@body))))
-
-(defmacro xdr-unroll-set-in-array (size value array offset)
-  (let ((shift (* -8 size))
-	(valuesym (gensym))
-	(arraysym (gensym))
-	(offsetsym (gensym))
-	body)
-    (dotimes (n size)
-      (incf shift 8)
-      (push (if (= shift 0)
-		`(setf (aref ,arraysym (+ ,offsetsym ,n)) 
-		   (logand #xff ,valuesym))
-	      `(setf (aref ,arraysym (+ ,offsetsym ,n)) 
-		 (logand #xff (ash ,valuesym ,shift))))
-	    body))
-    `(let ((,valuesym ,value)
-	   (,arraysym ,array)
-	   (,offsetsym ,offset))
-       (declare (optimize (speed 3) (safety 0))
-		;;(:explain :types :calls)
-		(type fixnum ,offsetsym)
-		(type (simple-array (unsigned-byte 8) (*)) ,arraysym))
-       (if (fixnump ,valuesym)
-	   (prog ()
-	     (declare (type fixnum ,valuesym))
-	     ,@body)
-	 (progn 
-	   ,@body))
-       nil)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun xdr-void (xdr &optional arg)
-  (declare (ignore xdr arg))
+  (declare (optimize (speed 3) (safety 0) (debug 0))
+	   (ignore xdr arg))
   nil)
 
-(defun xdr-unsigned-int (xdr &optional int)
-  (declare 
-   (type xdr xdr))
-  (ecase (xdr-direction xdr)
-    (:extract
-     (prog1
-	 (xdr-unroll-extract-from-array 4 (xdr-vec xdr) (xdr-pos xdr))
-       (xdr-advance xdr 4)))
-    (:build
-     (let ((vec (xdr-expand-check xdr 4)))
-       (xdr-unroll-set-in-array 4 int vec (xdr-pos xdr))
-       (xdr-update-pos xdr 4)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun xdr-unsigned (xdr &optional int)
-  (xdr-unsigned-int xdr int))
 
-(defun xdr-uint32 (xdr &optional int)
-  (xdr-unsigned-int xdr int))
+(eval-when (compile)
+  (setf (get 'xdr-get-signed-int 'sys::immed-args-call)
+    '((:lisp :lisp) :machine-integer))
+  (setf (get 'xdr-store-signed-int 'sys::immed-args-call)
+    '((:machine-integer :lisp :lisp) :machine-integer))
+  (setq comp::*assemble-function-body*
+    '((xdr-get-signed-int . "xdr-get-signed-int.lap")
+      (xdr-store-signed-int . "xdr-store-signed-int.lap"))))
+
+;; code vector really defined by xdr-get-signed-int.lap
+(defun xdr-get-signed-int (usb8 position)
+  (declare (optimize speed (safety 0) (debug 0)))
+  (excl::ll :aref-mi
+      ;; (aref-mi doesn't support this like aref-nat):
+      ;;      #.(sys::mdparam 'comp::md-lvector-data0-norm)
+      usb8 position))
+
+;; code vector really defined by xdr-store-signed-int.lap
+(defun xdr-store-signed-int (value usb8 position)
+  (declare (optimize speed (safety 0) (debug 0)))
+  (excl::ll :aset-nat usb8 position value))
 
 (defun xdr-int (xdr &optional int)
-  (declare
-   (type xdr xdr))
-  (ecase (xdr-direction xdr)
-    (:extract
-     (let ((res (xdr-unsigned-int xdr)))
-       (if (/= 0 (logand res #.(ash 1 31)))
-	   (- res #.(ash 1 32))
-	 res)))
-    (:build
-     (let ((vec (xdr-expand-check xdr 4)))
-       (xdr-unroll-set-in-array 4 int vec (xdr-pos xdr))
-       (xdr-update-pos xdr 4)))))
+  (declare (optimize (speed 3) (debug 0) (safety 0)))
+  (if* (eq (xdr-direction xdr) :build)
+     then
+	  (if (null int)
+	      (error "'int' is required when building"))
+	  (let ((vec (xdr-expand-check xdr 4)))
+	    (declare (type (integer #.(- (expt 2 31)) #.(1- (expt 2 31))) int))
+	    (xdr-store-signed-int int vec (ash (xdr-pos xdr) -2))
+	    (xdr-update-pos xdr 4))
+     else
+	  (let ((res 
+		 (xdr-get-signed-int (xdr-vec xdr) (ash (xdr-pos xdr) -2))))
+	    (declare (type (integer #.(- (expt 2 31)) #.(1- (expt 2 31))) res))
+	    (xdr-update-pos xdr 4)
+	    res)))
+
+(eval-when (compile)
+  (defun byteswap-int (value size)
+    (let ((res 0))
+      (dotimes (n size)
+	(setf res (logior (ash res 8) (logand value #xff)))
+	(setf value (ash value -8)))
+      res)))
 
 (defun xdr-long (xdr &optional int)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
   (xdr-int xdr int))
 
 (defun xdr-int32 (xdr &optional int)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
   (xdr-int xdr int))
 
-(eval-when (compile load eval)
-(defun xdr-signed-unsigned-int-compiler-macro (xdr int env whole)
-  ;; If 'int' is provided, must be building
-  (if (and int (constantp int))
-      (let ((value #-(version>= 7 1)(excl::constant-value int env)
-		   #+(version>= 7 1)(sys:constant-value int env)))
-	(if (numberp value)
-	    (let ((b0 (logand #xff (ash value -24)))
-		  (b1 (logand #xff (ash value -16)))
-		  (b2 (logand #xff (ash value -8)))
-		  (b3 (logand #xff value))
-		  (xdrsym (gensym))
-		  (pos (gensym))
-		  (vec (gensym)))
-	      `(let* ((,xdrsym ,xdr)
-		      (,vec (xdr-expand-check ,xdrsym 4))
-		      (,pos (xdr-pos ,xdrsym)))
-		 (declare (optimize (speed 3) (safety 0))
-			  (type fixnum ,pos)
-			  (type (simple-array (unsigned-byte 8) (*)) ,vec))
-		 (setf (aref ,vec ,pos) ,b0)
-		 (setf (aref ,vec (+ 1 ,pos)) ,b1)
-		 (setf (aref ,vec (+ 2 ,pos)) ,b2)
-		 (setf (aref ,vec (+ 3 ,pos)) ,b3)
-		 (xdr-update-pos ,xdrsym 4)))
-	  whole))
-    whole)))
 
-(define-compiler-macro xdr-unsigned-int 
-    (xdr &optional int &environment env &whole whole)
-  (xdr-signed-unsigned-int-compiler-macro xdr int env whole))
+(define-compiler-macro xdr-long (xdr &optional int)
+  `(xdr-int ,xdr ,int))
 
-(define-compiler-macro xdr-int 
-    (xdr &optional int &environment env &whole whole)
-  (xdr-signed-unsigned-int-compiler-macro xdr int env whole))
+(define-compiler-macro xdr-int32 (xdr &optional int)
+  `(xdr-int ,xdr ,int))
+
+
+(defun xdr-unsigned-int (xdr &optional int)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (if* (eq (xdr-direction xdr) :build)
+     then
+	  (xdr-int xdr int)
+     else 
+	  (let ((res (xdr-int xdr nil)))
+	    (if* (< res 0)
+	       then (+ res #x100000000)
+	       else res))))
+
+(define-compiler-macro xdr-unsigned-int (xdr &optional int &whole whole)
+  (if* int
+     then `(xdr-int ,xdr ,int)
+     else whole))
+
+(defun xdr-unsigned (xdr &optional int)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (xdr-unsigned-int xdr int))
+
+(define-compiler-macro xdr-unsigned (xdr &optional int)
+  (if* int
+     then `(xdr-int ,xdr ,int)
+     else `(xdr-unsigned-int ,xdr)))
+
+(defun xdr-uint32 (xdr &optional int)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (xdr-unsigned-int xdr int))
+
+(define-compiler-macro xdr-uint32 (xdr &optional int)
+  (if* int
+     then `(xdr-int ,xdr ,int)
+     else `(xdr-unsigned-int ,xdr)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (defun xdr-bool (xdr &optional true)
-  (ecase (xdr-direction xdr)
-    (:extract
-     (/= (xdr-unsigned-int xdr) 0))
-    (:build
-     (xdr-unsigned-int xdr (if true 1 0))
-     true)))
+  (if* (eq (xdr-direction xdr) :extract)
+     then (/= (xdr-int xdr) 0)
+     else (xdr-int xdr (if true 1 0))
+	  true))
+
+(defun xdr-hyper (xdr &optional int)
+  (declare (optimize (speed 3) (debug 0) (safety 0)))
+  (if* (eq (xdr-direction xdr) :build)
+     then (if (null int)
+	      (error "'int' is required when building"))
+	  (xdr-int xdr (logand (ash int -32) #xffffffff))
+	  (xdr-int xdr (logand int #xffffffff))
+     else (logior (ash (xdr-int xdr) 32) (xdr-unsigned-int xdr))))
+
 
 (defun xdr-unsigned-hyper (xdr &optional int)
-  (declare 
-   (type xdr xdr))
-  (ecase (xdr-direction xdr)
-    (:extract
-     (prog1
-	 (xdr-unroll-extract-from-array 8 (xdr-vec xdr) (xdr-pos xdr))
-       (xdr-advance xdr 8)))
-    (:build
-     (let ((vec (xdr-expand-check xdr 8)))
-       (xdr-unroll-set-in-array 8 int vec (xdr-pos xdr))
-       (xdr-update-pos xdr 8)))))
+  (declare (optimize (speed 3) (debug 0) (safety 0)))
+  (if* (eq (xdr-direction xdr) :build)
+     then (xdr-hyper xdr int)
+     else (let ((res (xdr-hyper xdr)))
+	    (if* (< res 0)
+	       then (logand res #xffffffffffffffff)
+	       else res))))
 
+(define-compiler-macro xdr-unsigned-hyper (xdr &optional int &whole whole)
+  (if* int
+     then `(xdr-hyper ,xdr ,int)
+     else whole))
+    
 (defun xdr-uint64 (xdr &optional int)
   (xdr-unsigned-hyper xdr int))
 
-(defun xdr-hyper (xdr &optional int)
-  (declare
-   (type xdr xdr))
-  (ecase (xdr-direction xdr)
-    (:extract
-     (let ((res (xdr-unsigned-hyper xdr)))
-       (if (/= 0 (logand res #.(ash 1 63)))
-	   (- res #.(ash 1 64))
-	 res)))
-    (:build
-     (let ((vec (xdr-expand-check xdr 8)))
-       (xdr-unroll-set-in-array 8 int vec (xdr-pos xdr))
-       (pprint vec)
-       (xdr-update-pos xdr 8)))))
+(define-compiler-macro xdr-uint64 (xdr &optional int)
+  (if* int
+     then `(xdr-hyper ,xdr ,int)
+     else `(xdr-unsigned-hyper ,xdr)))
+
+;;;;;;;;;;;;;;;;;;;;;;
 
 (defstruct opaque
   vec
@@ -451,8 +437,6 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
    (type xdr xdr)
    (type stream stream)
    (type fixnum count))
-  (unless (eq (xdr-direction xdr) :build)
-    (error "xdr-opaque-variable-from-stream is only good for building"))
   (let (bytesread newpos)
     (with-xdr-seek (xdr 4)
       (xdr-expand-check xdr (compute-padded-len count))
@@ -500,14 +484,13 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (xdr-array-fixed xdr typefunc :len len :things things)))))
 
 (defun compute-padded-len (len)
-  (declare
-   ;;(:explain :calls :types)
-   (type fixnum len))
-  (let ((remainder (mod len 4)))
-    (declare 
-     (type (integer 0 3) remainder))
-    (+ len (if (> remainder 0) (- 4 remainder) 0))))
-
+  (declare (optimize (speed 3) (safety 0) (debug 0))
+	   (type fixnum len))
+  (let ((table #.(make-array 4 :element-type '(unsigned-byte 8) 
+			     :initial-contents '(0 3 2 1))))
+    (+ len (aref table (logand len 3)))))
+    
+	
 (defun compute-variable-bytes-used (xdr)
   (declare (type xdr xdr))
   ;; variable bytes used is the padded length, plus 4 for the
