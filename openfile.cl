@@ -57,6 +57,7 @@
 
 ;; Only called via the with-nfs-open-file macro.  
 (defun get-open-file (fh direction)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
   (mp:with-process-lock (*open-file-cache-lock*)
     (let ((of (locate-open-file fh direction)))
       (when (null of)
@@ -65,9 +66,9 @@
 	    (error "Can't create an open file entry with direction :any"))
 	(setf of (make-openfile :direction direction))
 	(setf (openfile-stream of)
-	  (if (eq direction :input)
-	      (open (fh-pathname fh) :direction :input)
-	    (open (fh-pathname fh) :direction :output
+	  (if* (eq direction :input)
+	     then (open (fh-pathname fh) :direction :input)
+	     else (open (fh-pathname fh) :direction :output
 		  :if-exists :overwrite)))
 	(put-open-file fh of))
       ;; common

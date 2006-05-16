@@ -1,3 +1,12 @@
+*******************************************************************************
+4.3.3b8 (unreleased)
+*******************************************************************************
+
+2006-05-16    <dancy@CANDY2K>
+
+	* openfile.cl: Added optimize declaration to get-open-file
+	function to reduce instruction count.
+
 2006-05-15  Ahmon Dancy  <dancy@dancy>
 
 	* xdr.cl (et al), attempts to speed up xdr-int and friends.
