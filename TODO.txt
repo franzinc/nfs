@@ -1,4 +1,4 @@
-$Id: TODO.txt,v 1.15 2006/05/11 21:58:59 dancy Exp $
+$Id: TODO.txt,v 1.16 2006/05/19 14:53:24 dancy Exp $
 
 nsm: How long do we try sending state-change notifications?
 nsm: How long do we try notify sending callbacks?
@@ -23,3 +23,12 @@ xdr-int most of the time.  Verify that using xdr-int to store an
 unsigned value doesn't present any problems (can't imagine why it
 would.. but verify). nfs-xdr-fattr is probably a good candidate for
 tweaking.
+
+Possible feature: Add a mode where file handle information is
+maintained on-disk (perhaps using allegrocache) so that the server can
+be restarted without resulting in stale filehandles.  Clearly this
+would have a performance impact, however, it's not clear yet how much
+of an impact there would be.  The only times that it would impact are
+when a haven't-seen-yet file is accessed or when a file is deleted.
+The database will also grow indefinitely.  Some process to clean out
+obsolete entries will be needed.
