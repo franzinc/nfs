@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.16 2006/05/11 21:58:59 dancy Exp $
+;; $Id: main.cl,v 1.17 2006/06/14 03:46:02 layer Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -74,21 +74,24 @@ An NFS server is already running on this machine.  Aborting.~%")))
 		   #'mp:gate-open-p nlm:*nlm-gate*)
   (setf *nfsd-process* (mp:process-run-function "nfsd" #'nfsd)))
 
+(defvar *shutting-down* (mp:make-gate nil))
+
 (defun stopem ()
-  (if *nlm-process*
-      (ignore-errors (mp:process-kill *nlm-process*)))
-  (if *nsm-process*
-      (ignore-errors (mp:process-kill *nsm-process*)))
-  (if *nfsd-process*
-      (ignore-errors (mp:process-kill *nfsd-process*)))
-  (if *mountd-process*
-      (ignore-errors (mp:process-kill *mountd-process*)))
-  (if *pmap-process*
-      (ignore-errors (mp:process-kill *pmap-process*))))
+  (logit "Stopping NFS server...")
+  (when *nlm-process* (ignore-errors (mp:process-kill *nlm-process*)))
+  (when *nsm-process* (ignore-errors (mp:process-kill *nsm-process*)))
+  (when *nfsd-process* (ignore-errors (mp:process-kill *nfsd-process*)))
+  (when *mountd-process* (ignore-errors (mp:process-kill *mountd-process*)))
+  (when *pmap-process* (ignore-errors (mp:process-kill *pmap-process*)))
+  (mp:open-gate *shutting-down*)
+  ;; Allow `mainloop' process to see the open gate.
+  (sleep 1))
 
 (defun mainloop ()
-  #+(version>= 7) (console-control :close :hide)
-  (loop (sleep most-positive-fixnum)))      
+  (console-control :close :hide)
+  (mp:process-wait "waiting for shutdown"
+		   #'mp:gate-open-p *shutting-down*)
+  (logit "mainloop returning"))
 
 (defun debugmain ()
   (setf *configfile* "nfs.cfg")
@@ -100,6 +103,8 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (setf nsm:*nsm-debug* t)
   (setf nlm:*nlm-debug* t)
   (startem))
+
+(defvar *service-name* "nfs")
 
 (defun main (&rest args)
   (flet ((tnserver ()
@@ -132,7 +137,14 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	 ((string= arg "/service")
 	  (read-nfs-cfg *configfile*)
 	  (tnserver)
-	  (ntservice:execute-service #'mainloop 
+;;;;DEBUGGING:
+	  (tpl:do-command "proc")
+;;;;DEBUGGING:
+	  (setq ntservice::*debug* t)
+	  (ntservice:execute-service *service-name*
+				     #'mainloop 
+;;;;DEBUGGING:
+;;;				     :sleep-for-shutdown 10
 				     :init #'startem
 				     :stop #'stopem)
 	  ;; just in case
@@ -152,8 +164,8 @@ An NFS server is already running on this machine.  Aborting.~%")))
 
 (defun create-service (path)
   (multiple-value-bind (success code)
-      (ntservice:create-service 
-       "nfs" 
+      (ntservice:create-service
+       *service-name* 
        "NFS Server" 
        (format nil "~A /service" path)
        :start :auto)
@@ -164,7 +176,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 
 (defun delete-service ()
   (multiple-value-bind (success err place)
-      (ntservice:delete-service "nfs")
+      (ntservice:delete-service *service-name*)
     (if* success
        then (logit "NFS service successfully uninstalled.~%")
        else (logit "NFS service deinstallation failed.~%(~A) ~A"
@@ -174,14 +186,14 @@ An NFS server is already running on this machine.  Aborting.~%")))
 
 (defun start-service ()
   (multiple-value-bind (success err place)
-      (ntservice:start-service "nfs")
+      (ntservice:start-service *service-name*)
     (if* success
        then (logit "NFS service started.~%")
        else (start-stop-service-err "start" err place))))
 
 (defun stop-service ()
   (multiple-value-bind (success err place)
-      (ntservice:stop-service "nfs")
+      (ntservice:stop-service *service-name*)
     (if* success
        then (logit "NFS service stopped.~%")
        else (start-stop-service-err "stop" err place))))

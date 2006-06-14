@@ -1,13 +1,14 @@
 (in-package :user)
 
-;; $Id: rpcgen.cl,v 1.5 2006/05/11 21:58:59 dancy Exp $
+;; $Id: rpcgen.cl,v 1.6 2006/06/14 03:46:02 layer Exp $
 
 (eval-when (compile load eval)
   (require :osi))
 
 (defmacro with-input-from-subprocess ((cmd var) &body body)
   `(multiple-value-bind (,var dummy pid)
-       (run-shell-command ,cmd :output :stream :wait nil)
+       (run-shell-command ,cmd :output :stream :wait nil
+			  :show-window :hide)
      (declare (ignore dummy))
      (unwind-protect
 	 (progn ,@body)

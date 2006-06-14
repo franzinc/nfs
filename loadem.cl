@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.43 2006/05/15 23:42:24 dancy Exp $
+;; $Id: loadem.cl,v 1.44 2006/06/14 03:46:02 layer Exp $
 
 (in-package :user)
 
@@ -107,7 +107,6 @@
 	     (truename "sys:bin;setcmd.exe")
 	     #+nfs-demo "Allegro NFS Server demo"
 	     #-nfs-demo "Allegro NFS Server")
-	     
      :show-window :hide)))
 
 
