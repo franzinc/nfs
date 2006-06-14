@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.17 2006/06/14 03:46:02 layer Exp $
+;; $Id: main.cl,v 1.18 2006/06/14 03:46:29 layer Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -137,14 +137,8 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	 ((string= arg "/service")
 	  (read-nfs-cfg *configfile*)
 	  (tnserver)
-;;;;DEBUGGING:
-	  (tpl:do-command "proc")
-;;;;DEBUGGING:
-	  (setq ntservice::*debug* t)
 	  (ntservice:execute-service *service-name*
 				     #'mainloop 
-;;;;DEBUGGING:
-;;;				     :sleep-for-shutdown 10
 				     :init #'startem
 				     :stop #'stopem)
 	  ;; just in case
