@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.18 2006/06/14 03:46:29 layer Exp $
+;; $Id: main.cl,v 1.19 2006/06/14 03:49:32 layer Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -91,7 +91,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (console-control :close :hide)
   (mp:process-wait "waiting for shutdown"
 		   #'mp:gate-open-p *shutting-down*)
-  (logit "mainloop returning"))
+  (logit "done."))
 
 (defun debugmain ()
   (setf *configfile* "nfs.cfg")
