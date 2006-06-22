@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.19 2006/06/14 03:49:32 layer Exp $
+;; $Id: main.cl,v 1.20 2006/06/22 23:39:49 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -164,16 +164,16 @@ An NFS server is already running on this machine.  Aborting.~%")))
        (format nil "~A /service" path)
        :start :auto)
     (if* success
-       then (logit "NFS service successfully installed.~%")
-       else (logit "NFS service installation failed: ~A"
+       then (format t "NFS service successfully installed.~%")
+       else (format t "NFS service installation failed: ~A"
 		    (ntservice:winstrerror code)))))
 
 (defun delete-service ()
   (multiple-value-bind (success err place)
       (ntservice:delete-service *service-name*)
     (if* success
-       then (logit "NFS service successfully uninstalled.~%")
-       else (logit "NFS service deinstallation failed.~%(~A) ~A"
+       then (format t "NFS service successfully uninstalled.~%")
+       else (format t "NFS service deinstallation failed.~%(~A) ~A"
 		    place (ntservice:winstrerror err)))))
 
 
@@ -182,23 +182,20 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (multiple-value-bind (success err place)
       (ntservice:start-service *service-name*)
     (if* success
-       then (logit "NFS service started.~%")
+       then (format t "NFS service started.~%")
        else (start-stop-service-err "start" err place))))
 
 (defun stop-service ()
   (multiple-value-bind (success err place)
       (ntservice:stop-service *service-name*)
     (if* success
-       then (logit "NFS service stopped.~%")
+       then (format t "NFS service stopped.~%")
        else (start-stop-service-err "stop" err place))))
 
-(defun start-stop-service-err (type err place)
-  (logit "NFS service ~a failed: " type)
-  (if place
-      (logit "(~A): " place))
-  (logit "~A" 
-	  (if (numberp err)
-	      (ntservice:winstrerror err)
-	    err))
-  (logit "~%")
+(defun start-stop-service-err (op err place)
+  (format t "Failed to ~a NFS service: ~@[(~a): ~]~a~%" 
+	  op place (if* (numberp err)
+		      then (ntservice:winstrerror err)
+		      else err))
   (finish-output))
+

@@ -1,3 +1,23 @@
+2006-06-22    <dancy@DANCYSOFT>
+*******************************************************************************
+4.3.3b10 (unreleased)
+*******************************************************************************
+
+	* nfs-common.cl: Bumped version
+	
+	* main.cl: Changed some logit calls to 'format t'.  
+
+	* servicelib.nsh: New
+	
+	* nfs.nsi: moved out the servicelib.nsh stuff into its own file.
+	Updated servicelib.nsh to v1.3.  
+
+	Use %WINDIR%\system32\net.exe to stop the NFS service since it
+	properly waits until the service is really terminated (I emailed
+	the servicelib.nsh dude asking for the addition of this behavior).
+	This should remedy the problems the used to occur when people
+	would reinstall or uninstall while the service was still running.
+
 *******************************************************************************
 4.3.3b9 (unreleased)
 *******************************************************************************
