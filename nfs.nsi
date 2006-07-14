@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.13 2006/06/22 23:39:49 dancy Exp $
+; $Id: nfs.nsi,v 1.14 2006/07/14 01:42:29 dancy Exp $
 
 SetCompressor lzma
 
@@ -255,7 +255,8 @@ Section "${VERBOSE_PROD}"
   WriteRegDWORD HKLM "${UNINSTKEY}" "NoModify" 1
   WriteRegDWORD HKLM "${UNINSTKEY}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
-  
+
+  ExecWait '"$INSTDIR\nfs.exe" /install /quiet'  
 SectionEnd
 
 ; Optional section (can be disabled by the user)
@@ -265,25 +266,16 @@ Section "Start Menu Shortcuts"
 
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
-  CreateShortCut "${SMDIR}\${VERBOSE_PROD}.lnk" "$INSTDIR\nfs.exe"
   CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" \
                                                    "start nfs"
   CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "%windir%\system32\net.exe" \
                                                    "stop nfs"
-/*
-  CreateShortCut "${SMDIR}\Start NFS Service.lnk" "$INSTDIR\nfs.exe" \
-                                                   "/start /quiet"
-  CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "$INSTDIR\nfs.exe" \
-                                                   "/stop /quiet"
-*/
   CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
 		"$INSTDIR\configure\configure.exe"
 SectionEnd
 
-Section "Install as a service"
-; don't need to give /stop /remove, since the service, if it was running
-; was already stopped and deleted above.
-  ExecWait '"$INSTDIR\nfs.exe" /install /start /quiet'
+Section "Start service after install"
+  ExecWait '"$INSTDIR\nfs.exe" /start /quiet'
 SectionEnd
 
 Section "Run configuration program after install"

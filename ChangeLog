@@ -1,3 +1,9 @@
+2006-07-13    <dancy@DANCYSOFT>
+
+	* USABILITY: nfs.nsi: Do not add start menu shortcut to run
+	Allegro NFS as a standalone app.  This was confusing users.
+	Removed the option for installing as a non-service.
+
 2006-06-22    <dancy@DANCYSOFT>
 *******************************************************************************
 4.3.3b10 (unreleased)
