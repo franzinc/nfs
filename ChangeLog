@@ -1,3 +1,10 @@
+2006-07-28  Ahmon Dancy  <dancy@dancy>
+*******************************************************************************
+4.3.3b11 (unreleased)
+*******************************************************************************
+
+	* Bumped version.
+
 2006-07-13    <dancy@DANCYSOFT>
 
 	* USABILITY: nfs.nsi: Do not add start menu shortcut to run
