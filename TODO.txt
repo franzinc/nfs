@@ -1,20 +1,8 @@
-$Id: TODO.txt,v 1.17 2006/05/19 14:58:52 dancy Exp $
+$Id: TODO.txt,v 1.18 2006/08/23 23:51:20 dancy Exp $
 
 nsm: How long do we try sending state-change notifications?
 nsm: How long do we try notify sending callbacks?
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
-
-nlm: Check all places in nfs.cl where close-open-file is called.  Make
- sure that they can't conflict with file locks (closing a file
- drops the locks).
-
-NSM: 'priv' data, when read back in from state file, is read in as a
-simple-array t, rather than a usb8 array.  Need to convert it when
-re-reading the state file.
-
-Make sure that service startup/shutdown works.. and also via console
-control.  Right now console control has a noticeable delay when a
-close is requested.  Need to fix this.
 
 xdr and xdr users: Find all places where signed versus unsigned does
 not matter and give preference to signed.  Really only need to look in
@@ -38,3 +26,4 @@ stored on disk.  The on-disk file would only have to be updated when
 exports are added or removed. This wouldn't prevent a stale file
 handle situation for any files, but it would allow the primary mount
 point to remain stable.  This might help some clients.
+

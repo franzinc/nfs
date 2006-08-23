@@ -128,25 +128,21 @@
 
 
 ;; used when reading from a file or directory
-(defun update-attr-atime (fh)
+(defun update-attr-atime (fh &optional (when (get-universal-time)))
   (let ((attr (lookup-attr fh)))
-    (setf (nfs-attr-atime attr) (get-universal-time))
-    attr))
-
-;; used by things that update inode information.
-(defun update-attr-ctime (fh)
-  (let ((attr (lookup-attr fh)))
-    (setf (nfs-attr-ctime attr) (get-universal-time))
+    (setf (nfs-attr-atime attr) when)
     attr))
 
 ;; updates ctime as well.
 ;; used by directory modifying functions which don't care about size.
-(defun update-atime-and-mtime (fh) 
-  (let ((attr (update-attr-atime fh)))
-    (setf (nfs-attr-mtime attr) (get-universal-time))
-    (update-attr-ctime fh)))
+(defun update-atime-and-mtime (fh &optional (when (get-universal-time)))
+  (let ((attr (lookup-attr fh)))
+    (setf (nfs-attr-atime attr) when)
+    (setf (nfs-attr-mtime attr) when)
+    (setf (nfs-attr-ctime attr) when)
+    attr))
     
-;; used by file modification functions.
+;; used by file modification functions. (i.e nfsd-write(3))
 (defun update-attr-times-and-size (stream fh)
   (if (not (open-stream-p stream))
       (error "Something passed a closed stream to update-attr-times-and-size"))
@@ -159,17 +155,20 @@
   (let ((attr (lookup-attr fh)))
     (setf (nfs-attr-size attr) size)
     (setf (nfs-attr-used attr) size)
-    (update-attr-ctime fh)))
+    (setf (nfs-attr-ctime attr) (get-universal-time))
+    size))
 
 (defun set-cached-file-atime (fh atime)
   (let ((attr (lookup-attr fh)))
     (setf (nfs-attr-atime attr) atime)
-    (update-attr-ctime fh)))
+    (setf (nfs-attr-ctime attr) (get-universal-time))
+    atime))
 
 (defun set-cached-file-mtime (fh mtime)
   (let ((attr (lookup-attr fh)))
     (setf (nfs-attr-mtime attr) mtime)
-    (update-attr-ctime fh)))
+    (setf (nfs-attr-ctime attr) (get-universal-time))
+    mtime))
 
 (defun incf-cached-nlinks (fh)
   (incf (nfs-attr-nlinks (lookup-attr fh))))

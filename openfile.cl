@@ -87,27 +87,25 @@
 	   (progn ,@body)
 	 (decf (the fixnum (openfile-refcount ,of)))))))
 
-;; Currently called by:
-;; nfsd-setaddr, nfsd-setattr3, nfsd-rename, nfsd-remove
-(defun close-open-file (fh)
+;; Called by:
+;; nfsd-rename, :operator
+;; nfsd-remove, :operator
+;; set-file-attributes, :operator
+(defun close-open-file (fh &key check-refcount)
   (mp:with-process-lock (*open-file-cache-lock*)
     (let (of)
       (while (setf of (locate-open-file-any fh))
-	(reap-open-file fh of 
-			(direction-to-cache-hash (openfile-direction of)))))))
+	(if (and check-refcount (not (zerop (openfile-refcount of))))
+	    (return :still-open))
+	(reap-open-file 
+	 fh of (direction-to-cache-hash (openfile-direction of)))))))
 
 ;; Should be called with *open-file-cache-lock* held.
 (defun reap-open-file (fh of hash)
   (if (not (zerop (openfile-refcount of)))
       (error "reap-open-file called when refcount is non-zero"))
-  (let ((pathname (fh-pathname fh)))
-    (close (openfile-stream of))
-    (if (eq (openfile-direction of) :output)
-	(let ((attr (lookup-attr fh)))
-	  (utime pathname 
-		 (nfs-attr-atime attr) 
-		 (nfs-attr-mtime attr))))
-    (remhash fh hash)))
+  (close (openfile-stream of))
+  (remhash fh hash))
 
 
 (defun reap-open-files ()

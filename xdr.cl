@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.26 2006/05/15 23:42:24 dancy Exp $
+;; $Id: xdr.cl,v 1.27 2006/08/23 23:51:21 dancy Exp $
 
 (defpackage :xdr
   (:use :lisp :excl)
@@ -87,11 +87,12 @@
 (defmacro with-xdr-seek ((xdr pos &key absolute) &body body)
   (let ((oldpos (gensym)))
     `(let ((,oldpos (xdr-pos ,xdr)))
+       (declare (fixnum ,oldpos))
        (if* ,absolute 
 	  then (setf (xdr-pos ,xdr) ,pos)
-	  else (incf (xdr-pos ,xdr) ,pos))
-       (multiple-value-prog1 
-	   (progn ,@body)
+	  else (setf (xdr-pos ,xdr) (the fixnum (+ (xdr-pos ,xdr) 
+						   (the fixnum ,pos)))))
+       (prog1 ,@body
 	 (setf (xdr-pos ,xdr) ,oldpos)))))
 
 (defmacro with-xdr-compute-bytes-added ((xdr) &body body)
@@ -116,6 +117,7 @@
 		(type fixnum ,amount)
 		(type xdr ,xdr))
        (let ((,newsize (+ (xdr-pos ,xdr) ,amount)))
+	 (declare (fixnum ,newsize))
 	 (setf (xdr-pos ,xdr) ,newsize)
 	 (if (> ,newsize (xdr-size ,xdr))
 	     (setf (xdr-size ,xdr) ,newsize))
@@ -316,8 +318,10 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 
 (defun xdr-bool (xdr &optional true)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
   (if* (eq (xdr-direction xdr) :extract)
-     then (/= (xdr-int xdr) 0)
+     then ;; (not (eq x y)) generates more compact code that (/= x y)
+	  (not (eq (xdr-int xdr) 0))
      else (xdr-int xdr (if true 1 0))
 	  true))
 
@@ -433,17 +437,20 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 ;; Returns number of bytes actually read.
 (defun xdr-opaque-variable-from-stream (xdr stream count)
-  (declare
-   (type xdr xdr)
-   (type stream stream)
-   (type fixnum count))
+  (declare (optimize (speed 3))
+	   (xdr xdr)
+	   (stream stream)
+	   (fixnum count))
   (let (bytesread newpos)
+    (declare (fixnum bytesread newpos))
     (with-xdr-seek (xdr 4)
       (xdr-expand-check xdr (compute-padded-len count))
-      (setf newpos (read-vector (xdr-vec xdr) stream 
-				:start (xdr-pos xdr)
-				:end (+ (xdr-pos xdr) count)))
-      (setf bytesread (- newpos (xdr-pos xdr))))
+      (let ((pos (xdr-pos xdr)))
+	(declare (fixnum pos))
+	(setf newpos (read-vector (xdr-vec xdr) stream 
+				  :start pos
+				  :end (the fixnum (+ pos count))))
+	(setf bytesread (the fixnum (- newpos pos)))))
     (xdr-unsigned-int xdr bytesread)
     (xdr-update-pos xdr (compute-padded-len bytesread))
     bytesread))

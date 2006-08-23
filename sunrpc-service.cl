@@ -1,4 +1,4 @@
-;; $Id: sunrpc-service.cl,v 1.5 2006/05/11 21:58:59 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.6 2006/08/23 23:51:33 dancy Exp $
 
 ;; Service stuff
 
@@ -49,9 +49,9 @@
     `(let ((,m (rpc-msg-body ,msg))
 	   (,p ,peer)
 	   ,cbody)
-       (when (= (rpc-msg-body-u-mtype ,m) #.*call*)
+       (when (eq (rpc-msg-body-u-mtype ,m) #.*call*)
 	 (setf ,cbody (rpc-msg-body-u-cbody ,m))
-	 (if* (/= (call-body-rpcvers ,cbody) 2)
+	 (if* (not (eq (call-body-rpcvers ,cbody) 2))
 	    then (send-rpc-mismatch-reply ,p (rpc-msg-xid ,m) 2 2)
 	    else ,@body)))))
 

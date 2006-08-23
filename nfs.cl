@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.100 2006/05/11 21:58:59 dancy Exp $
+;; $Id: nfs.cl,v 1.101 2006/08/23 23:51:20 dancy Exp $
 
 (in-package :user)
 
@@ -68,6 +68,7 @@
 	    
 
 (defun nfsd-message-handler (xdr peer)
+  (declare (optimize (speed 3)))
   (let ((msg (sunrpc:xdr-rpc-msg xdr)))
     (sunrpc:with-valid-call (msg peer cbody)
       (let ((xid (sunrpc:rpc-msg-xid msg))
@@ -75,7 +76,7 @@
 	    (proc (sunrpc:call-body-proc cbody)))
 	
 	;; sanity checks first
-	(when (not (= (sunrpc:call-body-prog cbody) #.*nfs-program*))
+	(when (not (eq (sunrpc:call-body-prog cbody) #.*nfs-program*))
 	  (if *nfs-debug*
 	      (logit "~
 NFS: ~a: Sending program unavailable response for prog=~D~%"
@@ -1099,16 +1100,19 @@ struct entry {
   (let ((pre-op-attrs (get-pre-op-attrs dirfh))
 	(fh (nfs-probe-file dirfh filename)))
     (with-permission (dirfh :write)
-      (close-open-file fh)
-      ;; Don't use (fh-pathname fh) since we may be dealing with 
-      ;; a hard link.  Use the filename provided instead.
-      (delete-file (add-filename-to-dirname (fh-pathname dirfh) filename))
-      (update-atime-and-mtime dirfh)
-      ;; Update dircache.
-      (nfs-remove-file-from-dir filename dirfh)
-      (remove-fhandle fh filename)
-      (uncache-attr fh)
-      (xdr-int *nfsdxdr* #.*nfs-ok*)
+      (if* (eq (close-open-file fh :check-refcount t) :still-open)
+	 then ;; Unfortunately there is no NFS error code that indicates
+	      ;; that a file is in use.  Use EPERM instead.
+	      (xdr-int *nfsdxdr* #.*nfserr-perm*)
+	 else  ;; Don't use (fh-pathname fh) since we may be dealing with 
+	      ;; a hard link.  Use the filename provided instead.
+	      (delete-file (add-filename-to-dirname (fh-pathname dirfh) filename))
+	      (update-atime-and-mtime dirfh)
+	      ;; Update dircache.
+	      (nfs-remove-file-from-dir filename dirfh)
+	      (remove-fhandle fh filename)
+	      (uncache-attr fh)
+	      (xdr-int *nfsdxdr* #.*nfs-ok*))
       (if (= vers 3)
 	  (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
 
@@ -1189,10 +1193,10 @@ struct entry {
     (xdr-int *nfsdxdr* #.*nfs-ok*)
     (nfs-xdr-fattr *nfsdxdr* fh vers)))
 
-;; Used by setattr and create
+;; Used by setattr and create.
+;; The only attributes which we support are atime, mtime and size.
 (defun set-file-attributes (fh sattr)
   (let ((p (fh-pathname fh)))
-    (close-open-file fh)
     ;; only works on regular files.
     (let ((current-attr (lookup-attr fh)))
       (when (= (nfs-attr-type current-attr) #.*nfreg*)
@@ -1226,18 +1230,22 @@ struct entry {
   
 ;; xdr-bool, when building, returns its second arg
 (defun nfs-xdr-pre-op-attr (xdr attrs)
+  (declare (optimize (speed 3) (safety 0)))
   (if (xdr-bool xdr attrs)
       (nfs-xdr-wcc-attr xdr attrs)))
     
 (defun nfs-xdr-wcc-data (xdr before after)
+  (declare (optimize (speed 3) (safety 0)))
   (nfs-xdr-pre-op-attr xdr before)
   (nfs-xdr-post-op-attr xdr after))
 
 (defun nfs-xdr-post-op-attr (xdr fh)
+  (declare (optimize (speed 3) (safety 0)))
   (if (xdr-bool xdr fh)
       (nfs-xdr-fattr xdr fh 3)))
 
 (defun nfs-xdr-post-op-fh (xdr fh)
+  (declare (optimize (speed 3) (safety 0)))
   (if (xdr-bool xdr fh)
       (xdr-fhandle xdr 3 fh)))
 
@@ -1279,18 +1287,20 @@ struct entry {
 		 (from (fh-pathname fromfh))
 		 (tofh (lookup-fh-in-dir todirfh tofilename :create t))
 		 (to (fh-pathname tofh)))
-	    (close-open-file fromfh)
-	    (close-open-file tofh)
-	    (rename from to)
-	    (remove-fhandle tofh tofilename)
-	    (rename-fhandle fromfh fromfilename todirfh tofilename)
-	    (uncache-attr fromfh)
-	    (uncache-attr tofh)
-	    (update-atime-and-mtime fromdirfh)
-	    (update-atime-and-mtime todirfh)
-	    (nfs-remove-file-from-dir fromfilename fromdirfh)
-	    (nfs-add-file-to-dir tofilename todirfh)
-	    (xdr-int *nfsdxdr* #.*nfs-ok*)
+	    (if* (or 
+		  (eq (close-open-file fromfh :check-refcount t) :still-open)
+		  (eq (close-open-file tofh :check-refcount t) :still-open))
+	       then (xdr-int *nfsdxdr* #.*nfserr-perm*)
+	       else (my-rename from to)
+		    (remove-fhandle tofh tofilename)
+		    (rename-fhandle fromfh fromfilename todirfh tofilename)
+		    (uncache-attr fromfh)
+		    (uncache-attr tofh)
+		    (update-atime-and-mtime fromdirfh)
+		    (update-atime-and-mtime todirfh)
+		    (nfs-remove-file-from-dir fromfilename fromdirfh)
+		    (nfs-add-file-to-dir tofilename todirfh)
+		    (xdr-int *nfsdxdr* #.*nfs-ok*))
 	    (when (= vers 3)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-from fromdirfh)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-to todirfh))))))))

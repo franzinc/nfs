@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.38 2006/05/11 21:58:59 dancy Exp $
+;; $Id: sunrpc.cl,v 1.39 2006/08/23 23:51:21 dancy Exp $
 
 (in-package :sunrpc)
 
@@ -161,25 +161,27 @@
 	 (let ((,xdrsym (car (accepted-reply-reply-data-u-results ,thing))))
 	   ,@body)))))
 	 
-
 (defun rpc-send (xdr peer)
-  (ecase (rpc-peer-type peer)
-    (:stream
-     (let ((sizevec (make-array 1 :element-type '(unsigned-byte 32))))
-       (declare (dynamic-extent sizevec))
-       (setf (aref sizevec 0) (logior #x80000000 (xdr-size xdr)))
-       (ignore-errors
-	(write-vector sizevec (rpc-peer-socket peer) 
-		      :endian-swap :network-order)
-	(write-vector (xdr-vec xdr) (rpc-peer-socket peer)
-		      :end (xdr-size xdr))
-	(force-output (rpc-peer-socket peer)))))
-    (:datagram
-     (ignore-errors (socket:send-to (rpc-peer-socket peer) 
-				    (xdr-vec xdr) 
-				    (xdr-size xdr) 
-				    :remote-host (rpc-peer-addr peer)
-				    :remote-port (rpc-peer-port peer))))))
+  (declare (optimize (speed 3)))
+  (let ((sock (rpc-peer-socket peer)))
+    (ignore-errors 
+     (ecase (rpc-peer-type peer)
+       (:stream
+	(let ((sizevec (make-array 1 :element-type '(signed-byte 32)))
+	      (size (xdr-size xdr)))
+	  (declare (dynamic-extent sizevec)
+		   ((integer 0 128000) size))
+	  ;; Sets the high bit (which indicates last fragment)
+	  (setf (aref sizevec 0) (+ -2147483648 size))
+	  (write-vector sizevec sock :endian-swap :network-order)
+	  (write-vector (xdr-vec xdr) sock :end size)
+	  (force-output sock)))
+       (:datagram
+	(socket:send-to sock 
+			(xdr-vec xdr) 
+			(xdr-size xdr) 
+			:remote-host (rpc-peer-addr peer)
+			:remote-port (rpc-peer-port peer)))))))
 
 (defmacro with-rpc-reply ((xdr peer xid) &body body)
   (let ((xdrbuf (gensym)))

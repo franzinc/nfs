@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.10 2006/05/11 21:58:59 dancy Exp $
+;; $Id: nsm.cl,v 1.11 2006/08/23 23:51:20 dancy Exp $
 
 ;; This file implements the Network Status Monitor (NSM) protocol. 
 
@@ -51,7 +51,7 @@
   prog
   vers
   proc
-  priv
+  priv ;; usb8
   state)
 
 (defun nsm-monitor-to-string (obj)
@@ -90,19 +90,24 @@
 		       :if-exists :supersede)
 	(write (list *nsm-state* *nsm-monitored-hosts*) :stream f)
 	(excl.osi:fsync f))
-      ;; No way to do an atomic rename on Windows. *sigh*.
-      (if (probe-file *nsm-state-file*)
-	  (delete-file *nsm-state-file*))
-      (excl.osi:rename tmpfile *nsm-state-file*))))
+      (macrolet ((trans (thing)
+		   `(namestring (translate-logical-pathname ,thing))))
+	(user::my-rename (trans tmpfile) (trans *nsm-state-file*))))))
 
 (defun nsm-load-state ()
   (mp:with-process-lock (*nsm-state-lock*)
     (multiple-value-setq (*nsm-state* *nsm-monitored-hosts*)
-      (if (probe-file *nsm-state-file*)
-	  (with-open-file (f *nsm-state-file*)
-	    (let ((res (read f)))
-	      (values (first res) (second res))))
-	(values -1 nil)))))
+      (if* (probe-file *nsm-state-file*)
+	 then (with-open-file (f *nsm-state-file*)
+		(let ((res (read f)))
+		  (values (first res) (second res))))
+	 else (values -1 nil)))
+    (dolist (mon *nsm-monitored-hosts*)
+      (let ((priv (nsm-monitor-priv mon)))
+	(if priv
+	    (setf (nsm-monitor-priv mon)
+	      (coerce priv '(simple-array (unsigned-byte 8) (*)))))))))
+      
 
 (defun nsm-advance-state ()
   (mp:with-process-lock (*nsm-state-lock*)

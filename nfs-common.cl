@@ -6,7 +6,7 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.3.3b11")
+(defvar *nfsd-version* "4.3.3b12")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
@@ -78,3 +78,20 @@
      (console-control :close t :show t)
      (exit 1)))
 
+(ff:def-foreign-call MoveFileExA ((from (* :char)) 
+				  (to (* :char))
+				  (flags :int))
+  :strings-convert t
+  :returning :boolean
+  :error-value :os-specific)
+
+(defconstant MOVEFILE_REPLACE_EXISTING 1)
+
+(defun my-rename (from to)
+  (multiple-value-bind (success winerr)
+      (MoveFileExA from to MOVEFILE_REPLACE_EXISTING)
+    (if* success
+       then t
+       else (excl.osi:perror (excl.osi::win_err_to_errno winerr)
+			     "rename failed"))))
+	   
