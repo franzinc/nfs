@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.14 2006/07/14 01:42:29 dancy Exp $
+; $Id: nfs.nsi,v 1.15 2006/08/24 20:50:31 dancy Exp $
 
 SetCompressor lzma
 
@@ -272,6 +272,8 @@ Section "Start Menu Shortcuts"
                                                    "stop nfs"
   CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
 		"$INSTDIR\configure\configure.exe"
+  ; Delete any old "Allegro NFS Server for Windows" shortcut.
+  Delete "${SMDIR}\Allegro NFS Server for Windows.lnk"
 SectionEnd
 
 Section "Start service after install"
