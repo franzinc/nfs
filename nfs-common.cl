@@ -6,7 +6,7 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.4.1")
+(defvar *nfsd-version* "4.5.beta.1")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
