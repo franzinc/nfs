@@ -140,43 +140,41 @@
                        :name :nfs-debug-checkbox :on-change
                        'configform-nfs-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Turn on NF~S protocol debugging" :top 41 :width
-                       203)
+                       "NF~S protocol debugging" :top 40 :width 203)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :portmap-debug-checkbox :on-change
                        'configform-portmap-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Turn on ~Portmap protocol debugging" :top 141
-                       :width 201)
+                       "~Portmap protocol debugging" :top 60 :width
+                       201)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 22
                        :name :mountd-debug-checkbox :on-change
                        'configform-mountd-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Turn on ~Mount protocol debugging" :top 61
-                       :width 197)
+                       "~Mount protocol debugging" :top 80 :width 197)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 22
+                       :name :nlm-debug-checkbox :on-change
+                       'configform-nlm-debug-checkbox-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "NLM (lockd) protocol debugging" :top 120 :width
+                       197)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
+                       :name :nsm-debug-checkbox :on-change
+                       'configform-nsm-debug-checkbox-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "NSM (statd) protocol debugging" :top 100 :width
+                       197)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 316
                        :name :gc-debug-checkbox :on-change
                        'configform-gc-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Memory management debugging" :top 121 :width
+                       "Memory management debugging" :top 40 :width
                        196)
-        (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
-                       :name :nfs-debug-timestamps-checkbox :on-change
-                       'configform-nfs-debug-timestamps-checkbox-on-change
-                       :tab-control '(:tab-control :debug) :title
-                       "Use timestamps on NFS protocol debug output"
-                       :top 81 :width 253)
-        (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 50
-                       :name :nfs-debug-datestamps-checkbox :on-change
-                       'configform-nfs-debug-datestamps-checkbox-on-change
-                       :tab-control '(:tab-control :debug) :title
-                       "Include date in timestamps" :top 101 :width
-                       157)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 24
                        :name :debug-nfs-read :on-change
@@ -322,9 +320,9 @@
                          :debug-nfs-create :debug-nfs-mknod
                          :debug-nfs-mkdir :debug-nfs-access)
                        :font (make-font-ex nil "Tahoma / ANSI" 11)
-                       :height 103 :left 16 :name :group-box-2
+                       :height 113 :left 16 :name :group-box-2
                        :tab-control '(:tab-control :debug) :title
-                       "Debug NFS Procedures" :top 169 :width 490)
+                       "Debug NFS Procedures" :top 159 :width 490)
         (make-instance 'combo-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 154
                        :name :combo-box-port-mapper :on-change
@@ -582,9 +580,9 @@
                                             '(:nfs-debug-checkbox
                                               :portmap-debug-checkbox
                                               :mountd-debug-checkbox
+                                              :nlm-debug-checkbox
+                                              :nsm-debug-checkbox
                                               :gc-debug-checkbox
-                                              :nfs-debug-timestamps-checkbox
-                                              :nfs-debug-datestamps-checkbox
                                               :debug-nfs-read
                                               :debug-nfs-remove
                                               :debug-nfs-null
@@ -608,7 +606,7 @@
                                               :debug-nfs-mkdir
                                               :debug-nfs-access
                                               :group-box-2)))
-                       :top 9 :value :debug :width 514)
+                       :top 9 :value :exports :width 514)
         (make-instance 'cancel-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 444
                        :name :cancel-button-1 :on-change

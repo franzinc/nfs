@@ -4,9 +4,12 @@
 
 2006-09-06    <dancy@DANCYSOFT>
 
-	* ENHANCEMENT: nfs.cl: Added support for including date in
-	debugging timestamps.  configure/*: Added additional checkbox to
-	debug tab to enable date in timestamps.
+	* ENHANCEMENT: <many files> Debug message timestamps now always include
+	the date.  
+
+	* ENHANCEMENT: configure/*: Rearranged some of the debug options.
+	Added NLM and NSM debug options.  Removed timestamp-related debug
+	options.
 	
 *******************************************************************************
 ******** 4.4 release ***********

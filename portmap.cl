@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.32 2006/05/11 21:58:59 dancy Exp $
+;; $Id: portmap.cl,v 1.33 2006/09/06 21:14:44 dancy Exp $
 
 ;; portmapper daemon and support functions
 
@@ -65,7 +65,7 @@
   (when (eq *use-system-portmapper* :auto)
     (setf *use-system-portmapper* nil)
     (when (ping-portmapper)
-      (user::logit "PMAP: Using system portmapper.~%")
+      (user::logit-stamp "PMAP: Using system portmapper.~%")
       (setf *use-system-portmapper* t)
       (mp:open-gate *pmap-gate*)))
   
@@ -85,7 +85,7 @@
 (defun pmapproc-null (args vers peer cbody)
   (declare (ignore args vers cbody))
   (if *portmap-debug* 
-      (user::logit "PMAP: ~a: NULL~%" (sunrpc:peer-dotted peer))))
+      (user::logit-stamp "PMAP: ~a: NULL~%" (sunrpc:peer-dotted peer))))
 
 (defun mapping-matches (m1 m2)
   (and (= (mapping-prog m1) (mapping-prog m2))
@@ -108,7 +108,7 @@
 	(setf res t)))
     
     (if *portmap-debug*
-	(user::logit "PMAP: ~a: SET ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
+	(user::logit-stamp "PMAP: ~a: SET ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
     
     res))
 
@@ -128,7 +128,7 @@
 	(setf res t)))
     
     (if *portmap-debug*
-	(user::logit "PMAP: ~a: UNSET ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
+	(user::logit-stamp "PMAP: ~a: UNSET ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
     
     res))
 
@@ -142,7 +142,7 @@
 	    (setf res (mapping-port entry)))))
   
     (if *portmap-debug*
-	(user::logit "PMAP: ~a: GETPORT ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
+	(user::logit-stamp "PMAP: ~a: GETPORT ~a ==> ~a~%" (sunrpc:peer-dotted peer) m res))
     
     res))
 
@@ -155,7 +155,7 @@
 	(setf head (make-pmapentry :map m :next head))))
 
     (if *portmap-debug*
-	(user::logit "PMAP: ~a: DUMP~%" (sunrpc:peer-dotted peer)))
+	(user::logit-stamp "PMAP: ~a: DUMP~%" (sunrpc:peer-dotted peer)))
     
     head))
 

@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.11 2006/08/23 23:51:20 dancy Exp $
+;; $Id: nsm.cl,v 1.12 2006/09/06 21:14:44 dancy Exp $
 
 ;; This file implements the Network Status Monitor (NSM) protocol. 
 
@@ -117,7 +117,7 @@
     ;; Make sure it remains a signed-positive.
     (if (> *nsm-state* #.(1- (expt 2 31)))
 	(setf *nsm-state* 1))
-    (if *nsm-debug* (user::logit "NSM: New state: ~d~%" *nsm-state*))
+    (if *nsm-debug* (user::logit-stamp "NSM: New state: ~d~%" *nsm-state*))
     (nsm-save-state)))
 
 (defun nsm-log-status (status)
@@ -173,7 +173,7 @@
 (defun sm-null (arg vers peer cbody)
   (declare (ignore arg vers cbody))
   (if *nsm-debug*
-      (user::logit "NSM: ~a: NULL~%" (sunrpc:peer-dotted peer))))
+      (user::logit-stamp "NSM: ~a: NULL~%" (sunrpc:peer-dotted peer))))
 
 ;; in: sm-name, out: sm-stat-res
 (defun sm-stat (arg vers peer cbody)
@@ -181,7 +181,7 @@
   (let ((name (sm-name-mon-name arg))
 	(status #.*stat-fail*))
     (if *nsm-debug*
-	(user::logit "NSM: ~a: STAT (~a) " (sunrpc:peer-dotted peer) name))
+	(user::logit-stamp "NSM: ~a: STAT (~a) " (sunrpc:peer-dotted peer) name))
     
     ;; This is what linux does.
     (if (ignore-errors (socket:lookup-hostname name))
@@ -202,23 +202,23 @@
 	 (status #.*stat-fail*))
     
     (if *nsm-debug*
-	(user::logit "NSM: ~a: MON ~a~%" (sunrpc:peer-dotted peer)
+	(user::logit-stamp "NSM: ~a: MON ~a~%" (sunrpc:peer-dotted peer)
 	       (nsm-monitor-to-string struct)))
 
     (mp:with-process-lock (*nsm-state-lock*)
       (if* (sunrpc:local-peer-p peer)
 	 then (if* (member struct *nsm-monitored-hosts* :test #'equalp)
 		 then (if *nsm-debug*
-			  (user::logit "NSM: ==> Already monitored.~%"))
+			  (user::logit-stamp "NSM: ==> Already monitored.~%"))
 		 else (push struct *nsm-monitored-hosts*)
 		      (nsm-save-state)
 		      (if *nsm-debug*
-			  (user::logit "NSM: ==> Adding entry to monitor list.~%")))
+			  (user::logit-stamp "NSM: ==> Adding entry to monitor list.~%")))
 	      (setf status #.*stat-succ*)
-	 else (user::logit "NSM: ==> Rejecting non-local request.~%"))
+	 else (user::logit-stamp "NSM: ==> Rejecting non-local request.~%"))
       
       (when *nsm-debug*
-	(user::logit "NSM: ")
+	(user::logit-stamp "NSM: ")
 	(nsm-log-status status))
       
       (make-sm-stat-res :res-stat status
@@ -230,7 +230,7 @@
   (let ((struct (nsm-convert-mon-id arg)))
     
     (if *nsm-debug*
-	(user::logit "NSM: ~a: UNMON ~a~%" (sunrpc:peer-dotted peer)
+	(user::logit-stamp "NSM: ~a: UNMON ~a~%" (sunrpc:peer-dotted peer)
 	       (nsm-monitor-to-string struct)))
     
     (mp:with-process-lock (*nsm-state-lock*)
@@ -238,14 +238,14 @@
 	 then (let ((entry (nsm-find-entry struct)))
 		(if* entry
 		   then (if *nsm-debug*
-			    (user::logit "NSM: ==> Removing entry from monitor list.~%"))
+			    (user::logit-stamp "NSM: ==> Removing entry from monitor list.~%"))
 			(setf *nsm-monitored-hosts* 
 			  (delete entry *nsm-monitored-hosts*))
 			(nsm-save-state)
 		   else (if *nsm-debug*
-			    (user::logit "NSM: ==> No matching entry (probably a dupe)~%"))))
+			    (user::logit-stamp "NSM: ==> No matching entry (probably a dupe)~%"))))
 	 else (if *nsm-debug*
-		  (user::logit "==> Ignoring non-local request~%")))
+		  (user::logit-stamp "NSM: ==> Ignoring non-local request~%")))
       
       (make-sm-stat :state *nsm-state*))))
 
@@ -259,7 +259,7 @@
 	(proc (my-id-my-proc arg)))
     
     (if *nsm-debug*
-	(user::logit "~
+	(user::logit-stamp "~
 NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 		     (sunrpc:peer-dotted peer)
 		     requestor prog vers proc))
@@ -270,7 +270,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 	  (when entries
 	    (dolist (entry entries)
 	      (if *nsm-debug*
-		  (user::logit "NSM: Removing ~a from monitor list.~%" 
+		  (user::logit-stamp "NSM: Removing ~a from monitor list.~%" 
 			 (nsm-monitor-to-string entry)))
 	      (setf *nsm-monitored-hosts* 
 		(delete entry *nsm-monitored-hosts*)))
@@ -283,7 +283,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 (defun sm-simu-crash  (arg vers peer cbody)
   (declare (ignore arg vers cbody))
   (if *nsm-debug*
-      (user::logit "NSM: ~a: SIMU_CRASH~%" (sunrpc:peer-dotted peer)))
+      (user::logit-stamp "NSM: ~a: SIMU_CRASH~%" (sunrpc:peer-dotted peer)))
   
   (mp:with-process-lock (*nsm-state-lock*)
     (when (sunrpc:local-peer-p peer)
@@ -300,7 +300,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 	 (dotted (sunrpc:peer-dotted peer)))
 	
     (if *nsm-debug*
-	(user::logit "NSM: ~a: NOTIFY (~a, ~a)~%" 
+	(user::logit-stamp "NSM: ~a: NOTIFY (~a, ~a)~%" 
 	       dotted host newstate))
     
     ;; Notify interested parties (if the status actually changed)
@@ -309,7 +309,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 	(when (and (string= (nsm-monitor-host entry) dotted)
 		   (not (equal (nsm-monitor-state entry) newstate)))
 	  (if *nsm-debug*
-	      (user::logit "NSM: ==> Adding ~a to callback list.~%" 
+	      (user::logit-stamp "NSM: ==> Adding ~a to callback list.~%" 
 		     (nsm-monitor-to-string entry)))
 	  (setf (nsm-monitor-state entry) newstate)
 	  (push entry *nsm-callbacks-list*))))))
@@ -330,7 +330,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 			 :priv (nsm-monitor-priv entry))))
     (error (c)
       (if *nsm-debug*
-	  (user::logit "NSM: Error while sending callback ~a: ~a~%"
+	  (user::logit-stamp "NSM: Error while sending callback ~a: ~a~%"
 		       (nsm-monitor-to-string entry) c))
       nil)
     (:no-error (results)
@@ -352,7 +352,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
       (dolist (entry entries)
 	(when (sm-do-callback entry)
 	  (if *nsm-debug*
-	      (user::logit "NSM: Callback ~a completed.~%" 
+	      (user::logit-stamp "NSM: Callback ~a completed.~%" 
 		     (nsm-monitor-to-string entry)))
 	  (push entry completed)))
       
@@ -374,7 +374,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
     
 	(dolist (entry entries)
 	  (if *nsm-debug*
-	      (user::logit "~
+	      (user::logit-stamp "~
 NSM: Notifying ~a of our new state.~%" 
 		     (nsm-monitor-host entry)))
 	
@@ -392,12 +392,12 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
 						:state state)))
       (error (c)
 	(if *nsm-debug*
-	    (user::logit "NSM: Error while sending notify to ~a: ~a~%"
+	    (user::logit-stamp "NSM: Error while sending notify to ~a: ~a~%"
 		   host c)))
       (:no-error (results)
 	(declare (ignore results))
 	(if *nsm-debug*
-	    (user::logit "NSM: Successfully notified ~a of our new state.~%" host))
+	    (user::logit-stamp "NSM: Successfully notified ~a of our new state.~%" host))
 	(return-from nsm-notify-peer)))
     
     (sleep *nsm-notify-retry-interval*)))

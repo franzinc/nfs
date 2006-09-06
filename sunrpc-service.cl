@@ -1,4 +1,4 @@
-;; $Id: sunrpc-service.cl,v 1.6 2006/08/23 23:51:33 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.7 2006/09/06 21:14:44 dancy Exp $
 
 ;; Service stuff
 
@@ -80,9 +80,9 @@
     `(let ((,port (if (= ,prognum #.portmap:*pmap-prog*)
 		      #.portmap:*pmap-port*)))
        (with-rpc-sockets (,program ,usock ,tsock :port ,port)
-	 (user::logit "~a: Using UDP port ~d~%" 
+	 (user::logit-stamp "~a: Using UDP port ~d~%" 
 		      ,program (socket:local-port ,usock))
-	 (user::logit "~a: Using TCP port ~d~%" 
+	 (user::logit-stamp "~a: Using TCP port ~d~%" 
 		      ,program (socket:local-port ,tsock))
 	 (with-portmapper-mappings (,program ,prognum ',versions
 					     (socket:local-port ,usock) 
@@ -119,7 +119,7 @@
 	   proc-cases))
 	
 	(push `(t 
-		(user::logit "~
+		(user::logit-stamp "~
 ~a: ~a requested procedure ~d, version ~a, which is unavailable.~%" 
 			     ,program
 			     (peer-dotted ,peer)
@@ -152,7 +152,7 @@
 	     (with-valid-call (,msg ,peer ,cbody)
 	       ;; sanity checks first
 	       (if* (/= (call-body-prog ,cbody) ,prognum)
-		  then (user::logit "~
+		  then (user::logit-stamp "~
 ~a: Sending program unavailable response for prog=~D to ~A~%"
 				    ,program
 				    (call-body-prog ,cbody)
@@ -168,7 +168,7 @@
 		   ,@version-cases)
 		 
 		 (if* (null func)
-		    then (user::logit "~
+		    then (user::logit-stamp "~
 ~a: Sending program version mismatch response (requested version was ~D) to ~A~%" 
 				      ,program
 				      ,vers
@@ -254,7 +254,7 @@
 	      (:connection-reset 
 	       (let ((stream (stream-error-stream c)))
 		 (if *rpc-debug* 
-		     (user::logit "closing error socket ~S~%" stream))
+		     (user::logit-stamp "closing error socket ~S~%" stream))
 		 (close stream)
 		 (setf clientlist (delete stream clientlist))
 		 nil))
@@ -265,7 +265,7 @@
 	
 	(when (member tcpsock readylist)
 	  (if *rpc-debug* 
-	      (user::logit "~
+	      (user::logit-stamp "~
 Accepting new tcp connection and adding it to the client list.~%"))
 	  (push (socket:accept-connection tcpsock) clientlist)
 	  (setf readylist (delete tcpsock readylist)))
@@ -276,7 +276,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 						 :buffer buffer)
 		(socket-error (c) 
 		  (if *rpc-debug* 
-		      (user::logit "Ignoring error condition ~S~%" c))
+		      (user::logit-stamp "Ignoring error condition ~S~%" c))
 		  nil))
 	    (when vec
 	      (setf (rpc-peer-type peer) :datagram)
@@ -292,7 +292,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(dolist (s readylist)
 	  (setf record (read-record s buffer))
 	  (if* (null record)
-	     then (if *rpc-debug* (user::logit "Client ~s disconnected.~%" s))
+	     then (if *rpc-debug* (user::logit-stamp "Client ~s disconnected.~%" s))
 		  (ignore-errors (close s))
 		  (ignore-errors (close s :abort t))
 		  (setf clientlist (delete s clientlist))

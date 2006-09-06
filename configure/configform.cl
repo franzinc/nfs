@@ -8,7 +8,6 @@
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-debug-filter* #x0fffffff)
-(defparameter *nfs-debug-timestamps* nil)
 
 (eval-when (compile)
   (defparameter *nfs-debug-types* 
@@ -30,6 +29,16 @@
 (defparameter *mountd-port-number* nil)
 (eval-when (compile load eval)
   (export '(*mountd-debug* *mountd-port-number*)))
+
+(in-package :nsm)
+(defparameter *nsm-debug* nil)
+(eval-when (compile load eval)
+  (export '(*nsm-debug*)))
+
+(in-package :nlm)
+(defparameter *nlm-debug* nil)
+(eval-when (compile load eval)
+  (export '(*nlm-debug*)))
 
 (in-package :common-graphics-user)
 
@@ -108,9 +117,10 @@
     (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
     (push `(mount:*mountd-port-number* ,mount:*mountd-port-number*) config)
+    (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
+    (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
     (push `(*nfs-debug* ,*nfs-debug*) config)
     (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
-    (push `(*nfs-debug-timestamps* ,*nfs-debug-timestamps*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
     
     config))
@@ -141,15 +151,15 @@
     portmap:*portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
     *nfs-debug*)
-  (setf (value (my-find-component :nfs-debug-timestamps-checkbox form))
-    *nfs-debug-timestamps*)
-  (let ((datestamps (my-find-component :nfs-debug-datestamps-checkbox form)))
-    (setf (value datestamps) (eq *nfs-debug-timestamps* :date))
-    (setf (available datestamps) *nfs-debug-timestamps*))
   (setf (value (my-find-component :gc-debug-checkbox form))
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
+  (setf (value (my-find-component :nsm-debug-checkbox form))
+    nsm:*nsm-debug*)
+  (setf (value (my-find-component :nlm-debug-checkbox form))
+    nlm:*nlm-debug*)
+  
   
   (macrolet ((nfs-debug-filters (types)
                                 (let (res)
@@ -929,31 +939,6 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (refresh-apply-button (parent widget))
     t)) ; Accept the new value
 
-(defun configform-nfs-debug-timestamps-checkbox-on-change (widget
-                                                new-value
-                                                old-value)
-  (declare (ignore-if-unused widget new-value old-value))
-  (let* ((form (parent widget))
-         (datestamps (my-find-component :nfs-debug-datestamps-checkbox form)))
-    (setf *nfs-debug-timestamps* new-value)
-    (setf (value datestamps) nil)
-    (setf (available datestamps) new-value)
-    (refresh-apply-button form))
-  t) ; Accept the new value
-
-(defun configform-nfs-debug-datestamps-checkbox-on-change (widget
-                                                new-value
-                                                old-value)
-  (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-debug-timestamps*
-    (if* (eq *nfs-debug-timestamps* :date)
-       then t
-     elseif *nfs-debug-timestamps*
-       then :date))
-            
-  (refresh-apply-button (parent widget))
-  t) ; Accept the new value
-
 (defun configform-mountd-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf mount:*mountd-debug* new-value)
@@ -1049,5 +1034,21 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (if* new-value
        then (setf *nfs-debug-filter* (logior *nfs-debug-filter* code))
        else (setf *nfs-debug-filter* (logand *nfs-debug-filter* (lognot code)))))
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-nsm-debug-checkbox-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf nsm:*nsm-debug* new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-nlm-debug-checkbox-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf nlm:*nlm-debug* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value

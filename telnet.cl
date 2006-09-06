@@ -1,4 +1,4 @@
-;; $Id: telnet.cl,v 1.1 2005/04/27 16:25:17 layer Exp $
+;; $Id: telnet.cl,v 1.2 2006/09/06 21:14:45 dancy Exp $
 
 ;; Source code for telnet-server example
 (in-package :user)
@@ -28,7 +28,7 @@
                                        (socket:remote-host connection))
                                       (socket:ipaddr-to-dotted
                                        (socket:remote-host connection))))
-                       (logit "telnet server: new connection from ~a~%"
+                       (logit-stamp "telnet server: new connection from ~a~%"
 			      from)
                        (format connection "
 WARNING: do not use :exit or (exit).  Use ~s to quit."
@@ -51,7 +51,7 @@ WARNING: do not use :exit or (exit).  Use ~s to quit."
           (tpl:start-interactive-top-level
            s 'tpl:top-level-read-eval-print-loop nil)))
     (ignore-errors (close s)))
-  (logit "telnet server: closing connection from ~a~%" from))
+  (logit-stamp "telnet server: closing connection from ~a~%" from))
 
 (defun quit ()
   (throw 'end-telnet-session nil))

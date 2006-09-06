@@ -9,6 +9,8 @@
                  (make-instance 'module :name "..\\sunrpc-common")
                  (make-instance 'module :name "..\\portmap-common")
                  (make-instance 'module :name "..\\mount-common")
+                 (make-instance 'module :name "..\\nsm-common")
+                 (make-instance 'module :name "..\\nlm-common")
                  (make-instance 'module :name "..\\gen-nfs-common")
                  (make-instance 'module :name "..\\nfs-common")
                  (make-instance 'module :name "..\\nfs-shared")

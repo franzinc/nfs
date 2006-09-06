@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.28 2006/05/11 21:58:59 dancy Exp $
+;; $Id: mountd.cl,v 1.29 2006/09/06 21:14:44 dancy Exp $
 
 (in-package :mount)
 
@@ -68,7 +68,7 @@
 (defun mountproc-null (arg vers peer cbody)
   (declare (ignore arg cbody))
   (if *mountd-debug* 
-      (user::logit "MNT~a: ~a: NULL~%" vers (sunrpc:peer-dotted peer))))
+      (user::logit-stamp "MNT~a: ~a: NULL~%" vers (sunrpc:peer-dotted peer))))
 
 (defun mountproc3-null (arg vers peer cbody)
   (mountproc-null arg vers peer cbody))
@@ -76,7 +76,7 @@
 (defun mountproc-mnt-common (dirpath vers peer)
   (let ((exp (user::locate-export dirpath)))
     (if *mountd-debug* 
-	(user::logit "MNT~d: ~a: MOUNT ~a " vers (sunrpc:peer-dotted peer) dirpath))
+	(user::logit-stamp "MNT~d: ~a: MOUNT ~a " vers (sunrpc:peer-dotted peer) dirpath))
     (if* (null exp)
        then (if *mountd-debug* (user::logit "==> Denied (no such export).~%"))
 	    gen-nfs:*nfserr-noent*
@@ -111,7 +111,7 @@
 (defun mountproc-dump (arg vers peer cbody)
   (declare (ignore arg cbody))  
   (if *mountd-debug* 
-      (user::logit "MNT~d: ~a: DUMP~%" vers (sunrpc:peer-dotted peer)))
+      (user::logit-stamp "MNT~d: ~a: DUMP~%" vers (sunrpc:peer-dotted peer)))
   (let (res)
     (dolist (pair *mounts*)
       (setf res 
@@ -126,7 +126,7 @@
 (defun mountproc-umnt (dirpath vers peer cbody)
   (declare (ignore cbody))
   (if *mountd-debug* 
-      (user::logit "MNT~d: ~a: UMOUNT ~a~%" vers (sunrpc:peer-dotted peer) dirpath))
+      (user::logit-stamp "MNT~d: ~a: UMOUNT ~a~%" vers (sunrpc:peer-dotted peer) dirpath))
   (setf *mounts* 
     (delete (list (sunrpc:rpc-peer-addr peer) dirpath) 
 	    *mounts*
@@ -138,7 +138,7 @@
 (defun mountproc-umntall (arg vers peer cbody)
   (declare (ignore arg cbody))
   (if *mountd-debug* 
-      (user::logit "MNT~d: ~a: UMOUNT ALL~%" vers (sunrpc:peer-dotted peer)))
+      (user::logit-stamp "MNT~d: ~a: UMOUNT ALL~%" vers (sunrpc:peer-dotted peer)))
   (setf *mounts* 
     (delete (sunrpc:rpc-peer-addr peer) *mounts* :key #'first)))
 
@@ -148,7 +148,7 @@
 (defun mountproc-export (arg vers peer cbody)
   (declare (ignore arg cbody))
   (if *mountd-debug* 
-      (user::logit "MNT~d: ~a: EXPORT~%" vers (sunrpc:peer-dotted peer))) 
+      (user::logit-stamp "MNT~d: ~a: EXPORT~%" vers (sunrpc:peer-dotted peer))) 
   (let (res)
     (dotimes (n (length user::*exports*))
       (setf res  

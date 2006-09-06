@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.20 2006/06/22 23:39:49 dancy Exp $
+;; $Id: main.cl,v 1.21 2006/09/06 21:14:44 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -55,7 +55,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	   (special nlm:*nlm-gate*))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
-  (logit "Allegro NFS Server version ~A initializing...~%" 
+  (logit-stamp "Allegro NFS Server version ~A initializing...~%" 
 	 *nfsd-long-version*)
   (check-nfs-already-running)
   (setf *pmap-process* 
@@ -77,7 +77,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 (defvar *shutting-down* (mp:make-gate nil))
 
 (defun stopem ()
-  (logit "Stopping NFS server...")
+  (logit-stamp "Stopping NFS server...")
   (when *nlm-process* (ignore-errors (mp:process-kill *nlm-process*)))
   (when *nsm-process* (ignore-errors (mp:process-kill *nsm-process*)))
   (when *nfsd-process* (ignore-errors (mp:process-kill *nfsd-process*)))
@@ -91,7 +91,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (console-control :close :hide)
   (mp:process-wait "waiting for shutdown"
 		   #'mp:gate-open-p *shutting-down*)
-  (logit "done."))
+  (logit-stamp "done."))
 
 (defun debugmain ()
   (setf *configfile* "nfs.cfg")
@@ -110,7 +110,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (flet ((tnserver ()
 	   #+nfs-telnet-server
 	   (progn
-	     (logit "Starting telnet server on port 1234~%")
+	     (logit-stamp "Starting telnet server on port 1234~%")
 	     (start-telnet-server :port 1234))))
     (let ((exepath (if (first args) (first args) "nfs.exe"))
 	  (*global-gc-behavior* nil)

@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: nfs-shared.cl,v 1.4 2005/06/28 16:49:09 dancy Exp $
+;; $Id: nfs-shared.cl,v 1.5 2006/09/06 21:14:44 dancy Exp $
 
 ;; This file contains stuff that is shared between the nfs server code
 ;; and the configuration app code.
@@ -71,6 +71,14 @@
     (apply #'format *log-stream* format-string format-args)
     (force-output *log-stream*)))
 
+(defun logit-stamp (format-string &rest format-args)
+  (when *log-stream*
+    (multiple-value-bind (sec min hour day month year)
+	(get-decoded-time)
+      (format *log-stream* "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d| " 
+	      year month day hour min sec))
+    (apply #'logit format-string format-args)))
+
 (defvar *nfs-debug-stream* nil)
 
 (eval-when (compile eval load)
@@ -93,5 +101,5 @@
 	      :if-does-not-exist :create))
       (setq *log-stream*
 	(make-broadcast-stream *log-stream* *nfs-debug-stream*))
-      (logit "Log file: ~a~%"
+      (logit-stamp "Log file: ~a~%"
 	     (translate-logical-pathname (pathname *log-file*))))))

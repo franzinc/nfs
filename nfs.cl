@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.102 2006/09/06 19:09:26 dancy Exp $
+;; $Id: nfs.cl,v 1.103 2006/09/06 21:14:44 dancy Exp $
 
 (in-package :user)
 
@@ -53,10 +53,10 @@
 				     :receive-buffer-size *socketbuffersize*
 				     :send-buffer-size *socketbuffersize*))
 
-	(logit "Allegro NFS Server version ~A started.~%" 
+	(logit-stamp "Allegro NFS Server version ~A started.~%" 
 	       *nfsd-long-version*)
 	(if* *nfs-gc-debug*
-	   then (logit "~&Turning on memory management debugging.~%")
+	   then (logit-stamp "~&Turning on memory management debugging.~%")
 		(setf (sys:gsgc-switch :print) t)
 		(setf (sys:gsgc-switch :stats) t)
 		(setq excl:*global-gc-behavior* nil)
@@ -78,7 +78,7 @@
 	;; sanity checks first
 	(when (not (eq (sunrpc:call-body-prog cbody) #.*nfs-program*))
 	  (if *nfs-debug*
-	      (logit "~
+	      (logit-stamp "~
 NFS: ~a: Sending program unavailable response for prog=~D~%"
 		     (sunrpc:peer-dotted peer)
 		     (sunrpc:call-body-prog cbody)))
@@ -111,7 +111,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	     (101 (nfsd-reload-configuration peer xid xdr cbody))
 	     (t
 	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
-	      (logit "NFSv2: ~a: unhandled procedure ~D~%" 
+	      (logit-stamp "NFSv2: ~a: unhandled procedure ~D~%" 
 		     (sunrpc:peer-dotted peer)  proc))))
 	  (3
 	   (case proc
@@ -142,12 +142,12 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	     (101 (nfsd-reload-configuration peer xid xdr cbody))
 	     (t
 	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
-	      (logit "NFSv3: ~a: unhandled procedure ~D~%" 
+	      (logit-stamp "NFSv3: ~a: unhandled procedure ~D~%" 
 		     (sunrpc:peer-dotted peer)
 		     proc))))
 	  (t
 	   (if *nfs-debug*
-	       (logit "NFS: ~a: Sending program version mismatch response"
+	       (logit-stamp "NFS: ~a: Sending program version mismatch response"
 		      (sunrpc:peer-dotted peer)))
 	   (sunrpc:send-prog-mismatch-reply peer xid sunrpc:*nullverf* 2 3)
 	   (return-from nfsd-message-handler)))))))
@@ -215,7 +215,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	   
 	 (error (c)
 	   (setf (xdr:xdr-pos ,xdr) ,savepossym)
-	   (logit "Handling unexpected error: ~A~%" c)
+	   (logit-stamp "Handling unexpected error: ~A~%" c)
 	   (xdr-int ,xdr #.*nfserr-io*)
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil)))))))
@@ -258,17 +258,6 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 (eval-when (compile load eval)
   (if (/= 1000 internal-time-units-per-second)
       (error "internal-time-units-per-second is not 1000.  define-nfs-proc macro will need to be adjusted since it assumes millisecond resolution")))
-
-(defun nfs-log-time ()
-  (multiple-value-bind (sec min hour) 
-      (get-decoded-time)
-    (logit "~2,'0d:~2,'0d:~2,'0d " hour min sec)))
-
-(defun nfs-log-date-time ()
-  (multiple-value-bind (sec min hour day month year)
-      (get-decoded-time)
-    (logit "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d " 
-	   year month day hour min sec)))
 
 (defmacro define-nfs-proc (name arglist &body body)
   (let ((funcname (intern (format nil "~A-~A" 'nfsd name)))
@@ -347,16 +336,12 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	      ,@argdefs)
 	 (when (nfs-debug-filter-on ,debugtype)
 	   (setf debug-this-procedure t)
-	   (when *nfs-debug-timestamps*
-	     (if* (eq *nfs-debug-timestamps* :date)
-		then (nfs-log-date-time)
-		else (nfs-log-time)))
-	   (logit "NFSv~d: ~a: ~a(" 
+	   (logit-stamp "NFSv~d: ~a: ~a(" 
 		  vers
 		  (sunrpc:peer-dotted peer)
 		  (quote ,name))
 	   ,@debugs
-	   (if *nfs-debug-timestamps*
+	   (if *nfs-debug-timings*
 	       (setf procedure-start-time (get-internal-real-time))))
 	 (sunrpc:with-successful-reply (*nfsdxdr* peer xid sunrpc:*nullverf*)
 	   (with-valid-fh (*nfsdxdr* vers ,fhsyms)
@@ -391,7 +376,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		   ,@body)
 		 #-nfs-debug ,@body
 		 (when debug-this-procedure
-		   (if *nfs-debug-timestamps*
+		   (if *nfs-debug-timings*
 		       (logit " ==> ~dms~%" 
 			      (- (get-internal-real-time) 
 				 procedure-start-time))
@@ -549,7 +534,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 (defun nfsd-null (peer xid params cbody)
   (declare (ignore params))
   (if (nfs-debug-filter-on null)
-      (logit "NFSv~d: ~a: NULL~%" 
+      (logit-stamp "NFSv~d: ~a: NULL~%" 
 	     (sunrpc:call-body-vers cbody)
 	     (sunrpc:peer-dotted peer)))
 
@@ -854,7 +839,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
       (when debug 
 	(logit " ~d entries" entries)
 	(if complete
-	    (logit " EOF~%"))))))
+	    (logit " EOF"))))))
 
 
 #|
@@ -1418,6 +1403,6 @@ struct entry {
   (declare (ignore cbody params))
   (when (sunrpc:local-peer-p peer)
     (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
-      (logit "Reloading configuration file...~%")
+      (logit-stamp "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)
       (xdr-unsigned-int xdr 1))))

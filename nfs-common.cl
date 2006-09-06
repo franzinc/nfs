@@ -14,8 +14,7 @@
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-gc-debug* nil)
-;; :date means date/time, otherwise, just time.
-(defparameter *nfs-debug-timestamps* nil) 
+(defparameter *nfs-debug-timings* nil) 
 
 (defconstant *nfs-debug-read*        #x00000001)
 (defconstant *nfs-debug-write*       #x00000002)
@@ -75,7 +74,7 @@
 
 (defmacro bailout (format &rest format-args)
   `(progn
-     (logit ,format ,@format-args)
+     (logit-stamp ,format ,@format-args)
      (console-control :close t :show t)
      (exit 1)))
 

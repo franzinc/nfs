@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.39 2006/08/23 23:51:21 dancy Exp $
+;; $Id: sunrpc.cl,v 1.40 2006/09/06 21:14:44 dancy Exp $
 
 (in-package :sunrpc)
 
@@ -84,10 +84,10 @@
 	;;(logit "Message is ~d bytes~%" size)
 	(read-complete-vector buffer stream size))
     (socket-error (c)
-      (if *rpc-debug* (user::logit "~a~%" c))
+      (if *rpc-debug* (user::logit-stamp "~a~%" c))
       nil)
     (t (c)
-      (user::logit "read-record got error ~A~%Returning nil~%" c)
+      (user::logit-stamp "read-record got error ~A~%Returning nil~%" c)
       nil)))
 
 (defun read-complete-vector (vec stream end)

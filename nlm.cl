@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.13 2006/05/11 21:58:59 dancy Exp $
+;; $Id: nlm.cl,v 1.14 2006/09/06 21:14:44 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 
@@ -125,7 +125,7 @@
     (t (format nil "~d" status))))
 
 (defun nlm-log-status (status)
-  (user::logit "NLM: ==> ~a~%" (nlm-status-to-string status)))
+  (user::logit-stamp "NLM: ==> ~a~%" (nlm-status-to-string status)))
 
 (defmacro if-nlm-v4 (vers form1 &optional form2)
   (let ((v (gensym)))
@@ -289,7 +289,7 @@
        then (if-nlm-v4 vers #.*nlm4-fbig* #.*nlm-denied-nolocks*)
        else (handler-case (nlm-do-lock lock)
 	      (error (c)
-		(user::logit "NLM: Unexpected error during lock call: ~a~%" c)
+		(user::logit-stamp "NLM: Unexpected error during lock call: ~a~%" c)
 		(if-nlm-v4 vers #.*nlm4-failed* #.*nlm-denied-nolocks*))
 	      (:no-error (success)
 		(if* success
@@ -313,17 +313,17 @@
       (let ((entry (nlm-find-lock lock *nlm-notify-list*)))
 	(if* entry
 	   then (if *nlm-debug*
-		    (user::logit "NLM: Removing ~a from notify list.~%" entry))
+		    (user::logit-stamp "NLM: Removing ~a from notify list.~%" entry))
 		(setf *nlm-notify-list* (delete entry *nlm-notify-list*))
 		(handler-case (nlm-do-unlock entry)
 		  (error (c)
-		    (user::logit "NLM: Unexpected error while unlocking ~a: ~a~%"
+		    (user::logit-stamp "NLM: Unexpected error while unlocking ~a: ~a~%"
 			   entry c)))))
       
       (let ((entry (nlm-find-lock lock *nlm-retry-list*)))
 	(if* entry
 	   then (if *nlm-debug*
-		    (user::logit "NLM: Removing ~a from retry list.~%" entry))
+		    (user::logit-stamp "NLM: Removing ~a from retry list.~%" entry))
 		(setf *nlm-retry-list* (delete entry *nlm-retry-list*))
 		(setf status #.*nlm-granted*)
 	   else (setf status #.*nlm-denied-nolocks*)))
@@ -362,7 +362,7 @@
 	 (status (if-nlm-v4 vers #.*nlm4-failed* #.*nlm-denied-nolocks*)))
     
     (if *nlm-debug*
-	(user::logit "~
+	(user::logit-stamp "~
 NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	       (if-nlm-v4 vers "4" "")
 	       (sunrpc:peer-dotted peer)
@@ -383,7 +383,7 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 		       (setf status #.*nlm4-stale-fh*))
      elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
-		(user::logit "NLM: ==> Access denied by configuration.~%"))
+		(user::logit-stamp "NLM: ==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (if* (nlm-find-lock lock *nlm-locks*)
@@ -400,7 +400,7 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 		      (if* (and (= status #.*nlm-denied*) block)
 			 then (setf status #.*nlm-blocked*)
 			      (if *nlm-debug*
-				  (user::logit "NLM: Lock unavailable. Adding ~a retry list.~%" lock))
+				  (user::logit-stamp "NLM: Lock unavailable. Adding ~a retry list.~%" lock))
 			      (push lock *nlm-retry-list*)))))
 
     (if *nlm-debug*
@@ -426,7 +426,7 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	 ;; messages.
 	 (status #.*nlm-granted*)) 
     (if *nlm-debug*
-	(user::logit "~
+	(user::logit-stamp "~
 NLM: ~a: UNLOCK~a~a ~a~%"
 	       (sunrpc:peer-dotted peer)
 	       (if-nlm-v4 vers "4" "")
@@ -438,14 +438,14 @@ NLM: ~a: UNLOCK~a~a ~a~%"
 		       (setf status #.*nlm4-stale-fh*))
      elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
-		(user::logit "NLM: ==> Access denied by configuration.~%"))
+		(user::logit-stamp "NLM: ==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (let ((entry (nlm-find-lock lock *nlm-locks*)))
 		(if* entry
 		   then (handler-case (nlm-do-unlock entry)
 			  (error (c)
-			    (user::logit "~
+			    (user::logit-stamp "~
 NLM: Unexpected error during UNLOCK call: ~a~%" c)
 			    (setf status
 			      (if-nlm-v4 vers 
@@ -477,7 +477,7 @@ NLM: Unexpected error during UNLOCK call: ~a~%" c)
 	 (status #.*nlm-granted*)) ;; always report success
     
     (if *nlm-debug*
-	(user::logit "~
+	(user::logit-stamp "~
 NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	       (sunrpc:peer-dotted peer)
 	       (if-nlm-v4 vers "4" "")
@@ -489,7 +489,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
     (if* (nlm-access-ok lock addr)
        then (nlm-cancel-pending-retry lock)
        else (if *nlm-debug*
-		(user::logit "==> Access denied by configuration.~%"))
+		(user::logit-stamp "==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*))
     
     (if *nlm-debug*
@@ -517,7 +517,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	 holder)
   
     (if *nlm-debug*
-	(user::logit "NLM: ~a: TEST~a~a ~a, Exclusive: ~a~%"
+	(user::logit-stamp "NLM: ~a: TEST~a~a ~a, Exclusive: ~a~%"
 	       (sunrpc:peer-dotted peer)
 	       (if-nlm-v4 vers "4" "")
 	       (if async "_MSG" "")
@@ -529,7 +529,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 		       (setf status #.*nlm4-stale-fh*))
      elseif (not (nlm-access-ok lock addr))
        then (if *nlm-debug*
-		(user::logit "NLM: ==> Access denied by configuration.~%"))
+		(user::logit-stamp "NLM: ==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (setf status (nlm-do-test-lock lock))
@@ -570,7 +570,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
   (let ((name (nlm-notify-name arg))
 	(addr (sunrpc:rpc-peer-addr peer)))
     (if *nlm-debug*
-	(user::logit "NLM~a: ~a: FREE ALL (~a)~%"
+	(user::logit-stamp "NLM~a: ~a: FREE ALL (~a)~%"
 	       (if-nlm-v4 vers "4" "")
 	       (sunrpc:peer-dotted peer)
 	       name))
@@ -632,7 +632,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	(dolist (entry *nlm-retry-list*)
 	  (when (= #.*nlm-granted* (nlm-try-lock entry))
 	    (if *nlm-debug*
-		(user::logit "NLM: Deferred lock ~a granted.~%" entry))
+		(user::logit-stamp "NLM: Deferred lock ~a granted.~%" entry))
 	    (push entry new-granted)))
 	
 	(if new-granted
@@ -659,7 +659,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
   (let ((addr (nlm-lock-internal-peer-addr entry))
 	(vers (nlm-lock-internal-vers entry)))
     (if *nlm-debug*
-	(user::logit "NLM: Sending GRANTED~a_MSG to ~a~%" 
+	(user::logit-stamp "NLM: Sending GRANTED~a_MSG to ~a~%" 
 		     (if-nlm-v4 vers "4" "")
 		     (socket:ipaddr-to-dotted addr)))
     
@@ -691,7 +691,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
   (let ((status (nlm-stat-stat (nlm-res-stat arg)))
 	(cookie (opaque-data (nlm-res-cookie arg))))
     (if *nlm-debug*
-	(user::logit "NLM: ~a GRANTED~a_RES (Stat: ~a)~%" 
+	(user::logit-stamp "NLM: ~a GRANTED~a_RES (Stat: ~a)~%" 
 	       (socket:ipaddr-to-dotted (sunrpc:rpc-peer-addr peer))
 	       (if-nlm-v4 vers "4" "")
 	       (nlm-status-to-string status)))
@@ -701,19 +701,19 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	(if* (null lock)
 	   then (if *nlm-debug* 
 		    (if* (nlm-find-lock-by-cookie cookie *nlm-locks*)
-		       then (user::logit "NLM: ==> Duplicate (already received ack).~%")
-		       else (user::logit "NLM: ==> No matching lock found.~%")))
+		       then (user::logit-stamp "NLM: ==> Duplicate (already received ack).~%")
+		       else (user::logit-stamp "NLM: ==> No matching lock found.~%")))
 	   else (setf *nlm-notify-list* (delete lock *nlm-notify-list*))
 		(if* (= status #.*nlm-granted*)
 		   then (if *nlm-debug*
-			    (user::logit "NLM: ==> ~a fully obtained.~%" lock))
+			    (user::logit-stamp "NLM: ==> ~a fully obtained.~%" lock))
 			(push lock *nlm-locks*)
 		   else (if *nlm-debug*
-			    (user::logit "NLM: ==> Client rejecting lock ~a~%" lock))
+			    (user::logit-stamp "NLM: ==> Client rejecting lock ~a~%" lock))
 			;; unlock it.
 			(handler-case (nlm-do-unlock lock)
 			  (error (c)
-			    (user::logit "~
+			    (user::logit-stamp "~
 NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
 
 ;; Used by FREE ALL and by the nsm-callback.
@@ -722,20 +722,20 @@ NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
     (let ((entries (nlm-find-locks-by-addr addr *nlm-locks*)))
       (dolist (entry entries)
 	(if *nlm-debug*
-	    (user::logit "NLM: Unlocking ~a~%" entry))
+	    (user::logit-stamp "NLM: Unlocking ~a~%" entry))
 	(nlm-do-unlock entry)
 	(setf *nlm-locks* (delete entry *nlm-locks*))))
     
     (let ((entries (nlm-find-locks-by-addr addr *nlm-notify-list*)))
       (dolist (entry entries)
 	(if *nlm-debug*
-	    (user::logit "NLM: Removing ~a from notify list.~%" entry))
+	    (user::logit-stamp "NLM: Removing ~a from notify list.~%" entry))
 	(setf *nlm-notify-list* (delete entry *nlm-notify-list*))))
     
     (let ((entries (nlm-find-locks-by-addr addr *nlm-retry-list*)))
       (dolist (entry entries)
 	(if *nlm-debug*
-	    (user::logit "NLM: Removing ~a from retry list.~%" entry))
+	    (user::logit-stamp "NLM: Removing ~a from retry list.~%" entry))
 	(setf *nlm-retry-list* (delete entry *nlm-retry-list*))))
     
     (nlm-remove-monitoring addr)))
@@ -750,7 +750,7 @@ NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
 	(addr (sunrpc:rpc-peer-addr peer)))
     
     (if *nlm-debug*
-	(user::logit "NLM: NSM reported new state for ~a: ~a~%" 
+	(user::logit-stamp "NLM: NSM reported new state for ~a: ~a~%" 
 	       host state))
     
     (when (= addr #.(socket:dotted-to-ipaddr "127.0.0.1"))
@@ -775,12 +775,12 @@ NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
       (mp:with-process-lock (*nlm-state-lock*)
 	(if* (nlm-addr-in-monitored-list addr)
 	   then (if *nlm-debug*
-		    (user::logit "~
+		    (user::logit-stamp "~
 NLM: ~a already set up for monitoring. (OK)~%"
 				 dotted))
 		(return))
 	(if *nlm-debug*
-	    (user::logit "NLM: Calling NSM to add monitoring for ~a~%"
+	    (user::logit-stamp "NLM: Calling NSM to add monitoring for ~a~%"
 			 dotted))
 	
 	(with-nsm (cli)
@@ -796,14 +796,14 @@ NLM: ~a already set up for monitoring. (OK)~%"
 						    :my-proc 99))
 					   :priv priv))
 	    (error (c)
-	      (user::logit "~
+	      (user::logit-stamp "~
 NLM: Unexpected error while calling NSM MON: ~a~%" c))
 	    (:no-error (res)
 	      (let ((status (sm-stat-res-res-stat res))) ;; Cripes!
 		(if* (= status #.*stat-succ*)
 		   then (push addr *nlm-monitored-hosts*)
 		   else (if *nlm-debug*
-			    (user::logit "NLM: ==> Failed~%")))))))))))
+			    (user::logit-stamp "NLM: ==> Failed~%")))))))))))
 
 
 (defun nlm-remove-monitoring (addr)
@@ -812,7 +812,7 @@ NLM: Unexpected error while calling NSM MON: ~a~%" c))
       (mp:with-process-lock (*nlm-state-lock*)
 	(if* (not (nlm-addr-in-monitored-list addr))
 	   then (if *nlm-debug*
-		    (user::logit "~
+		    (user::logit-stamp "~
 NLM: nlm-remove-monitoring: ~a not on monitoring list. (OK)~%"
 				 dotted))
 		(return))
@@ -822,7 +822,7 @@ NLM: nlm-remove-monitoring: ~a not on monitoring list. (OK)~%"
 	       (null (nlm-find-locks-by-addr addr *nlm-retry-list*))
 	       (null (nlm-find-locks-by-addr addr *nlm-notify-list*)))
 	  (if *nlm-debug*
-	      (user::logit "NLM: Calling NSM to remove monitoring for ~a~%" 
+	      (user::logit-stamp "NLM: Calling NSM to remove monitoring for ~a~%" 
 			   dotted))
 
 	  (with-nsm (cli)
@@ -836,7 +836,7 @@ NLM: nlm-remove-monitoring: ~a not on monitoring list. (OK)~%"
 					      :my-vers 1 
 					      :my-proc 99)))
 	      (error (c)
-		(user::logit "~
+		(user::logit-stamp "~
 NLM: Unexpected error while calling NSM UNMON: ~a~%" c)))
 
 	    ;; Remove from list even if the call didn't go through.
