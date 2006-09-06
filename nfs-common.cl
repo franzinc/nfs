@@ -6,7 +6,7 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.4")
+(defvar *nfsd-version* "4.4.1")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
@@ -14,7 +14,8 @@
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-gc-debug* nil)
-(defparameter *nfs-debug-timestamps* nil)
+;; :date means date/time, otherwise, just time.
+(defparameter *nfs-debug-timestamps* nil) 
 
 (defconstant *nfs-debug-read*        #x00000001)
 (defconstant *nfs-debug-write*       #x00000002)

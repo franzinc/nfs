@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.101 2006/08/23 23:51:20 dancy Exp $
+;; $Id: nfs.cl,v 1.102 2006/09/06 19:09:26 dancy Exp $
 
 (in-package :user)
 
@@ -263,7 +263,13 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
   (multiple-value-bind (sec min hour) 
       (get-decoded-time)
     (logit "~2,'0d:~2,'0d:~2,'0d " hour min sec)))
-	   
+
+(defun nfs-log-date-time ()
+  (multiple-value-bind (sec min hour day month year)
+      (get-decoded-time)
+    (logit "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d " 
+	   year month day hour min sec)))
+
 (defmacro define-nfs-proc (name arglist &body body)
   (let ((funcname (intern (format nil "~A-~A" 'nfsd name)))
 	(first t)
@@ -341,8 +347,10 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	      ,@argdefs)
 	 (when (nfs-debug-filter-on ,debugtype)
 	   (setf debug-this-procedure t)
-	   (if *nfs-debug-timestamps*
-	       (nfs-log-time))
+	   (when *nfs-debug-timestamps*
+	     (if* (eq *nfs-debug-timestamps* :date)
+		then (nfs-log-date-time)
+		else (nfs-log-time)))
 	   (logit "NFSv~d: ~a: ~a(" 
 		  vers
 		  (sunrpc:peer-dotted peer)

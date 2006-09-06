@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.0 [Windows] (Mar 8, 2006 11:41)"; cg: "1.79"; form: configform; -*-
+;; -*- lisp-version: "8.0 [Windows] (Aug 22, 2006 12:14)"; cg: "1.81"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -147,7 +147,7 @@
                        :name :portmap-debug-checkbox :on-change
                        'configform-portmap-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Turn on ~Portmap protocol debugging" :top 121
+                       "Turn on ~Portmap protocol debugging" :top 141
                        :width 201)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 22
@@ -161,7 +161,7 @@
                        :name :gc-debug-checkbox :on-change
                        'configform-gc-debug-checkbox-on-change
                        :tab-control '(:tab-control :debug) :title
-                       "Memory management debugging" :top 101 :width
+                       "Memory management debugging" :top 121 :width
                        196)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 22
@@ -170,6 +170,13 @@
                        :tab-control '(:tab-control :debug) :title
                        "Use timestamps on NFS protocol debug output"
                        :top 81 :width 253)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 50
+                       :name :nfs-debug-datestamps-checkbox :on-change
+                       'configform-nfs-debug-datestamps-checkbox-on-change
+                       :tab-control '(:tab-control :debug) :title
+                       "Include date in timestamps" :top 101 :width
+                       157)
         (make-instance 'check-box :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 24
                        :name :debug-nfs-read :on-change
@@ -577,6 +584,7 @@
                                               :mountd-debug-checkbox
                                               :gc-debug-checkbox
                                               :nfs-debug-timestamps-checkbox
+                                              :nfs-debug-datestamps-checkbox
                                               :debug-nfs-read
                                               :debug-nfs-remove
                                               :debug-nfs-null
@@ -600,7 +608,7 @@
                                               :debug-nfs-mkdir
                                               :debug-nfs-access
                                               :group-box-2)))
-                       :top 9 :value :exports :width 514)
+                       :top 9 :value :debug :width 514)
         (make-instance 'cancel-button :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 444
                        :name :cancel-button-1 :on-change

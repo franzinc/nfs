@@ -143,6 +143,9 @@
     *nfs-debug*)
   (setf (value (my-find-component :nfs-debug-timestamps-checkbox form))
     *nfs-debug-timestamps*)
+  (let ((datestamps (my-find-component :nfs-debug-datestamps-checkbox form)))
+    (setf (value datestamps) (eq *nfs-debug-timestamps* :date))
+    (setf (available datestamps) *nfs-debug-timestamps*))
   (setf (value (my-find-component :gc-debug-checkbox form))
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
@@ -930,10 +933,26 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 new-value
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-debug-timestamps* new-value)
-  (refresh-apply-button (parent widget))
+  (let* ((form (parent widget))
+         (datestamps (my-find-component :nfs-debug-datestamps-checkbox form)))
+    (setf *nfs-debug-timestamps* new-value)
+    (setf (value datestamps) nil)
+    (setf (available datestamps) new-value)
+    (refresh-apply-button form))
   t) ; Accept the new value
 
+(defun configform-nfs-debug-datestamps-checkbox-on-change (widget
+                                                new-value
+                                                old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *nfs-debug-timestamps*
+    (if* (eq *nfs-debug-timestamps* :date)
+       then t
+     elseif *nfs-debug-timestamps*
+       then :date))
+            
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
 
 (defun configform-mountd-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
