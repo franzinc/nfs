@@ -8,6 +8,7 @@
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-debug-filter* #x0fffffff)
+(defparameter *nfs-set-mtime-on-write* nil)
 
 (eval-when (compile)
   (defparameter *nfs-debug-types* 
@@ -122,6 +123,7 @@
     (push `(*nfs-debug* ,*nfs-debug*) config)
     (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
+    (push `(*nfs-set-mtime-on-write* ,*nfs-set-mtime-on-write*) config)
     
     config))
 
@@ -159,6 +161,8 @@
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
     nlm:*nlm-debug*)
+  (setf (value (my-find-component :set-mtime-on-write-checkbox form))
+    *nfs-set-mtime-on-write*)
   
   
   (macrolet ((nfs-debug-filters (types)
@@ -1050,5 +1054,13 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf nlm:*nlm-debug* new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-set-mtime-on-write-checkbox-on-change (widget
+                                                         new-value
+                                                         old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *nfs-set-mtime-on-write* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value

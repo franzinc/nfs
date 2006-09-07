@@ -139,11 +139,15 @@
     (setf (nfs-attr-mtime attr) when)
     (setf (nfs-attr-ctime attr) when)
     attr))
-    
+
+(ff:def-foreign-call (sys-futime "_futime") ((fd :int) (utimbuf (* :void))))
+
 ;; used by file modification functions. (i.e nfsd-write(3))
-(defun update-attr-times-and-size (stream fh)
+(defun update-attr-times-and-size (stream fh set-mtime)
   (if (not (open-stream-p stream))
       (error "Something passed a closed stream to update-attr-times-and-size"))
+  (if set-mtime
+      (sys-futime (excl.osi::stream-to-fd stream) 0))
   (let ((attr (update-atime-and-mtime fh))
 	(pos (file-position stream)))
     (if (> pos (nfs-attr-size attr))

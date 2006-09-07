@@ -15,6 +15,7 @@
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-gc-debug* nil)
 (defparameter *nfs-debug-timings* nil) 
+(defparameter *nfs-set-mtime-on-write* nil)
 
 (defconstant *nfs-debug-read*        #x00000001)
 (defconstant *nfs-debug-write*       #x00000002)

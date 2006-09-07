@@ -517,6 +517,13 @@
                        :height 104 :left 26 :name :group-box-1
                        :tab-control '(:tab-control :global) :title
                        "Mount protocol port number" :top 65 :width 364)
+        (make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 28
+                       :name :set-mtime-on-write-checkbox :on-change
+                       'configform-set-mtime-on-write-checkbox-on-change
+                       :tab-control '(:tab-control :global) :title
+                       "Set file modification time after every write (10% slower)"
+                       :top 180 :width 297)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range
@@ -574,7 +581,8 @@
                                               :mountd-port-manual
                                               :mountd-port-number
                                               :static-text-6
-                                              :group-box-1))
+                                              :group-box-1
+                                              :set-mtime-on-write-checkbox))
                              (make-instance 'tab-info :id :debug :label
                                             "Debug" :widgets
                                             '(:nfs-debug-checkbox

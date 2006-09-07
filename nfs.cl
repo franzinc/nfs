@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.103 2006/09/06 21:14:44 dancy Exp $
+;; $Id: nfs.cl,v 1.104 2006/09/07 00:52:56 dancy Exp $
 
 (in-package :user)
 
@@ -1124,7 +1124,8 @@ struct entry {
 		      f
 		      :start (opaque-offset data)
 		      :end (+ (opaque-offset data) (+ (opaque-len data))))
-      (update-attr-times-and-size f fh)
+      
+      (update-attr-times-and-size f fh *nfs-set-mtime-on-write*)
       (xdr-int *nfsdxdr* #.*nfs-ok*)
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
@@ -1153,7 +1154,7 @@ struct entry {
 			   :start oo
 			   :end (+ oo count))
 	     oo))
-	(update-attr-times-and-size f fh)
+	(update-attr-times-and-size f fh *nfs-set-mtime-on-write*)
 	(if (> stable-how 0) 
 	    (fsync f))
 	(xdr-int *nfsdxdr* #.*nfs-ok*)
@@ -1211,7 +1212,6 @@ struct entry {
 	  (if mtime
 	      (setf (nfs-attr-mtime current-attr) mtime)))))))
       
-
 ;; build-only.  
 ;; size, mtime, ctime
 (defun nfs-xdr-wcc-attr (xdr attrs)

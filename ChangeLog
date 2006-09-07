@@ -10,6 +10,17 @@
 	* ENHANCEMENT: configure/*: Rearranged some of the debug options.
 	Added NLM and NSM debug options.  Removed timestamp-related debug
 	options.
+
+	* spr32020. ENHANCEMENT:
+	attr.cl/nfs.cl/configure: New option *nfs-set-mtime-on-write*
+	allows users to work around Windows' funny behavior with respect
+	to file modification times.  Normally Windows does not update the
+	mtime on a file until the file is closed.  Since Allegro NFS keeps
+	a file open while it is actively being written-to, a Windows
+	program periodically checking the mtime of the file will not be
+	able to tell that the file is actually being modified until the
+	file is closed.  Updating the mtime during every write access
+	suffers about a 10% penality so the option is disabled by default.
 	
 *******************************************************************************
 ******** 4.4 release ***********
