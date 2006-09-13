@@ -1,4 +1,16 @@
 *******************************************************************************
+4.5b2
+*******************************************************************************
+2006-09-13    <dancy@DANCYSOFT>
+
+	* BUGFIX: setup-logging: Enable logging regardless of setting of
+	*nfs-debug*
+
+	* BUGFIX: configure/*: "Use System Portmapper" combo box wasn't
+	being populated from the config file.  Fixed.  Also added text to
+	note that the setting only applies at startup.
+
+*******************************************************************************
 4.5b1
 *******************************************************************************
 

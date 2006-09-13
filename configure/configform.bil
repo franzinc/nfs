@@ -359,6 +359,11 @@
                        "(Allegro NFS must be restarted for port number changes to take effect)"
                        :width 345)
         (make-instance 'static-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 219
+                       :name :static-text-16 :tab-control
+                       '(:tab-control :global) :top 45 :value
+                       "(Restart required to take effect)" :width 163)
+        (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height 31
                        :left 230 :name :static-text-1 :tab-control
                        '(:tab-control :exports) :top 78 :value
@@ -581,6 +586,7 @@
                                               :mountd-port-manual
                                               :mountd-port-number
                                               :static-text-6
+                                              :static-text-16
                                               :group-box-1
                                               :set-mtime-on-write-checkbox))
                              (make-instance 'tab-info :id :debug :label

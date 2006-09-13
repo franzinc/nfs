@@ -164,6 +164,12 @@
   (setf (value (my-find-component :set-mtime-on-write-checkbox form))
     *nfs-set-mtime-on-write*)
   
+  (setf (value (my-find-component :combo-box-port-mapper form))
+    (if* (null portmap:*use-system-portmapper*)
+       then :no
+     elseif (eq portmap:*use-system-portmapper* :auto)
+       then :auto
+       else :yes))
   
   (macrolet ((nfs-debug-filters (types)
                                 (let (res)

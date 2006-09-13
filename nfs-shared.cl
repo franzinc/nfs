@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: nfs-shared.cl,v 1.5 2006/09/06 21:14:44 dancy Exp $
+;; $Id: nfs-shared.cl,v 1.6 2006/09/13 15:53:38 dancy Exp $
 
 ;; This file contains stuff that is shared between the nfs server code
 ;; and the configuration app code.
@@ -95,11 +95,15 @@
   
   (when (null *log-stream*)
     (setq *log-stream* *initial-terminal-io*)
-    (when *nfs-debug*
-      (setq *nfs-debug-stream*
-	(open *log-file* :direction :output :if-exists :append
-	      :if-does-not-exist :create))
-      (setq *log-stream*
-	(make-broadcast-stream *log-stream* *nfs-debug-stream*))
-      (logit-stamp "Log file: ~a~%"
-	     (translate-logical-pathname (pathname *log-file*))))))
+    (setq *nfs-debug-stream*
+      (open *log-file* :direction :output :if-exists :append
+	    :if-does-not-exist :create))
+    (setq *log-stream*
+      (make-broadcast-stream *log-stream* *nfs-debug-stream*))
+    (logit-stamp "Log file: ~a~%"
+		 (translate-logical-pathname (pathname *log-file*)))))
+
+
+
+
+
