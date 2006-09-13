@@ -10,6 +10,9 @@
 	being populated from the config file.  Fixed.  Also added text to
 	note that the setting only applies at startup.
 
+	* BUGFIX: portmap.cl, ping-portmapper: Fixed.  Wasn't detecting
+	system portmapper properly.
+
 *******************************************************************************
 4.5b1
 *******************************************************************************
