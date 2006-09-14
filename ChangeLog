@@ -1,3 +1,9 @@
+2006-09-14    <dancy@DANCYSOFT>
+4.4.1
+
+	* BUGFIX (from 4.5b2): portmap.cl, ping-portmapper: Fixed
+	incorrect test for system portmapper availability.
+
 *******************************************************************************
 ******** 4.4 release ***********
 

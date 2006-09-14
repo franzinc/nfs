@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.32 2006/05/11 21:58:59 dancy Exp $
+;; $Id: portmap.cl,v 1.32.2.1 2006/09/14 18:38:05 dancy Exp $
 
 ;; portmapper daemon and support functions
 
@@ -58,8 +58,14 @@
 (defun ping-portmapper ()
   (sunrpc:with-rpc-client (cli "127.0.0.1" #.*pmap-prog* #.*pmap-vers* :udp
 			       :port #.*pmap-port*)
-    (if (ignore-errors (call-pmapproc-null-2 cli nil))
-	t)))
+    ;; the NULL procedure returns nil on success, so we can't do something
+    ;; simple like (if (ignore-errors (call-pmapproc-null-2 cli nil)) t)
+    ;; We have to check that there was no error.
+    (multiple-value-bind (res err)
+	(ignore-errors (call-pmapproc-null-2 cli nil))
+      (declare (ignore res))
+      ;; If no error, portmapper responded.
+      (null err))))
 
 (defun portmapper ()
   (when (eq *use-system-portmapper* :auto)
