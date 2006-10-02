@@ -1,4 +1,16 @@
 *******************************************************************************
+4.5b3
+*******************************************************************************
+2006-10-02    <dancy@CANDY2K>
+
+	* BUGFIX/INTEROPERABILITY spr32134 nfs.cl, rmdir procedure:
+	excl.osi.rmdir returns a terrible error code (*einval*) when
+	passed a non-directory filename so I had to add a specific check
+	for non-directory rmdir calls and return the correct error code
+	(*nfserr-notdir*).  Luckily this only affects very old or very
+	strange NFS client implementations (like linux 2.0).
+
+*******************************************************************************
 4.5b2
 *******************************************************************************
 2006-09-13    <dancy@DANCYSOFT>

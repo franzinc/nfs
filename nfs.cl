@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.104 2006/09/07 00:52:56 dancy Exp $
+;; $Id: nfs.cl,v 1.105 2006/10/02 17:51:19 dancy Exp $
 
 (in-package :user)
 
@@ -1322,16 +1322,22 @@ struct entry {
 
 (define-nfs-proc rmdir ((dirfh fhandle) (filename string))
   (with-permission (dirfh :write)
-    (let ((pre-op-attrs (get-pre-op-attrs dirfh))
-	  (fh (lookup-fh-in-dir dirfh filename :create t)))
-      (rmdir (fh-pathname fh)) ;; throws error if non-empty
-      (update-atime-and-mtime dirfh)
-      (nfs-remove-file-from-dir filename dirfh)
-      (uncache-attr fh)
-      (remove-fhandle fh filename)
-      (xdr-int *nfsdxdr* #.*nfs-ok*)
+    (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
+	   (fh (lookup-fh-in-dir dirfh filename :create t))
+	   (path (fh-pathname fh)))
+      ;; rmdir doesn't return a decent error if the object is
+      ;; not a directory, so check here.
+      (if* (not (file-directory-p path))
+	 then (xdr-int *nfsdxdr* *nfserr-notdir*)
+	 else (rmdir path) ;; throws error if non-empty
+	      (update-atime-and-mtime dirfh)
+	      (nfs-remove-file-from-dir filename dirfh)
+	      (uncache-attr fh)
+	      (remove-fhandle fh filename)
+	      (xdr-int *nfsdxdr* #.*nfs-ok*))
       (if (= vers 3)
 	  (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
+
 
 (define-nfs-proc pathconf ((fh fhandle)) 
   (xdr-int *nfsdxdr* #.*nfs-ok*)
