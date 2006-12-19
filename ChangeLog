@@ -1,4 +1,18 @@
 *******************************************************************************
+4.5b4
+*******************************************************************************
+2006-12-19    <dancy@CANDY2K>
+
+	* BUGFIX: spr32469: Attempt to improve hard link support.  Added
+	(really, just added enforcement of) limitation that hard links can
+	only be made within the same parent directory.  
+
+	* loadem.cl: Addef :efmacs to module list.
+
+	* telnet.cl: Set eol-convention on new connections to :dos so that
+	the Windows telnet client is usable.
+
+*******************************************************************************
 4.5b3
 *******************************************************************************
 2006-10-02    <dancy@CANDY2K>

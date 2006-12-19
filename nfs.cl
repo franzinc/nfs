@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.105 2006/10/02 17:51:19 dancy Exp $
+;; $Id: nfs.cl,v 1.106 2006/12/19 17:26:01 dancy Exp $
 
 (in-package :user)
 
@@ -1058,7 +1058,17 @@ struct entry {
       (nfs-xdr-post-op-fh *nfsdxdr* fh)
       (nfs-xdr-post-op-attr *nfsdxdr* fh)
       (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
-  
+
+;; Due to the arrangement of data structures, hard links which are
+;; not in the same directory are not supported.  
+(defmacro with-same-dir-fh ((dirfh1 dirfh2) &body body)
+  `(if* (eq ,dirfh1 ,dirfh2)
+      then ,@body
+      else (if debug-this-procedure
+	       (logit "=> [hard links in separate directories not supported]"))
+	   (xdr-int *nfsdxdr* #.*nfserr-io*)
+	   (if (= vers 3)
+	       (nfs-xdr-wcc-data *nfsdxdr* nil nil))))
 
 (define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
   ;; Many sanity checks to prevent corruption
@@ -1066,22 +1076,24 @@ struct entry {
     (with-same-export (fh destdirfh :link)
       (with-non-dir-fh (fh)
 	(with-dirfh (destdirfh)
-	  (sanity-check-filename destfilename)
-	  (let* ((newpath 
-		  (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
-		 (pre-op-attrs (get-pre-op-attrs destdirfh)))
-	    (link (fh-pathname fh) newpath)
-	    (link-fh-in-dir fh destdirfh destfilename)
-	    (update-atime-and-mtime destdirfh)
-	    (nfs-add-file-to-dir destfilename destdirfh)
-	    (incf-cached-nlinks fh)
-	    ;; need to incf nlinks for the original file handle (which should
-	    ;; affect all links).  One easy thing would be to just 
-	    ;; de-cache fh attrs.. but that's excessive.
-	    (xdr-int *nfsdxdr* #.*nfs-ok*)
-	    (when (= vers 3)
-	      (nfs-xdr-post-op-attr *nfsdxdr* fh)
-	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs destdirfh))))))))
+	  (with-same-dir-fh ((fh-parent fh) destdirfh)
+	    (sanity-check-filename destfilename)
+	    (let* ((newpath 
+		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
+		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
+	      (link (fh-pathname fh) newpath)
+	      (update-alternate-pathnames fh :add newpath)
+	      (link-fh-in-dir fh destdirfh destfilename)
+	      (update-atime-and-mtime destdirfh)
+	      (nfs-add-file-to-dir destfilename destdirfh)
+	      (incf-cached-nlinks fh)
+	      ;; need to incf nlinks for the original file handle (which should
+	      ;; affect all links).  One easy thing would be to just 
+	      ;; de-cache fh attrs.. but that's excessive.
+	      (xdr-int *nfsdxdr* #.*nfs-ok*)
+	      (when (= vers 3)
+		(nfs-xdr-post-op-attr *nfsdxdr* fh)
+		(nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs destdirfh)))))))))
 
 ;; args:
 ;; fhandle dir
@@ -1091,7 +1103,8 @@ struct entry {
 (define-nfs-proc remove ((dirfh fhandle) (filename string))
   ;; nfs-probe-file will throw an error if file doesn't exist
   (let ((pre-op-attrs (get-pre-op-attrs dirfh))
-	(fh (nfs-probe-file dirfh filename)))
+	(fh (nfs-probe-file dirfh filename))
+	(path (add-filename-to-dirname (fh-pathname dirfh) filename)))
     (with-permission (dirfh :write)
       (if* (eq (close-open-file fh :check-refcount t) :still-open)
 	 then ;; Unfortunately there is no NFS error code that indicates
@@ -1099,7 +1112,7 @@ struct entry {
 	      (xdr-int *nfsdxdr* #.*nfserr-perm*)
 	 else  ;; Don't use (fh-pathname fh) since we may be dealing with 
 	      ;; a hard link.  Use the filename provided instead.
-	      (delete-file (add-filename-to-dirname (fh-pathname dirfh) filename))
+	      (delete-file path)
 	      (update-atime-and-mtime dirfh)
 	      ;; Update dircache.
 	      (nfs-remove-file-from-dir filename dirfh)
@@ -1277,14 +1290,19 @@ struct entry {
 	  (let* ((pre-op-attrs-from (get-pre-op-attrs fromdirfh))
 		 (pre-op-attrs-to (get-pre-op-attrs todirfh))
 		 (fromfh (nfs-probe-file fromdirfh fromfilename))
-		 (from (fh-pathname fromfh))
+		 ;; Use name provided by client (in case of hard link)
+		 (from (add-filename-to-dirname (fh-pathname fromdirfh)
+						fromfilename))
 		 (tofh (lookup-fh-in-dir todirfh tofilename :create t))
-		 (to (fh-pathname tofh)))
+		 ;; Use name provided by client (in case of hard link)
+		 (to (add-filename-to-dirname (fh-pathname todirfh)
+					      tofilename)))
 	    (if* (or 
 		  (eq (close-open-file fromfh :check-refcount t) :still-open)
 		  (eq (close-open-file tofh :check-refcount t) :still-open))
 	       then (xdr-int *nfsdxdr* #.*nfserr-perm*)
-	       else (my-rename from to)
+	       else ;;(format t "my-rename ~a -> ~a~%" from to)
+		    (my-rename from to)
 		    (remove-fhandle tofh tofilename)
 		    (rename-fhandle fromfh fromfilename todirfh tofilename)
 		    (uncache-attr fromfh)

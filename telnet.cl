@@ -1,4 +1,4 @@
-;; $Id: telnet.cl,v 1.2 2006/09/06 21:14:45 dancy Exp $
+;; $Id: telnet.cl,v 1.3 2006/12/19 17:26:01 dancy Exp $
 
 ;; Source code for telnet-server example
 (in-package :user)
@@ -29,7 +29,8 @@
                                       (socket:ipaddr-to-dotted
                                        (socket:remote-host connection))))
                        (logit-stamp "telnet server: new connection from ~a~%"
-			      from)
+				    from)
+		       (setf (eol-convention connection) :dos)
                        (format connection "
 WARNING: do not use :exit or (exit).  Use ~s to quit."
                                     '(quit))

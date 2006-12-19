@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.23 2006/05/11 21:58:59 dancy Exp $
+;; $Id: fhandle.cl,v 1.24 2006/12/19 17:26:01 dancy Exp $
 
 ;; file handle stuff
 
@@ -55,7 +55,8 @@
   export
   parent ;; nil if root
   children ;; hash of basenames of directory children. values are fh's
-  verifier) ;; used by create call w/ exclusive mode.
+  verifier ;; used by create call w/ exclusive mode.
+  alternate-pathnames) ;; for files with known hard links
 
 (defun add-filename-to-dirname (dir filename)
   (if (char= (schar dir (1- (length dir))) #\\)
@@ -165,15 +166,30 @@
   (without-interrupts
     (if (= (decf (fh-refs fh)) 0)
 	(remhash (fh-id fh) *fhandles*))
+    ;; Remove any matching alternate pathname
+    (update-alternate-pathnames 
+     fh :remove (add-filename-to-dirname (fh-pathname (fh-parent fh)) filename))
+				
     ;; remove entry from parent directory.
     (let ((parent (fh-parent fh)))
       (if (null parent)
 	  (error "remove-fhandle: ~S has no parent" fh))
       (remhash filename (fh-children parent)))))
 
-;; Caller is expected to remove todir/tofilename beforehand.
-;; Updates the pathname slot of the fhandle (and updates children
-;; recursively, so this can be expensive for directories).
+(defun update-alternate-pathnames (fh op altname)
+  (ecase op
+    (:add 
+     (push altname (fh-alternate-pathnames fh)))
+    (:remove
+     (when (fh-alternate-pathnames fh)
+       (if* (equalp altname (fh-pathname fh))
+	  then (setf (fh-pathname fh) (pop (fh-alternate-pathnames fh)))
+	  else (setf (fh-alternate-pathnames fh)
+		 (delete altname (fh-alternate-pathnames fh) :test #'equalp)))))))
+
+;; Caller is expected to remove prior todir/tofilename beforehand.
+;; This function updates the pathname slot of the fhandle (and updates
+;; children recursively, so this can be expensive for directories).
 (defun rename-fhandle (fh fromfilename todir tofilename)
   (without-interrupts
     ;; remove from current parent.
@@ -185,16 +201,38 @@
     (setf (fh-parent fh) todir)
     ;; add to destination parent.
     (insert-fhandle fh tofilename)
-    ;; change pathname of this node and its children and subchildren
-    (update-fhandle-pathname (fh-pathname todir) tofilename fh)))
+    
+    ;; FIXME:  This doesn't check for hard links that may have been
+    ;; moved to another directory (which will break things).
+    (when (fh-alternate-pathnames fh)
+      (update-alternate-pathnames 
+       fh :remove (add-filename-to-dirname (fh-pathname (fh-parent fh))
+					   fromfilename))
+      (update-alternate-pathnames 
+       fh :add (add-filename-to-dirname (fh-pathname todir) tofilename))
+      
+      (return-from rename-fhandle))
 
-(defun update-fhandle-pathname (parentname yourname fh)
+    ;; change pathname of this node and its children and subchildren
+    (update-fhandle-pathname fh (fh-pathname todir) tofilename
+			     (add-filename-to-dirname (fh-pathname (fh-parent fh))
+						      fromfilename))))
+    
+;; parentname is the updated directory name.
+;; yourname is the new basename
+(defun update-fhandle-pathname (fh parentname yourname oldpath)
   (let ((newname (add-filename-to-dirname parentname yourname)))
-    (setf (fh-pathname fh) newname)
+    (if* (equalp (fh-pathname fh) oldpath)
+       then (setf (fh-pathname fh) newname)
+       else (setf (fh-alternate-pathnames fh) 
+	      (nsubstitute newname oldpath (fh-alternate-pathnames fh) 
+			   :test #'equalp)))
     (if (fh-children fh)
 	(maphash 
 	 #'(lambda (childname childfh)
-	     (update-fhandle-pathname newname childname childfh))
+	     (update-fhandle-pathname 
+	      childfh newname childname
+	      (add-filename-to-dirname oldpath childname)))
 	 (fh-children fh)))))
 	    
 ;; If body runs to completion, the filehandle will be saved,
@@ -234,9 +272,13 @@
 
 #+ignore
 (defun dump-fhandles ()
-  (maphash #'(lambda (id fh)
-	       (format t "~a (#x~x)-> ~a~%" id id (fh-pathname fh)))
-	   *fhandles*))
+  (maphash 
+   #'(lambda (id fh)
+       (format t "~a (#x~x)-> ~a" id id (fh-pathname fh))
+       (if (fh-alternate-pathnames fh)
+	   (format t " AKA: ~a" (fh-alternate-pathnames fh)))
+       (terpri))
+   *fhandles*))
 	       
 
 ;; XDR
