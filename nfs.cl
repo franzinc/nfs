@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.106 2006/12/19 17:26:01 dancy Exp $
+;; $Id: nfs.cl,v 1.107 2006/12/20 18:40:21 dancy Exp $
 
 (in-package :user)
 
@@ -384,63 +384,78 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 		   
 
-(defmacro with-permission ((fh type) &body body)
+(defmacro with-permission ((fh type &key op) &body body)
   (let ((func (ecase type
 		(:read 'nfs-okay-to-read)
-		(:write 'nfs-okay-to-write))))
+		(:write 'nfs-okay-to-write)))
+	(failres3 (if* (eq op :link)
+		     then `(progn
+			     (nfs-xdr-post-op-attr *nfsdxdr* nil)
+			     (nfs-xdr-wcc-data *nfsdxdr* nil nil))
+		     else `(nfs-xdr-wcc-data *nfsdxdr* nil nil))))
+    
     `(if* (not (,func ,fh (sunrpc:call-body-cred cbody)))
-	then
-	     (if debug-this-procedure (logit " permission denied~%") )
+	then (if debug-this-procedure (logit " permission denied~%") )
 	     (xdr-int *nfsdxdr* #.*nfserr-acces*)
 	     (if (= vers 3)
-		 (nfs-xdr-wcc-data *nfsdxdr* nil nil))
-	else
-	     ,@body)))
+		 ,failres3)
+	else ,@body)))
 
 ;; fh must be a non-stale file handle
-(defmacro with-dirfh ((fh) &body body)
-  (let ((attr (gensym)))
+(defmacro with-dirfh ((fh &key op) &body body)
+  (let ((attr (gensym))
+	(failres3 (if* (eq op :link)
+		     then `(progn
+			     (nfs-xdr-post-op-attr *nfsdxdr* nil)
+			     (nfs-xdr-wcc-data *nfsdxdr* nil nil))
+		     else `(nfs-xdr-wcc-data *nfsdxdr* nil nil))))
     `(let ((,attr (lookup-attr ,fh)))
        (if* (= (nfs-attr-type ,attr) #.*nfdir*)
-	  then
-	       ,@body
-	  else
-	       (when debug-this-procedure (logit " Not a directory~%"))
+	  then ,@body
+	  else (when debug-this-procedure (logit " Not a directory~%"))
 	       (xdr-int *nfsdxdr* #.*nfserr-notdir*)
 	       (if (= vers 3)
-		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
+		   ,failres3)))))
 
 ;; fh must be a non-stale file handle
-(defmacro with-non-dir-fh ((fh) &body body)
-  (let ((attr (gensym)))
+(defmacro with-non-dir-fh ((fh &key op) &body body)
+  (let ((attr (gensym))
+	(failres3 (if* (eq op :link)
+		     then `(progn
+			     (nfs-xdr-post-op-attr *nfsdxdr* nil)
+			     (nfs-xdr-wcc-data *nfsdxdr* nil nil))
+		     else `(nfs-xdr-wcc-data *nfsdxdr* nil nil))))
+
     `(let ((,attr (lookup-attr ,fh)))
        (if* (/= (nfs-attr-type ,attr) #.*nfdir*)
-	  then
-	       ,@body
-	  else
-	       (when debug-this-procedure (logit " Not allowed to be a directory~%"))
+	  then  ,@body
+	  else (when debug-this-procedure (logit " Not allowed to be a directory~%"))
 	       (xdr-int *nfsdxdr* #.*nfserr-perm*)
 	       (if (= vers 3)
-		   (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
+		   ,failres3)))))
+
 
 (defmacro with-same-export ((fh1 fh2 function) &body body)
-  `(if* (eq (fh-export ,fh1) (fh-export ,fh2))
-      then
-	   ,@body
-      else
-	   (when debug-this-procedure (logit " Not same export~%"))
-	   (ecase vers
-	     (2
-	      (xdr-int *nfsdxdr* #.*nfserr-acces*))
-	     (3
-	      (xdr-int *nfsdxdr* #.*nfserr-xdev*)
-	      (ecase ,function
-		(:rename
-		 (nfs-xdr-wcc-data *nfsdxdr* nil nil) ;; from
-		 (nfs-xdr-wcc-data *nfsdxdr* nil nil)) ;; to
-		(:link
-		 (nfs-xdr-post-op-attr *nfsdxdr* nil)
-		 (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))))
+  (let ((failres3 
+	 (ecase function
+	   (:rename
+	    `(progn
+	       (nfs-xdr-wcc-data *nfsdxdr* nil nil) ;; from
+	       (nfs-xdr-wcc-data *nfsdxdr* nil nil))) ;; to
+	   (:link
+	    `(progn
+	       (nfs-xdr-post-op-attr *nfsdxdr* nil)
+	       (nfs-xdr-wcc-data *nfsdxdr* nil nil))))))
+    
+    `(if* (eq (fh-export ,fh1) (fh-export ,fh2))
+	then ,@body
+	else(when debug-this-procedure (logit " Not same export~%"))
+	     (ecase vers
+	       (2
+		(xdr-int *nfsdxdr* #.*nfserr-acces*))
+	       (3
+		(xdr-int *nfsdxdr* #.*nfserr-xdev*)
+		,failres3)))))
 		 
 
 
@@ -1066,16 +1081,20 @@ struct entry {
       then ,@body
       else (if debug-this-procedure
 	       (logit "=> [hard links in separate directories not supported]"))
-	   (xdr-int *nfsdxdr* #.*nfserr-io*)
-	   (if (= vers 3)
-	       (nfs-xdr-wcc-data *nfsdxdr* nil nil))))
+	   (ecase vers
+	     (2 
+	      (xdr-int *nfsdxdr* #.*nfserr-io*))
+	     (3
+	      (xdr-int *nfsdxdr* #.*nfs3err-notsupp*)
+	      (nfs-xdr-post-op-attr *nfsdxdr* nil)
+	      (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
 
 (define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
   ;; Many sanity checks to prevent corruption
-  (with-permission (destdirfh :write)
+  (with-permission (destdirfh :write :op :link)
     (with-same-export (fh destdirfh :link)
-      (with-non-dir-fh (fh)
-	(with-dirfh (destdirfh)
+      (with-non-dir-fh (fh :op :link)
+	(with-dirfh (destdirfh :op :link)
 	  (with-same-dir-fh ((fh-parent fh) destdirfh)
 	    (sanity-check-filename destfilename)
 	    (let* ((newpath 

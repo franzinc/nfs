@@ -1,4 +1,13 @@
 *******************************************************************************
+4.5b5
+*******************************************************************************
+2006-12-20    <dancy@CANDY2K>
+
+	* BUGFIX: nfs.cl: Fixed many with-xxx macros so that they return
+	properly formatted results for the 'link' operation (which has
+	different on-fail return info than other procedures).
+	
+*******************************************************************************
 4.5b4
 *******************************************************************************
 2006-12-19    <dancy@CANDY2K>
