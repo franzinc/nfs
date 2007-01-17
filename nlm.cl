@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.14 2006/09/06 21:14:44 dancy Exp $
+;; $Id: nlm.cl,v 1.15 2007/01/17 21:41:14 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 
@@ -144,22 +144,29 @@
   exclusive
   caller-name
   fh
-  oh
-  svid
+  oh 
+  svid ;; aka pid
   offset
   len)
 
 (defun nlm-lock-internal-printer (obj stream)
-  (format stream "(V~a, caller: ~a, file: ~a, pid: ~a, offset: ~a, len: ~a)"
-	  (nlm-lock-internal-vers obj)
-	  (nlm-lock-internal-caller-name obj)
-	  (let ((fh (nlm-lock-internal-fh obj)))
-	    (if* (user::fh-p fh)
-	       then (user::fh-pathname fh)
-	       else fh))
-	  (nlm-lock-internal-svid obj)
-	  (nlm-lock-internal-offset obj)
-	  (nlm-lock-internal-len obj)))
+  (let* ((offset (nlm-lock-internal-offset obj))
+	 (len (nlm-lock-internal-len obj))
+	 (end (+ offset len)))
+    (format stream "(V~a, caller: ~a, file: ~a, pid: ~a, offset: ~a, len: ~a)"
+	    (nlm-lock-internal-vers obj)
+	    (nlm-lock-internal-caller-name obj)
+	    (let ((fh (nlm-lock-internal-fh obj)))
+	      (if* (user::fh-p fh)
+		 then (user::fh-pathname fh)
+		 else fh))
+	    (nlm-lock-internal-svid obj)
+	    offset
+	    (if* (zerop len)
+	       then "EOF"
+	     elseif (= end #xffffffff)
+	       then (format nil "~a (EOF)" len)
+	       else len))))
 
 (defun nlm-internalize-lock (lock exclusive vers addr cookie)
   (make-nlm-lock-internal 
@@ -207,101 +214,169 @@
 	  (push entry res)))
     res))
 
-(defun overlapped-p (start1 end1 start2 end2)
-  (not
-   (or
-    ;; There are only two non-overlapping scenarios:
-    ;; file1 ends before file2 begins.
-    ;; file1 begins after file2 ends.
-    ;; Anything outside of these two scenarios is an overlap situation.
-    
-    ;; Check for file1 ending before file2 begins.  
-    (and (/= end1 0) (<= end1 start2))
-    ;; Check for file1 beginning after file2 end.
-    (and (/= end2 0) (>= start1 end2)))))
-
-(defun nlm-find-overlapping-lock (fh offset length)
-  (let ((start1 offset)
-	(end1 (if* (= length 0)
-		 then 0
-		 else (+ offset length))))
+;; Returns two values:
+;; 1) List of locks for the template owner
+;; 2) List of locks for other owners
+(defun nlm-find-locks-by-fh (template)
+  (let ((fh (nlm-lock-internal-fh template))
+	(oh (nlm-lock-internal-oh template))
+	(svid (nlm-lock-internal-svid template))
+	ours
+	theirs)
     (dolist (entry *nlm-locks*)
-      (if (eq (nlm-lock-internal-fh entry) fh)
-	  (let* ((start2 (nlm-lock-internal-offset entry))
-		 (end2 (+ start2 (nlm-lock-internal-len entry))))
-	    (if (overlapped-p start1 end1 start2 end2)
-		(return entry)))))))
+      (when (eq (nlm-lock-internal-fh entry) fh)
+	(if* (and (equalp (nlm-lock-internal-oh entry) oh)
+		  (= (nlm-lock-internal-svid entry) svid))
+	   then (push entry ours)
+	   else (push entry theirs))))
+    (values ours theirs)))
 
-;; XXX 
-;; Windows has no concept of locking from "here to the current/future
-;; of end of file" like Unix does.  This what is meant when length is
-;; 0.  We simulate it here by using a very large length.  On 32-bit
-;; platforms, the third arg to _locking is 32-bits so there may be
-;; problems with locking large files.  We may need to provide an
-;; interface to LockFile() which supports 64-bit args (in two
-;; 32-bit pieces).
+;; Note to self:
+;; #xffffffff is the correct value to use below although 
+;; (expt 2 32) might seem to be better.  However, if a lock is 
+;; requested w/ offset 0, and length 0, the result (computed by
+;; start-end-to-lock) would result in a length of (expt 2 32) which is
+;; too large for 32-bits, so it will end up looking like a zero, resulting
+;; in an invalid call to excl.osi:locking
 
-;; returns t if lock was successful, nil otherwise
-(defun nlm-do-lock-1 (f offset length)
+(defmacro with-lock-start-end ((start end lock) &body body)
+  (let ((l (gensym))
+	(len (gensym)))
+    `(let* ((,l ,lock)
+	    (,start (nlm-lock-internal-offset ,l))
+	    (,len (nlm-lock-internal-len ,l))
+	    (,end (if* (zerop ,len)
+		     then #xffffffff
+		     else (+ ,start ,len))))
+       ,@body)))
+
+(defun nlm-locks-overlap-p (lock1 lock2)
+  (with-lock-start-end (start1 end1 lock1)
+    (with-lock-start-end (start2 end2 lock2)
+      (interval:overlaps-p start1 end1 start2 end2))))
+
+(defun nlm-find-overlapping-lock (lock locks)
+  (with-lock-start-end (start1 end1 lock)
+    (dolist (entry locks)
+      (with-lock-start-end (start2 end2 entry)
+	(if (interval:overlaps-p start1 end1 start2 end2)
+	    (return entry))))))
+
+;; called by nlm-do-lock
+(defun nlm-lock-real (f offset length)
   (file-position f offset)
-  (if (= length 0)
-      (setf length #x7fffffff))
   (handler-case (excl.osi:locking f #.excl.osi:*lk-nblck* length)
     (syscall-error (c)
       (if* (= (syscall-error-errno c) #.excl.osi:*eacces*)
 	 then nil
-	 else (error c)))
-    (:no-error (&rest args)
-      (declare (ignore args))
-      t)))
+	 else (error c)))))
 
-(defun nlm-do-lock (lock)
-  (user::with-nfs-open-file (f (nlm-lock-internal-fh lock)
-			 (if* (nlm-lock-internal-exclusive lock) 
-			    then :output 
-			    else :input)
-			 :of of)
-    (when (nlm-do-lock-1 f 
-			 (nlm-lock-internal-offset lock)
-			 (nlm-lock-internal-len lock))
-      (incf (user::openfile-refcount of))
-      t)))
-      
-(defun nlm-do-unlock-1 (f offset length)
+;; called by nlm-do-unlock
+(defun nlm-unlock-real (f offset length)
   (file-position f offset)
-  (if (= length 0)
-      (setf length #x7fffffff))
   (excl.osi:locking f #.excl.osi:*lk-unlck* length))
 
+(defmacro with-nlm-open-file ((var dir of lock) &body body)
+  `(user::with-nfs-open-file (,var (nlm-lock-internal-fh ,lock) ,dir
+				   :of ,of)
+     ,@body))
+
+(defun nlm-do-lock (lock)
+  (with-nlm-open-file (f :output of lock)
+    (when (nlm-lock-real f 
+			 (nlm-lock-internal-offset lock) 
+			 (nlm-lock-internal-len lock))
+      (incf (user::openfile-refcount of))
+      (push lock *nlm-locks*)
+      t)))
+
+;; 'lock' must be an entry from *nlm-locks*
 (defun nlm-do-unlock (lock)
-  (user::with-nfs-open-file (f (nlm-lock-internal-fh lock) :any :of of)
-    (nlm-do-unlock-1 f 
+  ;; Sanity check. 
+  #-ignore
+  (if (not (member lock *nlm-locks*))
+      (error "nlm-do-unlock called w/ a lock that is not a member of *nlm-locks*"))
+  
+  (with-nlm-open-file (f :any of lock)
+    (nlm-unlock-real f 
 		     (nlm-lock-internal-offset lock)
 		     (nlm-lock-internal-len lock))
-    (decf (user::openfile-refcount of))))
+    (decf (user::openfile-refcount of))
+    (setf *nlm-locks* (delete lock *nlm-locks*))))
+
+(defun lock-to-pair (lock)
+  (with-lock-start-end (start end lock)
+    (cons start end)))
+
+(defmacro pair-to-lock (pair template)
+  (let ((p (gensym)))
+    `(let ((,p ,pair))
+       (start-end-to-lock (car ,p) (cdr ,p) ,template))))
   
+(defun start-end-to-lock (start end template)
+  (let ((l (copy-nlm-lock-internal template)))
+    (setf (nlm-lock-internal-offset l) start)
+    (setf (nlm-lock-internal-len l) (- end start))
+    l))
 
+;; used by nlm-try-lock
+(defun nlm-calc-new-locks (lock locks)
+  (with-lock-start-end (start end lock)
+    (mapcar #'(lambda (pair) (pair-to-lock pair lock))
+	    (interval:interval-subtract-pairs start end 
+					      (mapcar #'lock-to-pair locks)))))
 (defun nlm-try-lock (lock)
-  (let ((vers (nlm-lock-internal-vers lock)))
-    ;; Sanity check beforehand.  
-    (if* (or (> (nlm-lock-internal-offset lock) #x7fffffff)
-	     (> (nlm-lock-internal-len lock) #x7fffffff))
-       then (if-nlm-v4 vers #.*nlm4-fbig* #.*nlm-denied-nolocks*)
-       else (handler-case (nlm-do-lock lock)
-	      (error (c)
-		(user::logit-stamp "NLM: Unexpected error during lock call: ~a~%" c)
-		(if-nlm-v4 vers #.*nlm4-failed* #.*nlm-denied-nolocks*))
-	      (:no-error (success)
-		(if* success
-		   then #.*nlm-granted*
-		   else #.*nlm-denied*))))))
+  (multiple-value-bind (ours theirs)
+      (nlm-find-locks-by-fh lock)
+    
+    (if (nlm-find-overlapping-lock lock theirs)
+	(return-from nlm-try-lock #.*nlm-denied*))
+    
+    (let ((newlocks (nlm-calc-new-locks lock ours))
+	  done)
+      (dolist (lock newlocks)
+	(if* (nlm-do-lock lock)
+	   then (push lock done)
+	   else ;; No luck.  Undo locks that succeeded up to this point
+		(dolist (lock done)
+		  (nlm-do-unlock lock))
+		(return-from nlm-try-lock #.*nlm-denied*)))
 
+      ;; Success
+      (values #.*nlm-granted* newlocks))))
+
+;; This code has a race condition in it which we can't work around.
+;; Windows does now allow shrinking of an existing locked region.  You
+;; have to unlock and relock a smaller portion.  During the unlock and
+;; relock, another (non-Allegro NFS) process could put a lock on the
+;; region in question which would foil our attempt to shrink.  If that
+;; happens, we log a message.
+
+(defun nlm-unlock-1 (lock)
+  (with-lock-start-end (ustart uend lock)
+    (let ((olocks (nlm-find-locks-by-fh lock)))
+      (dolist (olock olocks)
+	(nlm-do-unlock olock)
+	(multiple-value-bind (nstart1 nend1 nstart2 nend2)
+	    (with-lock-start-end (ostart oend olock)
+	      (interval:interval-subtract ostart oend ustart uend))
+	  ;; Relock any remaining regions.
+	  (if (and nstart1
+		   (null (nlm-do-lock (start-end-to-lock nstart1 nend1 lock))))
+	      (user::logit-stamp "NLM: Failed to shrink a locked region during unlock operation.~%"))
+	  (if (and nstart2
+		   (null (nlm-do-lock (start-end-to-lock nstart2 nend2 lock))))
+	      (user::logit-stamp "NLM: Failed to split a locked region during unlock operation.~%")))))))
+	  
 ;; There is no testing operation using the _locking interface
-;; so we have to lock and, if that was succesful, unlock.
+;; so we have to lock and, if that was succesful, unlock.  Weak.
 (defun nlm-do-test-lock (lock)
-  (let ((status (nlm-try-lock lock)))
-    (when (= status #.*nlm-granted*)
-      (nlm-do-unlock lock))
+  (multiple-value-bind (status newlocks)
+      (nlm-try-lock lock)
+    (if* (= status #.*nlm-granted*)
+       then ;; Got the lock.  Now unlock.
+	    (dolist (lock newlocks)
+	      (nlm-do-unlock lock)))
     status))
 
 ;; A lock will either be on the retry list (meaning it hasn't been
@@ -315,7 +390,7 @@
 	   then (if *nlm-debug*
 		    (user::logit-stamp "NLM: Removing ~a from notify list.~%" entry))
 		(setf *nlm-notify-list* (delete entry *nlm-notify-list*))
-		(handler-case (nlm-do-unlock entry)
+		(handler-case (nlm-unlock-1 entry)
 		  (error (c)
 		    (user::logit-stamp "NLM: Unexpected error while unlocking ~a: ~a~%"
 			   entry c)))))
@@ -363,18 +438,13 @@
     
     (if *nlm-debug*
 	(user::logit-stamp "~
-NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
-	       (if-nlm-v4 vers "4" "")
-	       (sunrpc:peer-dotted peer)
-	       (if async "_MSG" "")
-	       lock
-	       block exclusive reclaim state))
+NLM: ~a: LOCK~a~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
+			   (sunrpc:peer-dotted peer)
+			   (if-nlm-v4 vers "4" "")			   
+			   (if async "_MSG" "")
+			   lock
+			   block exclusive reclaim state))
     
-    ;; XXX -- need proper synchronization to prevent concurrent
-    ;; access to fhandles hash tables, and other relevant shared
-    ;; structured.  openfile stuff has been modified but I still
-    ;; need to check for stuff that calls close-open-file.
-
     (if (not monitor)
 	(setf block nil))
     
@@ -386,23 +456,18 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 		(user::logit-stamp "NLM: ==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
-	      (if* (nlm-find-lock lock *nlm-locks*)
-		 then (setf status #.*nlm-granted*)
-		 else (nlm-cancel-pending-retry lock)
-		      (setf status (nlm-try-lock lock))
-		
-		      (if* (= status #.*nlm-granted*)
-			 then (mp:with-process-lock (*nlm-state-lock*)
-				(push lock *nlm-locks*))
-			      (if monitor
-				  (nlm-add-monitoring addr)))
-		
-		      (if* (and (= status #.*nlm-denied*) block)
-			 then (setf status #.*nlm-blocked*)
-			      (if *nlm-debug*
-				  (user::logit-stamp "NLM: Lock unavailable. Adding ~a retry list.~%" lock))
-			      (push lock *nlm-retry-list*)))))
+	      (nlm-cancel-pending-retry lock)
+	      (setf status (nlm-try-lock lock))
 
+	      (if (and (= status #.*nlm-granted*) monitor)
+		  (nlm-add-monitoring addr))
+	      
+	      (if* (and (= status #.*nlm-denied*) block)
+		 then (setf status #.*nlm-blocked*)
+		      (if *nlm-debug*
+			  (user::logit-stamp "NLM: Lock unavailable. Adding ~a retry list.~%" lock))
+		      (push lock *nlm-retry-list*))))
+    
     (if *nlm-debug*
 	(nlm-log-status status))
     
@@ -421,17 +486,15 @@ NLM~a: ~a: LOCK~a (~a, block: ~a, excl: ~a, reclaim: ~a, state: ~a)~%"
 	 (lock (nlm-internalize-lock (nlm-unlockargs-alock arg) nil vers
 				     addr (nlm-unlockargs-cookie arg)))
 	 (fh (nlm-lock-internal-fh lock))
+	 (status #.*nlm-granted*))
 
-	 ;; always say OK.  Doing otherwise makes linux log kernel
-	 ;; messages.
-	 (status #.*nlm-granted*)) 
     (if *nlm-debug*
 	(user::logit-stamp "~
 NLM: ~a: UNLOCK~a~a ~a~%"
-	       (sunrpc:peer-dotted peer)
-	       (if-nlm-v4 vers "4" "")
-	       (if async "_MSG" "")
-	       lock))
+			   (sunrpc:peer-dotted peer)
+			   (if-nlm-v4 vers "4" "")
+			   (if async "_MSG" "")
+			   lock))
     
     (if* (not (user::fh-p fh))
        then (if-nlm-v4 vers 
@@ -441,21 +504,9 @@ NLM: ~a: UNLOCK~a~a ~a~%"
 		(user::logit-stamp "NLM: ==> Access denied by configuration.~%"))
 	    (setf status #.*nlm-denied*)
        else (mp:with-process-lock (*nlm-state-lock*)
-	      (let ((entry (nlm-find-lock lock *nlm-locks*)))
-		(if* entry
-		   then (handler-case (nlm-do-unlock entry)
-			  (error (c)
-			    (user::logit-stamp "~
-NLM: Unexpected error during UNLOCK call: ~a~%" c)
-			    (setf status
-			      (if-nlm-v4 vers 
-					 #.*nlm4-failed*
-					 #.*nlm-denied-nolocks*)))
-			  (:no-error (&rest args)
-			    (declare (ignore args))
-			    (setf status #.*nlm-granted*)
-			    (setf *nlm-locks* (delete entry *nlm-locks*))))
-			(nlm-remove-monitoring addr)))))
+	      (nlm-unlock-1 lock)
+	      ;; maybe terminate monitoring
+	      (nlm-remove-monitoring addr)))
   
     (if *nlm-debug*
 	(nlm-log-status status))
@@ -511,8 +562,6 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	 (lock (nlm-internalize-lock (nlm-testargs-alock arg) exclusive vers
 				     addr (nlm-testargs-cookie arg)))
 	 (fh (nlm-lock-internal-fh lock))
-	 (offset (nlm-lock-internal-offset lock))
-	 (len (nlm-lock-internal-len lock))
 	 (status (if-nlm-v4 vers #.*nlm4-failed* #.*nlm-denied-nolocks*))
 	 holder)
   
@@ -534,7 +583,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
        else (mp:with-process-lock (*nlm-state-lock*)
 	      (setf status (nlm-do-test-lock lock))
 	      (when (= status #.*nlm-denied*)
-		(setf holder (nlm-find-overlapping-lock fh offset len))
+		(setf holder (nlm-find-overlapping-lock lock *nlm-locks*))
 		(setf holder
 		  (if* holder 
 		     then (make-nlm-holder 
@@ -660,10 +709,10 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 	(vers (nlm-lock-internal-vers entry)))
     (if *nlm-debug*
 	(user::logit-stamp "NLM: Sending GRANTED~a_MSG to ~a~%" 
-		     (if-nlm-v4 vers "4" "")
-		     (socket:ipaddr-to-dotted addr)))
+			   (if-nlm-v4 vers "4" "")
+			   (socket:ipaddr-to-dotted addr)))
     
-    (#+ignore ignore-errors progn
+    (ignore-errors
      (sunrpc:with-rpc-client (cli addr #.*nlm-prog* vers :udp)
        (let ((args (make-nlm-testargs 
 		    :cookie (nlm-lock-internal-cookie entry)
@@ -707,11 +756,10 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 		(if* (= status #.*nlm-granted*)
 		   then (if *nlm-debug*
 			    (user::logit-stamp "NLM: ==> ~a fully obtained.~%" lock))
-			(push lock *nlm-locks*)
 		   else (if *nlm-debug*
 			    (user::logit-stamp "NLM: ==> Client rejecting lock ~a~%" lock))
 			;; unlock it.
-			(handler-case (nlm-do-unlock lock)
+			(handler-case (nlm-unlock-1 lock)
 			  (error (c)
 			    (user::logit-stamp "~
 NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
@@ -723,8 +771,7 @@ NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
       (dolist (entry entries)
 	(if *nlm-debug*
 	    (user::logit-stamp "NLM: Unlocking ~a~%" entry))
-	(nlm-do-unlock entry)
-	(setf *nlm-locks* (delete entry *nlm-locks*))))
+	(nlm-do-unlock entry)))
     
     (let ((entries (nlm-find-locks-by-addr addr *nlm-notify-list*)))
       (dolist (entry entries)

@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.45 2006/12/19 17:26:01 dancy Exp $
+;; $Id: loadem.cl,v 1.46 2007/01/17 21:41:14 dancy Exp $
 
 (in-package :user)
 
@@ -57,6 +57,7 @@
       "attr" 
       "dir" 
       "openfile"
+      "interval"
       "nlm-client"
       "nlm"
       "gen-nfs-client"
