@@ -1,9 +1,26 @@
 *******************************************************************************
+4.5b8
+*******************************************************************************
+2007-01-23    <dancy@CANDY2K>
+
+	* locking.cl: New file (used by nlm.cl)
+
+	* nlm.cl: Use new functions from locking.cl to use direct Win32
+	LockFile and Unlockfile APIs.  This was an attempt to fix issues with spr32573.  It didn't help, but I'll leave the changes in anyway.
+
+	* nlm.cl: Added error handlers around my-lock-file and
+	my-unlock-file calls to deal with spr32573 strangeness.  I don't
+	understand why UnlockFile is failing sometimes.  The customer
+	cannot reproduce w/ a small test case.  Anyway, these changes
+	should keep things moving along even when UnlockFile fails (we
+	simply log and ignore it).
+	
+*******************************************************************************
 4.5b6
 *******************************************************************************
 2007-01-17    <dancy@CANDY2K>
 
-	* internal.cl: New file (used by nlm.cl)
+	* interval.cl: New file (used by nlm.cl)
 
 	* BUGFIX: nlm.cl: Reimplemented large chunks of the locking
 	process to allow for proper compatibility between unix-style and

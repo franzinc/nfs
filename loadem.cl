@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.46 2007/01/17 21:41:14 dancy Exp $
+;; $Id: loadem.cl,v 1.47 2007/01/23 21:36:23 dancy Exp $
 
 (in-package :user)
 
@@ -59,6 +59,7 @@
       "openfile"
       "interval"
       "nlm-client"
+      "locking"
       "nlm"
       "gen-nfs-client"
       "main" ;; needs to be before "nfs"

@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.15 2007/01/17 21:41:14 dancy Exp $
+;; $Id: nlm.cl,v 1.16 2007/01/23 21:36:23 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 
@@ -99,6 +99,8 @@
 (defparameter *nlm-retry-interval* 2) ;; seconds
 (defparameter *nlm-grant-notify-interval* 30) ;; seconds
 
+(defconstant *max-offset* (expt 2 64))
+
 ;; XXX - We do not do grace period stuff because when our NFS 
 ;; server restarts, all filehandles are invalid, so there would be
 ;; no way for a client to reclaim a lock anyway.
@@ -164,7 +166,7 @@
 	    offset
 	    (if* (zerop len)
 	       then "EOF"
-	     elseif (= end #xffffffff)
+	     elseif (= end *max-offset*)
 	       then (format nil "~a (EOF)" len)
 	       else len))))
 
@@ -231,14 +233,6 @@
 	   else (push entry theirs))))
     (values ours theirs)))
 
-;; Note to self:
-;; #xffffffff is the correct value to use below although 
-;; (expt 2 32) might seem to be better.  However, if a lock is 
-;; requested w/ offset 0, and length 0, the result (computed by
-;; start-end-to-lock) would result in a length of (expt 2 32) which is
-;; too large for 32-bits, so it will end up looking like a zero, resulting
-;; in an invalid call to excl.osi:locking
-
 (defmacro with-lock-start-end ((start end lock) &body body)
   (let ((l (gensym))
 	(len (gensym)))
@@ -246,7 +240,7 @@
 	    (,start (nlm-lock-internal-offset ,l))
 	    (,len (nlm-lock-internal-len ,l))
 	    (,end (if* (zerop ,len)
-		     then #xffffffff
+		     then *max-offset*
 		     else (+ ,start ,len))))
        ,@body)))
 
@@ -262,30 +256,22 @@
 	(if (interval:overlaps-p start1 end1 start2 end2)
 	    (return entry))))))
 
-;; called by nlm-do-lock
-(defun nlm-lock-real (f offset length)
-  (file-position f offset)
-  (handler-case (excl.osi:locking f #.excl.osi:*lk-nblck* length)
-    (syscall-error (c)
-      (if* (= (syscall-error-errno c) #.excl.osi:*eacces*)
-	 then nil
-	 else (error c)))))
-
-;; called by nlm-do-unlock
-(defun nlm-unlock-real (f offset length)
-  (file-position f offset)
-  (excl.osi:locking f #.excl.osi:*lk-unlck* length))
-
 (defmacro with-nlm-open-file ((var dir of lock) &body body)
   `(user::with-nfs-open-file (,var (nlm-lock-internal-fh ,lock) ,dir
 				   :of ,of)
      ,@body))
 
+(defmacro error-handled-lock-file (stream offset len)
+  (let ((c (gensym)))
+    `(handler-case (user::my-lock-file ,stream ,offset ,len)
+       (error (,c)
+	 (user::logit-stamp "NLM: Unexpected error while locking: ~a~%" ,c)
+	 nil))))
+
 (defun nlm-do-lock (lock)
   (with-nlm-open-file (f :output of lock)
-    (when (nlm-lock-real f 
-			 (nlm-lock-internal-offset lock) 
-			 (nlm-lock-internal-len lock))
+    (when (error-handled-lock-file f (nlm-lock-internal-offset lock) 
+				   (nlm-lock-internal-len lock))
       (incf (user::openfile-refcount of))
       (push lock *nlm-locks*)
       t)))
@@ -298,9 +284,10 @@
       (error "nlm-do-unlock called w/ a lock that is not a member of *nlm-locks*"))
   
   (with-nlm-open-file (f :any of lock)
-    (nlm-unlock-real f 
-		     (nlm-lock-internal-offset lock)
-		     (nlm-lock-internal-len lock))
+    (handler-case (user::my-unlock-file f (nlm-lock-internal-offset lock) (nlm-lock-internal-len lock))
+      (error (c)
+	(user::logit-stamp "NLM: Unexpected error while unlocking ~a: ~a~%"
+			   lock c)))
     (decf (user::openfile-refcount of))
     (setf *nlm-locks* (delete lock *nlm-locks*))))
 
