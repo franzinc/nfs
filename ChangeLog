@@ -1,3 +1,10 @@
+2007-01-25    <layer@HOBART>
+
+	* Makefile
+	* configure/Makefile: remove bogus comment, add STABLE test for
+	  layer's stable lisp directory, from which the NFS product should
+	  be build
+
 *******************************************************************************
 4.5b8
 *******************************************************************************

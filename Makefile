@@ -1,11 +1,15 @@
-# $Id: Makefile,v 1.57 2006/05/11 21:58:59 dancy Exp $
+# $Id: Makefile,v 1.58 2007/01/25 22:22:06 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
-### IMPORTANT: the nightly builds the product need to use a local copy and
-###	       and not one in /c/Program Files/...  only change the ../aclxxx
-###	       when the build machine's copy is updated.
+## The `stable' directory is one that is only updated after rigorous
+## testing, to make sure the base is as stable as possible.
+STABLE := $(shell if test -d "/c/Program Files/acl80-stable"; then echo yes; else echo no; fi)
+ifeq ($(STABLE),yes)
+LISPDIR = "/c/Program Files/acl80-stable"
+else
 LISPDIR = "/c/Program Files/acl80"
+endif
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
