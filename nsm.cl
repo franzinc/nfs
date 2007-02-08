@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nsm.cl,v 1.12 2006/09/06 21:14:44 dancy Exp $
+;; $Id: nsm.cl,v 1.13 2007/02/08 23:08:41 dancy Exp $
 
 ;; This file implements the Network Status Monitor (NSM) protocol. 
 
@@ -30,7 +30,9 @@
 
 (in-package :nsm)
 
-(sunrpc:def-rpc-program (NSM 100024)
+(defparameter *nsm-port* nil)
+
+(sunrpc:def-rpc-program (NSM 100024 :port *nsm-port*)
   (
    (1 ;; version
      (0 sm-null void void)
@@ -403,4 +405,4 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
     (sleep *nsm-notify-retry-interval*)))
 
 (eval-when (compile load eval)
-  (export '(*nsm-gate* *nsm-debug* NSM)))
+  (export '(*nsm-gate* *nsm-debug* *nsm-port* NSM)))

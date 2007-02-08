@@ -21,13 +21,13 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: portmap.cl,v 1.34 2006/09/13 16:46:32 dancy Exp $
+;; $Id: portmap.cl,v 1.35 2007/02/08 23:08:41 dancy Exp $
 
 ;; portmapper daemon and support functions
 
 (in-package :portmap)
 
-(sunrpc:def-rpc-program (PMAP 100000)
+(sunrpc:def-rpc-program (PMAP 100000 :port *pmap-port*)
   (
    (2 ;; version
      (0 pmapproc-null void void)

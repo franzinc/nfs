@@ -1,8 +1,19 @@
+*******************************************************************************
+4.5b9
+*******************************************************************************
 2007-02-08    <dancy@DANCYSOFT>
 
 	* configure/configform.cl: rfe6786.  Exports are now displayed in
 	sorted (by export name) order.
-	
+
+	* BUGFIX: User-defined mountd port wasn't being honored.  Fixed.
+
+	* sunrpc-service.cl: Allow port number to be specified in
+	def-rpc-program.
+
+	* nsm.cl, nlm.cl, configure/configfirm.cl: rfe6797: Allow user to
+	control nsm and nlm ports.
+
 2007-01-25    <layer@HOBART>
 
 	* Makefile

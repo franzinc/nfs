@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.0 [Windows] (Aug 22, 2006 12:14)"; cg: "1.81"; form: configform; -*-
+;; -*- lisp-version: "8.0 [Windows] (Feb 8, 2007 7:53)"; cg: "1.81"; form: configform; -*-
 ;;;
 ;;; Define :configform
  
@@ -335,29 +335,13 @@
                        :name :static-text-port-mapper :tab-control
                        '(:tab-control :global) :top 43 :value
                        "Use system portmapper?" :width 124)
-        (make-instance 'radio-button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 32
-                       :name :mountd-port-auto :tab-control
-                       '(:tab-control :global) :title "Automatic" :top
-                       84 :width 74)
-        (make-instance 'radio-button :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 32
-                       :name :mountd-port-manual :on-change
-                       'configform-mountd-port-manual-on-change
-                       :tab-control '(:tab-control :global) :title
-                       "User-defined" :top 106 :width 93)
-        (make-instance 'editable-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 126
-                       :name :mountd-port-number :on-change
-                       'configform-mountd-port-number-on-change
-                       :tab-control '(:tab-control :global) :top 90
-                       :value "" :width 45)
         (make-instance 'static-text :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 37
-                       :name :static-text-6 :tab-control
-                       '(:tab-control :global) :top 137 :value
-                       "(Allegro NFS must be restarted for port number changes to take effect)"
-                       :width 345)
+                       (make-font-ex nil "Tahoma / ANSI" 11) :height 29
+                       :left 43 :name :static-text-6 :tab-control
+                       '(:tab-control :global) :top 110 :value
+                       "Allegro NFS must be restarted for port number changes to take effect.
+Leave an entry blank to use an automatically-assigned port number."
+                       :width 339)
         (make-instance 'static-text :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :left 219
                        :name :static-text-16 :tab-control
@@ -515,20 +499,56 @@
                        :name :help-button :on-change
                        'configform-help-button-on-change :title "~Help"
                        :top 304)
-        (make-instance 'group-box :contained-widgets
-                       '(:mountd-port-auto :mountd-port-manual
-                         :mountd-port-number :static-text-6)
-                       :font (make-font-ex nil "Tahoma / ANSI" 11)
-                       :height 104 :left 26 :name :group-box-1
-                       :tab-control '(:tab-control :global) :title
-                       "Mount protocol port number" :top 65 :width 364)
         (make-instance 'check-box :font
-                       (make-font-ex nil "Tahoma / ANSI" 11) :left 28
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :set-mtime-on-write-checkbox :on-change
                        'configform-set-mtime-on-write-checkbox-on-change
                        :tab-control '(:tab-control :global) :title
                        "Set file modification time after every write (10% slower)"
-                       :top 180 :width 297)
+                       :top 64 :width 297)
+        (make-instance 'editable-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 110
+                       :name :mountd-port-number :on-change
+                       'on-port-number-change-common :tab-control
+                       '(:tab-control :global) :top 140 :value ""
+                       :width 43)
+        (make-instance 'editable-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 110
+                       :name :nsm-port-number :on-change
+                       'on-port-number-change-common :tab-control
+                       '(:tab-control :global) :top 160 :value ""
+                       :width 43)
+        (make-instance 'editable-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 110
+                       :name :nlm-port-number :on-change
+                       'on-port-number-change-common :tab-control
+                       '(:tab-control :global) :top 180 :value ""
+                       :width 43)
+        (make-instance 'static-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :height 12
+                       :left 43 :name :static-text-17 :tab-control
+                       '(:tab-control :global) :top 145 :value "Mountd"
+                       :width 40)
+        (make-instance 'static-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 43
+                       :name :static-text-18 :tab-control
+                       '(:tab-control :global) :top 165 :value
+                       "NSM (statd)")
+        (make-instance 'static-text :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 43
+                       :name :static-text-19 :tab-control
+                       '(:tab-control :global) :top 185 :value
+                       "NLM (lockd)")
+        (make-instance 'group-box :contained-widgets
+                       '(:static-text-6 :editable-text-1
+                         :editable-text-3 :editable-text-2
+                         :static-text-17 :static-text-18
+                         :static-text-19)
+                       :font (make-font-ex nil "Tahoma / ANSI" 11)
+                       :height 116 :left 31 :name :group-box-3
+                       :tab-control '(:tab-control :global) :title
+                       "Subprogram port assignments" :top 93 :width
+                       357)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range
@@ -582,13 +602,16 @@
                                             :label "Global" :widgets
                                             '(:combo-box-port-mapper
                                               :static-text-port-mapper
-                                              :mountd-port-auto
-                                              :mountd-port-manual
-                                              :mountd-port-number
                                               :static-text-6
                                               :static-text-16
-                                              :group-box-1
-                                              :set-mtime-on-write-checkbox))
+                                              :set-mtime-on-write-checkbox
+                                              :mountd-port-number
+                                              :nsm-port-number
+                                              :nlm-port-number
+                                              :static-text-17
+                                              :static-text-18
+                                              :static-text-19
+                                              :group-box-3))
                              (make-instance 'tab-info :id :debug :label
                                             "Debug" :widgets
                                             '(:nfs-debug-checkbox

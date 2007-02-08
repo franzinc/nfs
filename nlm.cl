@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.16 2007/01/23 21:36:23 dancy Exp $
+;; $Id: nlm.cl,v 1.17 2007/02/08 23:08:41 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 
@@ -33,7 +33,9 @@
 (eval-when (compile load eval)
   (use-package :nsm))
 
-(sunrpc:def-rpc-program (NLM 100021)
+(defparameter *nlm-port* nil)
+
+(sunrpc:def-rpc-program (NLM 100021 :port *nlm-port*)
   (
    #+ignore
    (0 ;; version
@@ -879,4 +881,4 @@ NLM: Unexpected error while calling NSM UNMON: ~a~%" c)))
 		      :test #'socket:ipaddr-equalp))))))))
 
 (eval-when (compile load eval)
-  (export '(*nlm-gate* *nlm-debug* NLM)))
+  (export '(*nlm-gate* *nlm-debug* *nlm-port* NLM)))

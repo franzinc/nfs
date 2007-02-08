@@ -21,11 +21,14 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.29 2006/09/06 21:14:44 dancy Exp $
+;; $Id: mountd.cl,v 1.30 2007/02/08 23:08:41 dancy Exp $
 
 (in-package :mount)
 
-(sunrpc:def-rpc-program (MNT 100005)
+(defparameter *mountd-debug* nil)
+(defparameter *mountd-port-number* nil)
+
+(sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
   (
    (1 ;; version
      (0 mountproc-null void void)
@@ -46,8 +49,6 @@
    )
   ))
 
-(defparameter *mountd-debug* nil)
-(defparameter *mountd-port-number* nil)
 
 (defparameter *mountd-gate* (mp:make-gate nil))
 (defparameter *mounts* nil)

@@ -1,4 +1,4 @@
-;; $Id: sunrpc-service.cl,v 1.7 2006/09/06 21:14:44 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.8 2007/02/08 23:08:41 dancy Exp $
 
 ;; Service stuff
 
@@ -74,20 +74,18 @@
 	 (ignore-errors (close ,usock))))))
 
 
-(defmacro def-rpc-program-1 ((program prognum versions usock tsock) 
+(defmacro def-rpc-program-1 ((program prognum versions usock tsock
+			      &key port) 
 			     &body body)
-  (let ((port (gensym)))
-    `(let ((,port (if (= ,prognum #.portmap:*pmap-prog*)
-		      #.portmap:*pmap-port*)))
-       (with-rpc-sockets (,program ,usock ,tsock :port ,port)
-	 (user::logit-stamp "~a: Using UDP port ~d~%" 
-		      ,program (socket:local-port ,usock))
-	 (user::logit-stamp "~a: Using TCP port ~d~%" 
-		      ,program (socket:local-port ,tsock))
-	 (with-portmapper-mappings (,program ,prognum ',versions
-					     (socket:local-port ,usock) 
-					     (socket:local-port ,tsock))
-	   ,@body)))))
+  `(with-rpc-sockets (,program ,usock ,tsock :port ,port)
+     (user::logit-stamp "~a: Using UDP port ~d~%" 
+			,program (socket:local-port ,usock))
+     (user::logit-stamp "~a: Using TCP port ~d~%" 
+			,program (socket:local-port ,tsock))
+     (with-portmapper-mappings (,program ,prognum ',versions
+					 (socket:local-port ,usock) 
+					 (socket:local-port ,tsock))
+       ,@body)))
 
 (defun prepend-xdr (sym)
   (intern (concatenate 'string (symbol-name 'xdr) "-" (symbol-name sym))))
@@ -194,7 +192,7 @@
 					     ,peer
 					     ,cbody))))))))))))
 
-(defmacro def-rpc-program ((prgname prognum) definitions)
+(defmacro def-rpc-program ((prgname prognum &key port) definitions)
   (let ((program (symbol-name prgname))
 	(usock (gensym))
 	(tsock (gensym)))
@@ -215,7 +213,8 @@
       
       `(defun ,prgname ()
 	 (declare (optimize (speed 3)))
-	 (def-rpc-program-1 (,program ,prognum ,all-versions ,usock ,tsock)
+	 (def-rpc-program-1 (,program ,prognum ,all-versions ,usock ,tsock
+				      :port ,port)
 	     (def-rpc-program-main ,program ,prognum ,proc-versions 
 				   ,usock ,tsock
 				   ,(first all-versions)
