@@ -79,7 +79,11 @@
             (apply #'define-export entry))
         (t
          (set cmd (pop entry))))))
+  (sort-exports)
   (populate-form form))
+
+(defun sort-exports ()
+  (setf *exports* (sort *exports* #'string< :key #'nfs-export-name)))
 
 (defun generate-config-expression ()
   (let (config)
@@ -768,24 +772,25 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
           (let ((path (ask-user-for-directory :prompt "Select a directory to export")))
             (when path
               (setf path (namestring path))
-              (if (and old-export-name
-                       (= 1
-                          (pop-up-message-dialog 
-                           form "Copy settings?" 
-                           (format nil "Would you like to copy the remaining settings from the ~A export?" old-export-name)
-                           question-icon "Yes" "No")))
-                  (let ((oldexp (get-export old-export-name)))
-                    (define-export 
-                        :name exportname
-                      :path path
-                      :uid (nfs-export-uid oldexp)
-                      :gid (nfs-export-gid oldexp)
-                      :umask (nfs-export-umask oldexp)
-                      :set-mode-bits (nfs-export-set-mode-bits oldexp)
-                      :hosts-allow (nfs-export-hosts-allow oldexp)
-                      :rw-users (nfs-export-rw-users oldexp)
-                      :ro-users (nfs-export-ro-users oldexp)))
-                (define-export :name exportname :path path))
+              (if* (and old-export-name
+                        (= 1
+                           (pop-up-message-dialog 
+                            form "Copy settings?" 
+                            (format nil "Would you like to copy the remaining settings from the ~A export?" old-export-name)
+                            question-icon "Yes" "No")))
+                 then (let ((oldexp (get-export old-export-name)))
+                        (define-export 
+                            :name exportname
+                          :path path
+                          :uid (nfs-export-uid oldexp)
+                          :gid (nfs-export-gid oldexp)
+                          :umask (nfs-export-umask oldexp)
+                          :set-mode-bits (nfs-export-set-mode-bits oldexp)
+                          :hosts-allow (nfs-export-hosts-allow oldexp)
+                          :rw-users (nfs-export-rw-users oldexp)
+                          :ro-users (nfs-export-ro-users oldexp)))
+                 else (define-export :name exportname :path path))
+              (sort-exports)
               ;; Update the combo.
               (update-export-combo form exportname)
               (refresh-apply-button form)))))))
