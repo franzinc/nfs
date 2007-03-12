@@ -22,14 +22,14 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.47 2007/01/23 21:36:23 dancy Exp $
+;; $Id: loadem.cl,v 1.48 2007/03/12 21:57:35 layer Exp $
 
 (in-package :user)
 
 ;;;;;; NONE OF THESE SHOULD BE ON IN AN PRODUCTION BUILD
 ;;(pushnew :nfs-debug *features* :test #'eq)
 ;;(pushnew :nfs-profiling *features* :test #'eq)
-;;(pushnew :nfs-telnet-server *features* :test #'eq)
+(pushnew :nfs-telnet-server *features* :test #'eq)
 
 (eval-when (compile load eval)
 (defparameter *filelist*
