@@ -5,9 +5,12 @@
 ;; (http://opensource.franz.com/preamble.html),
 ;; known as the LLGPL.
 ;;
-;; $Id: ipaddr.cl,v 1.2 2006/06/19 17:04:10 dancy Exp $
+;; $Id: ipaddr.cl,v 1.3 2007/04/13 23:00:25 dancy Exp $
 
 (in-package :user)
+
+(eval-when (compile)
+  (declaim (optimize (speed 3))))
 
 (defstruct network-address
   network

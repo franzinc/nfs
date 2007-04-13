@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.40 2006/09/06 21:14:44 dancy Exp $
+;; $Id: sunrpc.cl,v 1.41 2007/04/13 23:00:25 dancy Exp $
 
 (in-package :sunrpc)
 
@@ -160,7 +160,7 @@
 	 
 	 (let ((,xdrsym (car (accepted-reply-reply-data-u-results ,thing))))
 	   ,@body)))))
-	 
+
 (defun rpc-send (xdr peer)
   (declare (optimize (speed 3)))
   (let ((sock (rpc-peer-socket peer)))
@@ -168,32 +168,83 @@
      (ecase (rpc-peer-type peer)
        (:stream
 	(let ((sizevec (make-array 1 :element-type '(signed-byte 32)))
-	      (size (xdr-size xdr)))
-	  (declare (dynamic-extent sizevec)
-		   ((integer 0 128000) size))
+ 	      (size (xdr-size xdr)))
+ 	  (declare (dynamic-extent sizevec)
+ 		   ((integer 0 128000) size))
 	  ;; Sets the high bit (which indicates last fragment)
-	  (setf (aref sizevec 0) (+ -2147483648 size))
-	  (write-vector sizevec sock :endian-swap :network-order)
-	  (write-vector (xdr-vec xdr) sock :end size)
-	  (force-output sock)))
+ 	  (setf (aref sizevec 0) (+ -2147483648 size))
+ 	  (write-vector sizevec sock :endian-swap :network-order)
+ 	  (write-vector (xdr-vec xdr) sock :end size)
+ 	  (force-output sock)))
        (:datagram
-	(socket:send-to sock 
-			(xdr-vec xdr) 
-			(xdr-size xdr) 
-			:remote-host (rpc-peer-addr peer)
-			:remote-port (rpc-peer-port peer)))))))
+	(rpc-send-udp xdr peer))))))
+
+;; Convert to a macro?
+(defun rpc-send-udp (xdr peer)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (socket:send-to (rpc-peer-socket peer)
+		  (xdr-vec xdr) 
+		  (xdr-size xdr) 
+		  :remote-host (rpc-peer-addr peer)
+		  :remote-port (rpc-peer-port peer)))
+
+(defun set-fragment-len (vec value)
+  (declare (optimize (speed 3) (safety 0) (debug 0))
+	   (fixnum value)
+	   ((simple-array (unsigned-byte 8) (*)) vec))
+  (setf (aref vec 0) (logior #x80 (ash value -24)))
+  (setf (aref vec 1) (logand #xff (ash value -16)))
+  (setf (aref vec 2) (logand #xff (ash value -8)))
+  (setf (aref vec 3) (logand #xff value)))
+
+;;(setf comp::*hack-compiler-output* '(set-fragment-len-bswap))
+
+#+ignore
+(eval-when (compile)
+  (setq comp::*assemble-function-body*
+    '((set-fragment-len-bswap . "set-fragment-len-bswap.lap"))))
+
+;; This doesn't seem to have a significant effect on Allegro NFS
+;; performance
+(defun set-fragment-len-bswap (vec value)
+  (declare (optimize (speed 3) (safety 0) (debug 0))
+	   ((integer 0 128000) value)
+	   ((simple-array (signed-byte 32) (*)) vec))
+  (setf (aref vec 0) (+ #x-80000000 value))
+  t)
+
+;; Caller has left space at the beginning of xdr's vec for the
+;; fragment size info.
+(defun rpc-send-tcp-x (xdr peer)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (let ((len (xdr-size xdr))
+	(vec (xdr-vec xdr))
+	(sock (rpc-peer-socket peer)))
+    (set-fragment-len vec (- len 4))
+    (write-vector vec sock :end len)
+    (finish-output sock)))
 
 (defmacro with-rpc-reply ((xdr peer xid) &body body)
-  (let ((xdrbuf (gensym)))
+  (let ((xdrbuf (gensym))
+	(tcp (gensym))
+	(xpeer (gensym)))
     `(let* ((,xdrbuf (make-array #.*rpc-buffer-size* 
 				 :element-type '(unsigned-byte 8)))
-	    (,xdr (create-xdr :direction :build :vec ,xdrbuf)))
+	    (,xdr (create-xdr :direction :build :vec ,xdrbuf))
+	    (,xpeer ,peer)
+	    (,tcp (eq (rpc-peer-type ,xpeer) :stream)))
        (declare 
 	(dynamic-extent ,xdrbuf))
+       
+       (if ,tcp
+	   (setf (xdr-pos ,xdr) 4)) ;; leave space for size info
        (xdr-unsigned-int ,xdr ,xid)
        (xdr-int ,xdr #.*reply*)
        ,@body
-       (rpc-send ,xdr ,peer))))
+       
+       (if* ,tcp
+	  then (rpc-send-tcp-x ,xdr ,xpeer)				  
+	  else (rpc-send-udp ,xdr ,xpeer)))))
 
 (defmacro with-accepted-reply ((xdr peer xid verf) &body body)
   `(with-rpc-reply (,xdr ,peer ,xid)

@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.15 2006/08/24 20:50:31 dancy Exp $
+; $Id: nfs.nsi,v 1.16 2007/04/13 23:00:25 dancy Exp $
 
 SetCompressor lzma
 
@@ -229,7 +229,7 @@ Section "${VERBOSE_PROD}"
 
 
 
-  ; See if need to work around DEP
+  ; See if we need to work around DEP
   Push $1
   System::Call "apphelp::ShimFlushCache(i 0, i 0, i 0, i 0) i .r1"
   ; $1 will be "error" if there is no apphelp on this system.

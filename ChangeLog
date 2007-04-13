@@ -1,6 +1,23 @@
 TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	* loadem.cl: remove :nfs-telnet-server from *features*
 
+2007-04-13    <dancy@CANDY2K>
+4.5b11
+	* PERFORMANCE: 
+
+	ipaddr.cl: Enable speed 3 for this file.
+
+	sunrpc-service.cl: Enable speed 3 for this file.
+
+	sunrpc.cl:  Changes so that TCP responses are generated in a single
+	packet (without additional copying) instead of two.  This may help
+	performance on faster networks.
+	
+	* OTHER:
+	
+	nfs.nsi: Fixed typo in comment.
+	
+
 *******************************************************************************
 4.5b10
 *******************************************************************************

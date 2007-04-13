@@ -1,8 +1,11 @@
-;; $Id: sunrpc-service.cl,v 1.8 2007/02/08 23:08:41 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.9 2007/04/13 23:00:25 dancy Exp $
 
 ;; Service stuff
 
 (in-package :sunrpc)
+
+(eval-when (compile)
+  (declaim (optimize (speed 3))))
 
 (defmacro with-portmapper-mappings ((service prog versions udpport tcpport) 
 				    &body body)
