@@ -1,6 +1,10 @@
 TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	* loadem.cl: remove :nfs-telnet-server from *features*
 
+2007-05-02    <layer@HOBART>
+
+	* main.cl: better grammar
+
 2007-05-02    <dancy@CANDY2K>
 4.5b12
 

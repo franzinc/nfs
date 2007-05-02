@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.22 2007/05/02 19:44:08 layer Exp $
+;; $Id: main.cl,v 1.23 2007/05/02 23:13:36 layer Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -57,7 +57,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (setup-logging)
   (logit-stamp "Allegro NFS Server version ~A initializing...~%" 
 	 *nfsd-long-version*)
-  (logit-stamp "Build with Allegro CL ~a~%" (lisp-implementation-version))
+  (logit-stamp "Built with Allegro CL ~a~%" (lisp-implementation-version))
   (check-nfs-already-running)
   (setf *pmap-process* 
     (mp:process-run-function "portmapper" #'portmap:portmapper))
