@@ -1,6 +1,17 @@
 TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	* loadem.cl: remove :nfs-telnet-server from *features*
 
+2007-05-02    <dancy@CANDY2K>
+4.5b12
+
+	* INTEROPERABILITY: nlm.cl: Added NULL procedures for all suppored
+	NLM versions.
+
+	* BUGFIX: openfile.cl: Rewritten so that are no longer separate
+	read/write open file caches (which could sometimes result in a
+	file being opened twice and then one of the instances never
+	closed).  [spr32958]
+	
 2007-04-13    <dancy@CANDY2K>
 4.5b11
 	* PERFORMANCE: 

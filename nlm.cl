@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nlm.cl,v 1.17 2007/02/08 23:08:41 dancy Exp $
+;; $Id: nlm.cl,v 1.18 2007/05/02 19:34:02 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 
@@ -42,6 +42,7 @@
      (1 nlm-sm-notify nlm-sm-status void)
      )
    (1 ;; version
+     (0 nlm-null void void)
      (1 nlm-test nlm-testargs nlm-testres)
      (2 nlm-lock nlm-lockargs nlm-res)
      (3 nlm-cancel nlm-cancargs nlm-res)
@@ -65,12 +66,14 @@
 
    )
    (3 ;; version
+    (0 nlm-null void void)
     ;;(20 nlm-share nlm-shareargs nlm-shareres)
     ;;(21 nlm-unshare nlm-shareargs nlm-shareres)
     (22 nlm-nm-lock nlm-lockargs nlm-res)
     (23 nlm-free-all nlm-notify void)
    )
    (4 ;; version
+     (0 nlm-null void void)
      (1 nlm4-test nlm4-testargs nlm4-testres)
      (2 nlm4-lock nlm4-lockargs nlm4-res)
      (3 nlm4-cancel nlm4-cancargs nlm4-res)
@@ -405,6 +408,15 @@
 
 ;; Procedures
 
+;; NULL
+(defun nlm-null (args vers peer cbody)
+  (declare (ignore args cbody))
+  (if *nlm-debug*
+      (user::logit-stamp "NLM~a: ~a: NULL~%"
+			 (if-nlm-v4 vers "4" "")
+			 (sunrpc:peer-dotted peer)))
+  nil)
+  
 ;; LOCK
 
 (defun nlm4-lock (arg vers peer cbody)

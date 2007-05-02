@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.107 2006/12/20 18:40:21 dancy Exp $
+;; $Id: nfs.cl,v 1.108 2007/05/02 19:34:02 dancy Exp $
 
 (in-package :user)
 
@@ -959,7 +959,7 @@ struct entry {
 	(setf res (logior res #x1 #x2 #x20)))
     (if (nfs-okay-to-write fh cred)
 	(setf res (logior res #x4 #x8 #x10)))
-
+    
     ;; Some clients (Solaris 7 in particular) get upset if we return
     ;; more detailed access information than requested, so use logand
     ;; to only supply the requested bits.
