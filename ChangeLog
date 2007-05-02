@@ -12,6 +12,10 @@ TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	file being opened twice and then one of the instances never
 	closed).  [spr32958]
 	
+2007-05-02    <layer@HOBART>
+
+	* main.cl: announce the ACL build version, too
+
 2007-04-13    <dancy@CANDY2K>
 4.5b11
 	* PERFORMANCE: 
