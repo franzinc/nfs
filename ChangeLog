@@ -3,7 +3,7 @@ TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 
 2007-05-04    <dancy@DANCYSOFT>
 4.5b13
-        Finalized console separation.
+        ENHANCEMENT: Finalized console separation.
 	
 	* nfs.nsi: 
 	  * Use a global mutex so that installer is exclusive across all 
@@ -21,7 +21,7 @@ TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	This will make the product more workable on Windows 2003 Server
 	and Vista.
 
-	* main.cl: Set *global-gc-behavior* to :auto.
+	* POSSIBLE BUFIX: main.cl: Set *global-gc-behavior* to :auto.
 
 	* nfs-shared.cl: Removed logging stuff.  It wasn't supposed to be
 	in this file anyway.
