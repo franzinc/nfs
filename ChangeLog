@@ -1,6 +1,19 @@
 TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	* loadem.cl: remove :nfs-telnet-server from *features*
 
+2007-05-04    <dancy@DANCYSOFT>
+4.5b13
+        Finalized console separation.
+	
+	* nfs.nsi: 
+	  * Use a global mutex so that installer is exclusive across all 
+	    sessions.  
+	  * Install shortcuts into All Users area, not current user.
+	  * Finalized NFS console startup program group entry.
+
+	* nfs-log.cl (added.  missed it last time around): Close the
+	console if the service terminates.
+	
 2007-05-03    <dancy@DANCYSOFT>
         Intermediate commit:
 	

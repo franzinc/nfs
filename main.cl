@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.24 2007/05/04 01:02:30 dancy Exp $
+;; $Id: main.cl,v 1.25 2007/05/04 20:37:15 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -284,3 +284,17 @@ An NFS server is already running on this machine.  Aborting.~%")))
 		      else err))
   (finish-output))
 
+
+;;; XXXX FIXME Temporary until building on 8.1
+;;; use console-control :title then.
+(eval-when (compile load eval)
+  (require :winapi))
+
+(defun get-console-hwnd ()
+  (let ((where (ff:allocate-fobject '(:array :nat 4) :foreign-static-gc)))
+    (win:GetWinMainArgs where)
+    (ff:fslot-value where 3)))
+
+(defun set-window-title (title)
+  (with-native-string (title title)
+    (win:SetWindowText (get-console-hwnd) title)))

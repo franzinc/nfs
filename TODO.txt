@@ -1,8 +1,4 @@
-$Id: TODO.txt,v 1.19 2007/05/04 01:02:30 dancy Exp $
-
-Find out why startup shortcut is not being created.
-Find out how to prevent more than one instance of the console from
-running (mutex?).
+$Id: TODO.txt,v 1.20 2007/05/04 20:37:15 dancy Exp $
 
 nsm: How long do we try sending state-change notifications?
 nsm: How long do we try notify sending callbacks?

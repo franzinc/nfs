@@ -1,7 +1,11 @@
-; $Id: nfs.nsi,v 1.17 2007/05/04 01:02:30 dancy Exp $
+; $Id: nfs.nsi,v 1.18 2007/05/04 20:37:15 dancy Exp $
 
+;; Disable compression when developing (severely speeds up the debug
+;; cycle)
+;;SetCompress off
 SetCompressor lzma
 
+!include WinMessages.nsh
 !include servicelib.nsh
 
 ;------------------------------------------------------------------------------
@@ -79,13 +83,39 @@ Function ${UN}StopAndDeleteService
   Push ""
   Call ${UN}Service
   Pop $0 ;response
-  Sleep 3000 ;; allow time for Windows to let go
+  ;; Allow time for console's to exit, etc.
+  Sleep 5000 
 
 FunctionEnd
 !macroend
 
 !insertmacro StopAndDeleteService ""
 !insertmacro StopAndDeleteService un.
+
+;; Not used anymore, but leaving the code here for
+;; educational purposes.
+!macro StopConsole UN
+Function ${UN}StopConsole
+  ;; This probably won't work for consoles running in other
+  ;; windows stations/desktops.
+
+  FindWindowLoop:
+ 
+  FindWindow $0 "" "Allegro NFS Console"
+  IsWindow $0 0 NoMoreConsoles
+    DetailPrint "Terminating Allegro NFS Console..."
+    SendMessage $0 ${WM_CLOSE} 1 0
+    Sleep 3000 ;; Allow time for it to die
+    Goto FindWindowLoop
+
+  NoMoreConsoles:
+  
+FunctionEnd
+!macroend
+
+!insertmacro StopConsole ""
+!insertmacro StopConsole un.
+
 
 ;------------------------------------------------------------------------------
 
@@ -181,7 +211,7 @@ Function .onInit
      Abort
  IsAdmin:
 
-  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "AllegroNFSInstallMutex") i .r1 ?e'
+  System::Call 'kernel32::CreateMutexA(i 0, i 0, t "Global\AllegroNFSInstallMutex") i .r1 ?e'
   Pop $R0
  
   StrCmp $R0 0 +3
@@ -212,6 +242,10 @@ Section "${VERBOSE_PROD}"
   ; Set output path to the installation directory.
   SetOutPath "$INSTDIR"
 
+  ; Perform all operations within the 'All Users' context.
+  SetShellVarContext all 
+
+  ;;Call StopConsole
   Call StopAndDeleteService
 
 ;;;;;;; now install the files...
@@ -264,6 +298,13 @@ Section "Start Menu Shortcuts"
 
 !define SMDIR "$SMPROGRAMS\${VERBOSE_PROD}"
 
+  SetShellVarContext current
+  ; Delete any old "Allegro NFS Server for Windows" shortcut.
+  Delete "${SMDIR}\Allegro NFS Server for Windows.lnk"
+  ; Delete any old shortcuts that were installed in the current user area
+  RMDir /r "${SMDIR}"  
+  SetShellVarContext all
+
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
   CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" \
@@ -274,8 +315,6 @@ Section "Start Menu Shortcuts"
 		"$INSTDIR\configure\configure.exe"
   CreateShortCut "${SMDIR}\${SHORT_PROD} Console.lnk" \
 		"$INSTDIR\nfs.exe" "/console"
-  ; Delete any old "Allegro NFS Server for Windows" shortcut.
-  Delete "${SMDIR}\Allegro NFS Server for Windows.lnk"
 SectionEnd
 
 Section "Start service after install"
@@ -283,8 +322,7 @@ Section "Start service after install"
 SectionEnd
 
 Section "System tray icon"
-  SetShellVarContext all 
-  CreateShortCut "${SMSTARTUP}\${SHORT_PROD} Console.lnk" \
+  CreateShortCut "$SMSTARTUP\${SHORT_PROD} Console.lnk" \
 		"$INSTDIR\nfs.exe" "/console /quiet"
   Exec '"$INSTDIR\nfs.exe" /console /quiet'
 SectionEnd
@@ -302,7 +340,9 @@ Function un.onUninstSuccess
 FunctionEnd
 
 Section Uninstall
+  SetShellVarContext all 
 
+  ;;Call un.StopConsole
   Call un.StopAndDeleteService
 
   DetailPrint "Removing registry keys..."
@@ -341,4 +381,5 @@ Section Uninstall
   RMDir /r "${SMDIR}"
   RMDir /rebootok "$INSTDIR"
 
+  Delete /rebootok "$SMSTARTUP\${SHORT_PROD} Console.lnk"
 SectionEnd
