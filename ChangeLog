@@ -1,6 +1,28 @@
 TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
 	* loadem.cl: remove :nfs-telnet-server from *features*
 
+2007-05-03    <dancy@DANCYSOFT>
+        Intermediate commit:
+	
+	* First round of changes to separate the service from the console.
+	This will make the product more workable on Windows 2003 Server
+	and Vista.
+
+	* main.cl: Set *global-gc-behavior* to :auto.
+
+	* nfs-shared.cl: Removed logging stuff.  It wasn't supposed to be
+	in this file anyway.
+
+	* nfs-log.cl: New file.  Stuff migrated out from nfs-shared.cl.
+	Plus new stuff for console logging.
+
+	* nfs.cl: Set *global-gc-behavior* to :auto-and-warn if memory
+	debugging option is turned on.  However, this option is pretty
+	useless now since gc messsages won't reach the new console.
+
+	* nfs.nsi: Create Console shortcut and (not working yet) system
+	tray icon option.
+
 2007-05-02    <layer@HOBART>
 
 	* main.cl: better grammar

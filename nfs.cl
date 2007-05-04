@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.108 2007/05/02 19:34:02 dancy Exp $
+;; $Id: nfs.cl,v 1.109 2007/05/04 01:02:30 dancy Exp $
 
 (in-package :user)
 
@@ -59,7 +59,7 @@
 	   then (logit-stamp "~&Turning on memory management debugging.~%")
 		(setf (sys:gsgc-switch :print) t)
 		(setf (sys:gsgc-switch :stats) t)
-		(setq excl:*global-gc-behavior* nil)
+		(setf *global-gc-behavior* :auto-and-warn)
 	   else (setf (sys:gsgc-switch :print) nil))	  
 	  
 	(loop
@@ -109,6 +109,8 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	     ;; secret functions used by the configuration program
 	     (100 (nfsd-get-config-file-path peer xid xdr cbody))
 	     (101 (nfsd-reload-configuration peer xid xdr cbody))
+	     ;; secret function used by the console program
+	     (102 (nfsd-get-console-port peer xid xdr cbody))
 	     (t
 	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
 	      (logit-stamp "NFSv2: ~a: unhandled procedure ~D~%" 
@@ -137,9 +139,6 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	     (19 (nfsd-fsinfo peer xid xdr cbody))
 	     (20 (nfsd-pathconf peer xid xdr cbody))
 	     (21 (nfsd-commit peer xid xdr cbody))
-	     ;; secret functions used by the configuration program
-	     (100 (nfsd-get-config-file-path peer xid xdr cbody))
-	     (101 (nfsd-reload-configuration peer xid xdr cbody))
 	     (t
 	      (sunrpc:send-proc-unavail-reply peer xid sunrpc:*nullverf*)
 	      (logit-stamp "NFSv3: ~a: unhandled procedure ~D~%" 
@@ -1449,3 +1448,14 @@ struct entry {
       (logit-stamp "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)
       (xdr-unsigned-int xdr 1))))
+
+;; Console program interface 
+(defun nfsd-get-console-port (peer xid params cbody)
+  (declare (ignore cbody params))
+  (when (sunrpc:local-peer-p peer)
+    (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
+      (let ((listener *console-listener*))
+	(if* listener
+	   then (xdr-int xdr (socket:local-port listener))
+	   else (xdr-int xdr 0))))))
+

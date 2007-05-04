@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.48 2007/03/12 21:57:35 layer Exp $
+;; $Id: loadem.cl,v 1.49 2007/05/04 01:02:30 dancy Exp $
 
 (in-package :user)
 
@@ -62,6 +62,7 @@
       "locking"
       "nlm"
       "gen-nfs-client"
+      "nfs-log"
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"

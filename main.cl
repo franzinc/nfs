@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.23 2007/05/02 23:13:36 layer Exp $
+;; $Id: main.cl,v 1.24 2007/05/04 01:02:30 dancy Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -108,13 +108,14 @@ An NFS server is already running on this machine.  Aborting.~%")))
 (defvar *service-name* "nfs")
 
 (defun main (&rest args)
+  (setf *global-gc-behavior* :auto)
+  
   (flet ((tnserver ()
 	   #+nfs-telnet-server
 	   (progn
 	     (logit-stamp "Starting telnet server on port 1234~%")
 	     (start-telnet-server :port 1234))))
     (let ((exepath (if (first args) (first args) "nfs.exe"))
-	  (*global-gc-behavior* nil)
 	  quiet)
       (setf *configfile* (merge-pathnames "nfs.cfg" exepath))
       (pop args) ;; program name
@@ -136,6 +137,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	 ((string= arg "/stop")
 	  (stop-service))
 	 ((string= arg "/service")
+	  (setf *program-mode* :service)	  
 	  (read-nfs-cfg *configfile*)
 	  (tnserver)
 	  (ntservice:execute-service *service-name*
@@ -144,6 +146,8 @@ An NFS server is already running on this machine.  Aborting.~%")))
 				     :stop #'stopem)
 	  ;; just in case
 	  (exit 0))
+	 ((string= arg "/console")
+	  (console quiet))
 	 (t
 	  (logit "Ignoring unrecognized command line argument: ~A~%" arg))))
     
@@ -157,13 +161,93 @@ An NFS server is already running on this machine.  Aborting.~%")))
       (tnserver)
       (mainloop))))
 
+;; XXXX FIXME XXXXX
+;; Temporary until the function is updated in the Allegro NFS build
+;; lisp.
+
+(in-package :ntservice)
+
+(eval-when (compile eval)
+(defconstant STANDARD_RIGHTS_REQUIRED #x000F0000)
+
+(defconstant SC_MANAGER_CONNECT             #x0001)
+(defconstant SC_MANAGER_CREATE_SERVICE      #x0002)
+(defconstant SC_MANAGER_ENUMERATE_SERVICE   #x0004)
+(defconstant SC_MANAGER_LOCK                #x0008)
+(defconstant SC_MANAGER_QUERY_LOCK_STATUS   #x0010)
+(defconstant SC_MANAGER_MODIFY_BOOT_CONFIG  #x0020)
+
+(defconstant SC_MANAGER_ALL_ACCESS
+    (logior STANDARD_RIGHTS_REQUIRED
+            SC_MANAGER_CONNECT
+            SC_MANAGER_CREATE_SERVICE
+            SC_MANAGER_ENUMERATE_SERVICE
+            SC_MANAGER_LOCK
+            SC_MANAGER_QUERY_LOCK_STATUS
+            SC_MANAGER_MODIFY_BOOT_CONFIG))
+
+(defconstant SERVICE_WIN32_OWN_PROCESS      #x00000010)
+(defconstant SERVICE_WIN32_SHARE_PROCESS    #x00000020)
+(defconstant SERVICE_WIN32
+    (logior SERVICE_WIN32_OWN_PROCESS SERVICE_WIN32_SHARE_PROCESS))
+(defconstant SERVICE_INTERACTIVE_PROCESS    #x00000100)
+
+
+(defconstant SERVICE_BOOT_START             #x00000000)
+(defconstant SERVICE_SYSTEM_START           #x00000001)
+(defconstant SERVICE_AUTO_START             #x00000002)
+(defconstant SERVICE_DEMAND_START           #x00000003)
+(defconstant SERVICE_DISABLED               #x00000004)
+
+(defconstant SERVICE_ERROR_IGNORE           #x00000000)
+(defconstant SERVICE_ERROR_NORMAL           #x00000001)
+(defconstant SERVICE_ERROR_SEVERE           #x00000002)
+(defconstant SERVICE_ERROR_CRITICAL         #x00000003)
+
+
+)
+
+(defun create-service (name displaystring cmdline
+                       &key (start :manual)
+                            (interact-with-desktop t)			
+                            (username 0) ;; LocalSystem        
+                            (password ""))
+  (with-sc-manager (schandle nil nil #.SC_MANAGER_ALL_ACCESS)
+    (multiple-value-bind (res err)
+        (CreateService
+         schandle
+         name
+         displaystring
+         STANDARD_RIGHTS_REQUIRED
+         (logior #.SERVICE_WIN32_OWN_PROCESS
+                 (if interact-with-desktop #.SERVICE_INTERACTIVE_PROCESS 0))
+         (case start
+           (:auto #.SERVICE_AUTO_START)
+           (:manual #.SERVICE_DEMAND_START)
+           (t (error "create-service: Unrecognized start type: ~S" start)))
+         #.SERVICE_ERROR_NORMAL
+         cmdline
+         0 ;; no load order group
+         0 ;; no tag identifier
+         0 ;; no dependencies
+         username
+         password)
+      (if (/= res 0)
+          (CloseServiceHandle res))
+      (if (zerop res)
+          (values nil err)
+        (values t res)))))
+
+(in-package :user)
+
 (defun create-service (path)
   (multiple-value-bind (success code)
       (ntservice:create-service
        *service-name* 
-       "NFS Server" 
+       "Allegro NFS Server" 
        (format nil "~A /service" path)
-       :start :auto)
+       :start :auto
+       :interact-with-desktop nil)
     (if* success
        then (format t "NFS service successfully installed.~%")
        else (format t "NFS service installation failed: ~A"

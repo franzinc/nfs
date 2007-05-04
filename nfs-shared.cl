@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: nfs-shared.cl,v 1.6 2006/09/13 15:53:38 dancy Exp $
+;; $Id: nfs-shared.cl,v 1.7 2007/05/04 01:02:30 dancy Exp $
 
 ;; This file contains stuff that is shared between the nfs server code
 ;; and the configuration app code.
@@ -63,47 +63,4 @@
 	       (cdr x)
 	       (car x)
 	       val)))))
-
-(defvar *log-stream* nil)
-
-(defun logit (format-string &rest format-args)
-  (when *log-stream*
-    (apply #'format *log-stream* format-string format-args)
-    (force-output *log-stream*)))
-
-(defun logit-stamp (format-string &rest format-args)
-  (when *log-stream*
-    (multiple-value-bind (sec min hour day month year)
-	(get-decoded-time)
-      (format *log-stream* "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d| " 
-	      year month day hour min sec))
-    (apply #'logit format-string format-args)))
-
-(defvar *nfs-debug-stream* nil)
-
-(eval-when (compile eval load)
-  (require :streamc) ;; for make-broadcast-stream
-  )
-
-(defvar *log-file* "sys:nfsdebug.txt")
-
-(defun setup-logging (&optional reopen)
-  (declare (special *nfs-debug*))
-  (when reopen
-    (when *nfs-debug-stream* (close *nfs-debug-stream*))
-    (setq *log-stream* nil))
-  
-  (when (null *log-stream*)
-    (setq *log-stream* *initial-terminal-io*)
-    (setq *nfs-debug-stream*
-      (open *log-file* :direction :output :if-exists :append
-	    :if-does-not-exist :create))
-    (setq *log-stream*
-      (make-broadcast-stream *log-stream* *nfs-debug-stream*))
-    (logit-stamp "Log file: ~a~%"
-		 (translate-logical-pathname (pathname *log-file*)))))
-
-
-
-
 
