@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.18 2007/05/04 20:37:15 dancy Exp $
+; $Id: nfs.nsi,v 1.19 2007/05/08 14:12:48 dancy Exp $
 
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
@@ -299,18 +299,18 @@ Section "Start Menu Shortcuts"
 !define SMDIR "$SMPROGRAMS\${VERBOSE_PROD}"
 
   SetShellVarContext current
-  ; Delete any old "Allegro NFS Server for Windows" shortcut.
-  Delete "${SMDIR}\Allegro NFS Server for Windows.lnk"
   ; Delete any old shortcuts that were installed in the current user area
   RMDir /r "${SMDIR}"  
   SetShellVarContext all
 
+  ; Start with a clean state
+  RMDir /r "${SMDIR}"
+	
   CreateDirectory "${SMDIR}"
   CreateShortCut "${SMDIR}\Uninstall.lnk" "$INSTDIR\uninstall.exe"
-  CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" \
-                                                   "start nfs"
-  CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "%windir%\system32\net.exe" \
-                                                   "stop nfs"
+  ;; These don't work on Vista.  They're not really necessary anyway.
+  ;;CreateShortCut "${SMDIR}\Start NFS Service.lnk" "%windir%\system32\net.exe" "start nfs"
+  ;;CreateShortCut "${SMDIR}\Stop NFS Service.lnk" "%windir%\system32\net.exe" "stop nfs"
   CreateShortCut "${SMDIR}\Configure ${VERBOSE_PROD}.lnk" \
 		"$INSTDIR\configure\configure.exe"
   CreateShortCut "${SMDIR}\${SHORT_PROD} Console.lnk" \
