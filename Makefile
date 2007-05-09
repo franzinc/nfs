@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.58 2007/01/25 22:22:06 layer Exp $
+# $Id: Makefile,v 1.59 2007/05/09 22:12:08 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -13,6 +13,7 @@ endif
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
+
 version = $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
 default: build
@@ -183,3 +184,4 @@ clean: FORCE
 	$(MAKE) -C configure clean
 
 FORCE:
+

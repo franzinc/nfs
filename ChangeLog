@@ -1,4 +1,12 @@
 2007-05-09    <dancy@CANDY2K>
+4.5b15  
+	* configure/configure.exe.manifest: New.  Manifest file to make
+	sure that the configure program runs w/ admin privs on Vista.
+
+	* ENHANCEMENT:  Windows Vista Support
+	configure/Makefile: Use mt.exe (from platform SDK) to embed the
+	configure.exe.manifest file into the configure.exe file.
+	
 4.5b14
 	* loadem.cl: Removed :nfs-telnet-server from *features*.
 
