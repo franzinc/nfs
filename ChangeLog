@@ -1,5 +1,10 @@
 2007-05-09    <dancy@CANDY2K>
 4.5b15  
+
+	* configure.cl (read-nfs-cfg): Don't call setup-logging from
+	within this function.  Logging is independent of the nfs
+	configuration.
+	
 	* configure/configure.exe.manifest: New.  Manifest file to make
 	sure that the configure program runs w/ admin privs on Vista.
 
