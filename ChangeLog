@@ -1,5 +1,6 @@
-TODO BEFORE RELEASE (PLEASE LEAVE THIS AT TOP OF FILE)
-	* loadem.cl: remove :nfs-telnet-server from *features*
+2007-05-09    <dancy@CANDY2K>
+4.5b14
+	* loadem.cl: Removed :nfs-telnet-server from *features*.
 
 2007-05-04    <dancy@DANCYSOFT>
 4.5b13
