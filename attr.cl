@@ -43,19 +43,24 @@
      *NFREG*)))
 
 (defun nfs-attr (fh)
-  (let ((s (stat (fh-pathname fh)))
-	(blocksize 512))
+  (declare (optimize (speed 3)))
+  (let* ((s (stat (fh-pathname fh)))
+	 (mode (stat-mode s))
+	 (type (stat-mode-to-type mode))
+	 (size (if* (eq type *NFDIR*)
+		  then 512 
+		  else (stat-size s))))
     (make-nfs-attr
-     :type (stat-mode-to-type (stat-mode s))
-     :mode (stat-mode s)
+     :type type
+     :mode mode
      :nlinks (let ((nlink (stat-nlink s)))
-	       (if (= nlink 0) 1 nlink))
+	       (if (eq nlink 0) 1 nlink))
      :uid (stat-uid s)
      :gid (stat-gid s)
-     :size (stat-size s)
-     :blocksize blocksize
-     :used (stat-size s)
-     :blocks (howmany (stat-size s) blocksize)
+     :size size
+     :blocksize 512
+     :used size
+     :blocks (howmany size 512)
      :fsid (nfs-export-id (fh-export fh))
      :fileid (fh-id fh)
      :atime (stat-atime s)

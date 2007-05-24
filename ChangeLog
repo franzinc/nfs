@@ -1,3 +1,9 @@
+2007-05-24    <dancy@CANDY2K>
+4.5b16
+	* INTEROPERABILITY: spr33048.  attr.cl: Report directory sizes as
+	512 bytes instead of the 0 bytes that 'stat' returns.  This makes
+	AIX clients happier.  
+
 2007-05-09    <dancy@CANDY2K>
 4.5b15  
 
