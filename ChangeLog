@@ -1,5 +1,5 @@
 2007-06-06    <dancy@CANDY2K>
-4.5b16
+4.5b17
 	
 	* BUGFIX: attr.cl: nfs-attr-blocks and nfs-attr-used sometimes weren't being updated (minor impact, however).
 
