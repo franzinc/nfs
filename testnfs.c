@@ -1,5 +1,5 @@
 /* -*- mode: c-mode; c-basic-offset: 4; -*- */
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.7 2007/06/06 19:13:37 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.8 2007/06/06 19:19:06 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -421,9 +421,10 @@ void test_rename(char *workdir) {
 
 void test_readdir(char *workdir) {
     int i, fd, direntnum;
-    char filename[1024], seen[testfiles];
+    char filename[1024];
     DIR *dirp;
     struct dirent *de;
+    char *seen=malloc(testfiles);
 	
     printf("Making a bunch of directory entries...\n");
     /* make a bunch of test files */
@@ -486,6 +487,8 @@ void test_readdir(char *workdir) {
 	    exit(1);
 	}
     }
+
+    free(seen);
 	
 }
 
