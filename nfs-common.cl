@@ -6,10 +6,11 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.5b16")
+(defvar *nfsd-version* "4.5b17")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
+;; Filesystem allocation unit size.  Only used by statfs procedure.
 (defconstant *blocksize* 8192)
 
 (defparameter *nfs-debug* nil)

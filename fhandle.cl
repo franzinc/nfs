@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.24 2006/12/19 17:26:01 dancy Exp $
+;; $Id: fhandle.cl,v 1.25 2007/06/06 19:27:05 dancy Exp $
 
 ;; file handle stuff
 
@@ -51,12 +51,29 @@
 (defstruct fh
   pathname
   id
-  (refs 0)
+  (refs 0 :type fixnum)
   export
   parent ;; nil if root
   children ;; hash of basenames of directory children. values are fh's
   verifier ;; used by create call w/ exclusive mode.
   alternate-pathnames) ;; for files with known hard links
+
+(defmethod print-object ((fh fh) stream)
+  (format stream "#<fh ~d=~a~a~a>" 
+	  (fh-id fh) 
+	  (fh-pathname fh)
+	  (if (fh-alternate-pathnames fh)
+	      (format nil " (aka ~s)" (fh-alternate-pathnames fh))
+	    "")
+	  (if (fh-children fh)
+	      (format nil " (children: ~a)" 
+		      (let (res)
+			(maphash #'(lambda (k v)
+				     (declare (ignore v))
+				     (push k res))
+				 (fh-children fh))
+			res))
+	    "")))
 
 (defun add-filename-to-dirname (dir filename)
   (if (char= (schar dir (1- (length dir))) #\\)
@@ -150,91 +167,199 @@
       ;; See if an entry exists.
       (when (fh-children dirfh)
 	(let ((fh (gethash filename (fh-children dirfh))))
-	  (if fh
-	      (return fh))))
+	  (when fh
+	    #+ignore
+	    (format t "lookup-fh-in-dir(~a,~a) returning existing ~a~%" 
+		    dirfh filename fh)
+	    (return fh))))
       
       ;; no hash table or no entry
-      (if (not create)
-	  (return nil))
+      (when (not create)
+	#+ignore
+	(format t "lookup-fh-in-dir(~a,~a) returning nil~%"
+		dirfh filename)
+	(return nil))
       
       ;; Create a fresh entry
+      #+ignore
+      (format t "lookup-fh-in-dir(~a,~a) making new fh.~%"
+	      dirfh filename)
       (insert-fhandle (make-fhandle dirfh filename) filename))))
 
 ;; To be used with file deletion (or deletion as a side effect
 ;; of renaming onto an existing file).
+;; Called by: nfsd-rename, nfsd-remove, nfsd-rmdir, nfs-probe-file,
+;; with-potential-fhandle
 (defun remove-fhandle (fh filename)
+  (declare (optimize (speed 3)))
   (without-interrupts
-    (if (= (decf (fh-refs fh)) 0)
+    (if (zerop (setf (fh-refs fh) (the fixnum (1- (fh-refs fh)))))
 	(remhash (fh-id fh) *fhandles*))
-    ;; Remove any matching alternate pathname
-    (update-alternate-pathnames 
-     fh :remove (add-filename-to-dirname (fh-pathname (fh-parent fh)) filename))
-				
+    
+    (update-alternate-pathnames fh :remove filename)
+    
     ;; remove entry from parent directory.
     (let ((parent (fh-parent fh)))
       (if (null parent)
 	  (error "remove-fhandle: ~S has no parent" fh))
       (remhash filename (fh-children parent)))))
 
+;; Called by:
+;; remove-fhandle, rename-fhandle, nfsd-link
 (defun update-alternate-pathnames (fh op altname)
   (ecase op
     (:add 
      (push altname (fh-alternate-pathnames fh)))
     (:remove
-     (when (fh-alternate-pathnames fh)
-       (if* (equalp altname (fh-pathname fh))
-	  then (setf (fh-pathname fh) (pop (fh-alternate-pathnames fh)))
-	  else (setf (fh-alternate-pathnames fh)
-		 (delete altname (fh-alternate-pathnames fh) :test #'equalp)))))))
+     (if* (equalp (fh-pathname fh) (add-filename-to-dirname (fh-pathname (fh-parent fh)) altname))
+	then (let ((nextup (pop (fh-alternate-pathnames fh))))
+	       (when nextup
+		 (setf (fh-pathname fh) 
+		   (add-filename-to-dirname (fh-pathname (fh-parent fh))
+					    nextup))))
+	else (setf (fh-alternate-pathnames fh)
+	       (delete altname (fh-alternate-pathnames fh) :test #'equalp))
+	     t))))
 
-;; Caller is expected to remove prior todir/tofilename beforehand.
-;; This function updates the pathname slot of the fhandle (and updates
-;; children recursively, so this can be expensive for directories).
+;; Caller is expected to remove any existing todir/tofilename
+;; beforehand.  This function updates the pathname slot of the fhandle
+;; (and updates children recursively, so this can be expensive for
+;; directories).  
 (defun rename-fhandle (fh fromfilename todir tofilename)
+  #+ignore
+  (format t "rename-fhandle(~a, ~a, ~a, ~a)~%" 
+	  fh fromfilename todir tofilename)
   (without-interrupts
-    ;; remove from current parent.
-    (let ((parent (fh-parent fh)))
-      (if (null parent)
+    (let ((oldparent (fh-parent fh))
+	  oldpath)
+      (if (null oldparent)
 	  (error "rename-fhandle: ~S has no parent" fh))
-      (remhash fromfilename (fh-children parent)))
-    ;; update our parent slot
-    (setf (fh-parent fh) todir)
-    ;; add to destination parent.
-    (insert-fhandle fh tofilename)
-    
-    ;; FIXME:  This doesn't check for hard links that may have been
-    ;; moved to another directory (which will break things).
-    (when (fh-alternate-pathnames fh)
-      (update-alternate-pathnames 
-       fh :remove (add-filename-to-dirname (fh-pathname (fh-parent fh))
-					   fromfilename))
-      (update-alternate-pathnames 
-       fh :add (add-filename-to-dirname (fh-pathname todir) tofilename))
       
-      (return-from rename-fhandle))
-
-    ;; change pathname of this node and its children and subchildren
-    (update-fhandle-pathname fh (fh-pathname todir) tofilename
-			     (add-filename-to-dirname (fh-pathname (fh-parent fh))
-						      fromfilename))))
-    
+      (setf oldpath 
+	(add-filename-to-dirname (fh-pathname oldparent) fromfilename))
+      
+      ;; Remove from current parent
+      (remhash fromfilename (fh-children oldparent))
+      
+      ;; update our parent slot
+      (setf (fh-parent fh) todir)
+      ;; add to destination parent.
+      (insert-fhandle fh tofilename)
+      
+      ;; FIXME:  This doesn't check for hard links that may have been
+      ;; moved to another directory (which will break things).  The whole 
+      ;; file handle mechanism needs to be redone to handle them properly.
+      ;; see the TODO file. 
+      (update-fhandle-pathname fh (fh-pathname todir) tofilename oldpath
+			       fromfilename))))
+			       
+  
 ;; parentname is the updated directory name.
 ;; yourname is the new basename
-(defun update-fhandle-pathname (fh parentname yourname oldpath)
+(defun update-fhandle-pathname (fh parentname yourname oldpath oldbasename)
   (let ((newname (add-filename-to-dirname parentname yourname)))
     (if* (equalp (fh-pathname fh) oldpath)
-       then (setf (fh-pathname fh) newname)
-       else (setf (fh-alternate-pathnames fh) 
-	      (nsubstitute newname oldpath (fh-alternate-pathnames fh) 
-			   :test #'equalp)))
+       then ;; We're changing the primary name.
+	    (setf (fh-pathname fh) newname)
+       else ;; Update one of the alternate names.
+	    (setf (fh-alternate-pathnames fh)
+	      (nsubstitute yourname oldbasename (fh-alternate-pathnames fh)
+			   :count 1 :test #'string=)))
+
     (if (fh-children fh)
 	(maphash 
 	 #'(lambda (childname childfh)
 	     (update-fhandle-pathname 
 	      childfh newname childname
-	      (add-filename-to-dirname oldpath childname)))
+	      (add-filename-to-dirname oldpath childname)
+	      childname))
 	 (fh-children fh)))))
-	    
+
+;; debugging
+
+#+ignore
+(defun dump-fhandles ()
+  (maphash 
+   #'(lambda (id fh)
+       (format t "~a (#x~x)-> ~a" id id (fh-pathname fh))
+       (if (fh-alternate-pathnames fh)
+	   (format t " AKA: ~a" (fh-alternate-pathnames fh)))
+       (terpri))
+   *fhandles*))
+
+#+ignore
+(defun test ()
+  (let ((*fhandles* (make-hash-table)))
+    (let* ((topdir (make-fhandle nil "x:\\topdir" :root-export t))
+	   (subdir (lookup-fh-in-dir topdir "subdir" :create t))
+	   (inner (lookup-fh-in-dir subdir "inner" :create t))
+	   (file1 (lookup-fh-in-dir topdir "testfile" :create t))
+	   primary)
+      (rename-fhandle file1 "testfile" subdir "testfile")
+      (if (string/= "x:\\topdir\\subdir\\testfile" (fh-pathname file1))
+	  (error "rename-fhandle did not set fh-pathname properly"))
+      (rename-fhandle file1 "testfile" topdir "newname")
+      (if (string/= "x:\\topdir\\newname" (fh-pathname file1))
+	  (error "rename-fhandle did not set fh-pathname properly"))
+      (rename-fhandle file1 "newname" topdir "testfile")
+      (if (string/= "x:\\topdir\\testfile" (fh-pathname file1))
+	  (error "rename-fhandle did not set fh-pathname properly"))
+      
+      (flet ((link (fh name)
+	       (update-alternate-pathnames fh :add name)
+	       (link-fh-in-dir fh (fh-parent fh) name))
+	     (unlink (fh name)
+	       (remove-fhandle fh name)))
+	
+	;; Hard link tests.
+	(link file1 "link")
+	(if (not (equalp '("link")  
+			 (fh-alternate-pathnames file1)))
+	    (error "fh-alternate-pathnames not updated as expected 1"))
+	(unlink file1 "link")
+	(if (not (null (fh-alternate-pathnames file1)))
+	    (error "fh-alternate-pathnames not updated as expected 2"))
+	(link file1 "link")
+	;; Remove the original link
+	(unlink file1 "testfile")
+	(if (string/= "x:\\topdir\\link" (fh-pathname file1))
+	    (error "fh-pathname not updated properly"))
+	(if (not (null (fh-alternate-pathnames file1)))
+	    (error "fh-alternate-pathnames not updated properly."))
+	(link file1 "testfile")
+	(unlink file1 "link")
+	
+	;; Try renaming a hard link
+	(link file1 "link")
+	(if (not (equalp '("link")  
+			 (fh-alternate-pathnames file1)))
+	    (error "fh-alternate-pathnames not updated as expected 1"))
+	(rename-fhandle file1 "link" (fh-parent file1) "renamedlink")
+	(if (not (string= "x:\\topdir\\testfile" (fh-pathname file1)))
+	    (error "renaming a hard link caused fh-pathname to change"))
+	(if (not (equalp '("renamedlink")
+			 (fh-alternate-pathnames file1)))
+	    (error "fh-alternate-pathnames not updates as expected 2"))
+	(unlink file1 "renamedlink")
+	
+	;; Populate a tree w/ a file and some hard links
+	(setf primary (lookup-fh-in-dir inner "primary" :create t))
+	(dotimes (n 3)
+	  (link primary (format nil "link~a" n)))
+	
+	(rename-fhandle subdir "subdir" topdir "xdir")
+	(if (string/= (fh-pathname subdir) "x:\\topdir\\xdir")
+	    (error "dir rename broken 1"))
+	(if (string/= (fh-pathname inner) "x:\\topdir\\xdir\\inner")
+	    (error "dir rename broken 2"))
+	(if (string/= (fh-pathname primary) "x:\\topdir\\xdir\\inner\\primary")
+	    (error "dir rename broken 3"))
+	
+	(remove-fhandle primary "primary")
+	
+	(dump-fhandles)))))
+      
+
 ;; If body runs to completion, the filehandle will be saved,
 ;; otherwise, it will be removed.
 (defmacro with-potential-fhandle ((fhvar dirfh filename &key allow-dotnames) 
@@ -267,19 +392,6 @@
   (let ((fh (get-export-fhandle exp)))
     (invalidate-fhandles fh)
     (remhash (nfs-export-path exp) *export-roots*)))
-
-;; debugging
-
-#+ignore
-(defun dump-fhandles ()
-  (maphash 
-   #'(lambda (id fh)
-       (format t "~a (#x~x)-> ~a" id id (fh-pathname fh))
-       (if (fh-alternate-pathnames fh)
-	   (format t " AKA: ~a" (fh-alternate-pathnames fh)))
-       (terpri))
-   *fhandles*))
-	       
 
 ;; XDR
 

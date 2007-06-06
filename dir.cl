@@ -30,10 +30,12 @@
     (push ".." res)
     (push "." res)))
 
-(defun nfs-lookup-dir (fh)
+(defun nfs-lookup-dir (fh create)
   (mp:with-process-lock (*nfs-dircachelock*)
     (let ((dc (gethash fh *nfs-dircache*)))
       (when (null dc)
+	(if (not create)
+	    (return-from nfs-lookup-dir))
 	(let ((path (fh-pathname fh)))
 	  #+ignore(format t "Refreshing dircache for ~A~%" path)
 	  (setf dc (make-dircache :entries (augmented-directory path)
@@ -42,14 +44,15 @@
       (setf (dircache-lastaccess dc) (get-universal-time))
       (values (dircache-entries dc) dc))))
 
+;; Called by link, rename, mkdir, create(3) procs.
 ;;; doesn't add duplicates
 (defun nfs-add-file-to-dir (file dirfh)
   (sanity-check-filename file)
   (mp:with-process-lock (*nfs-dircachelock*)
     (multiple-value-bind (entries dc)
-	(nfs-lookup-dir dirfh)
+	(nfs-lookup-dir dirfh nil)
       ;; Don't add duplicates
-      (when (not (member file entries :test #'equalp))
+      (when (and dc (not (member file entries :test #'equalp)))
 	;; see if there's a blank entry we can replace
 	(let ((pos (position nil entries)))
 	  (when pos
@@ -61,15 +64,16 @@
 	(setf (dircache-entries dc)
 	  (append entries (list file)))))))
 
+;; Called by rename, rmdir, and remove procs.
 (defun nfs-remove-file-from-dir (file dirfh)
   (sanity-check-filename file)
   (mp:with-process-lock (*nfs-dircachelock*)
-    (let* ((entries (nfs-lookup-dir dirfh))
-	   (pos (position file entries :test #'equalp)))
-      (when pos
-	(setf (nth pos entries) nil)))))
-	
-
+    (multiple-value-bind (entries dc)
+	(nfs-lookup-dir dirfh nil)
+      (when dc
+	(let ((pos (position file entries :test #'equalp)))
+	  (when pos
+	    (setf (nth pos entries) nil)))))))
 
 ;; cache control
 (defun dircache-reaper ()

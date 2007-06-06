@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.27 2006/08/23 23:51:21 dancy Exp $
+;; $Id: xdr.cl,v 1.28 2007/06/06 19:27:05 dancy Exp $
 
 (defpackage :xdr
   (:use :lisp :excl)
@@ -79,6 +79,11 @@
   (size 0 :type fixnum)
   direction
   (pos 0 :type fixnum)) ;; current position in vec (extracting and building)
+
+(defmethod print-object ((xdr xdr) stream)
+  (format stream "#<xdr for ~a, veclen=~d, size=~d, pos=~d>"
+	  (xdr-direction xdr) (length (xdr-vec xdr)) 
+	  (xdr-size xdr) (xdr-pos xdr)))
 
 ;; This is also the amount to expand by when expansion of the internal
 ;; vector is required

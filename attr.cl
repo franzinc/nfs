@@ -155,13 +155,16 @@
       (sys-futime (excl.osi::stream-to-fd stream) 0))
   (let ((attr (update-atime-and-mtime fh))
 	(pos (file-position stream)))
-    (if (> pos (nfs-attr-size attr))
-	(setf (nfs-attr-size attr) pos))))
+    (when (> pos (nfs-attr-size attr))
+      (setf (nfs-attr-size attr) pos)
+      (setf (nfs-attr-used attr) pos)
+      (setf (nfs-attr-blocks attr) (howmany pos 512)))))
 
 (defun set-cached-file-size (fh size)
   (let ((attr (lookup-attr fh)))
     (setf (nfs-attr-size attr) size)
     (setf (nfs-attr-used attr) size)
+    (setf (nfs-attr-blocks attr) (howmany size 512))
     (setf (nfs-attr-ctime attr) (get-universal-time))
     size))
 

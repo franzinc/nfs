@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.109 2007/05/04 01:02:30 dancy Exp $
+;; $Id: nfs.cl,v 1.110 2007/06/06 19:27:05 dancy Exp $
 
 (in-package :user)
 
@@ -782,7 +782,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 (defun add-direntries (xdr dirfh dirmax max startindex vers verf plus)
   (multiple-value-bind (dirlist dc)
-      (nfs-lookup-dir dirfh)
+      (nfs-lookup-dir dirfh t)
     (let ((index startindex)
 	  (totalbytesadded 8)
 	  (dirbytesadded 0)
@@ -1100,7 +1100,7 @@ struct entry {
 		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
 		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
 	      (link (fh-pathname fh) newpath)
-	      (update-alternate-pathnames fh :add newpath)
+	      (update-alternate-pathnames fh :add destfilename)
 	      (link-fh-in-dir fh destdirfh destfilename)
 	      (update-atime-and-mtime destdirfh)
 	      (nfs-add-file-to-dir destfilename destdirfh)
@@ -1311,7 +1311,8 @@ struct entry {
 		 ;; Use name provided by client (in case of hard link)
 		 (from (add-filename-to-dirname (fh-pathname fromdirfh)
 						fromfilename))
-		 (tofh (lookup-fh-in-dir todirfh tofilename :create t))
+		 ;; See if the destination already exists.
+		 (tofh (lookup-fh-in-dir todirfh tofilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (to (add-filename-to-dirname (fh-pathname todirfh)
 					      tofilename)))
@@ -1319,16 +1320,27 @@ struct entry {
 		  (eq (close-open-file fromfh :check-refcount t) :still-open)
 		  (eq (close-open-file tofh :check-refcount t) :still-open))
 	       then (xdr-int *nfsdxdr* #.*nfserr-perm*)
-	       else ;;(format t "my-rename ~a -> ~a~%" from to)
+	       else #+ignore
+		    (format t "~%rename ~a~%" fromfh)
+		    ;; This will auto-delete any existing destination
+		    ;; file.
 		    (my-rename from to)
-		    (remove-fhandle tofh tofilename)
+		    ;; If there was an existing destination file, remove
+		    ;; its file handle information.
+		    (when tofh
+		      (remove-fhandle tofh tofilename)
+		      (uncache-attr tofh))		      
 		    (rename-fhandle fromfh fromfilename todirfh tofilename)
 		    (uncache-attr fromfh)
-		    (uncache-attr tofh)
 		    (update-atime-and-mtime fromdirfh)
 		    (update-atime-and-mtime todirfh)
+		    ;; Update dir caches, if they're in use.
 		    (nfs-remove-file-from-dir fromfilename fromdirfh)
 		    (nfs-add-file-to-dir tofilename todirfh)
+		    
+		    #+ignore
+		    (format t "after rename: ~s~%" fromfh)
+		    
 		    (xdr-int *nfsdxdr* #.*nfs-ok*))
 	    (when (= vers 3)
 	      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs-from fromdirfh)
