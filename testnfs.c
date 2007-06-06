@@ -1,5 +1,5 @@
 /* -*- mode: c-mode; c-basic-offset: 4; -*- */
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.8 2007/06/06 19:19:06 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.9 2007/06/06 19:24:48 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -685,11 +685,13 @@ void usage(char *prg) {
 int main(int argc, char **argv) {
     char workdir[1024];
     char workdirbasename[1024];
-    char *nfsdir, *nfshost, *hosttemp=DEFAULT_HOSTTEMP, c;
+    char *nfsdir, *nfshost, *hosttemp=DEFAULT_HOSTTEMP;
+    int c;
     int skipread=0, skipwrite=0, skipdir=0;
 
     while (1) {
 	c=getopt(argc, argv, "o:t:l:f:c:");
+	printf("c is %d\n", c);
 	if (c == -1)
 	    break;
 
