@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.59 2007/05/09 22:12:08 dancy Exp $
+# $Id: Makefile,v 1.60 2007/06/06 19:15:04 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -147,7 +147,7 @@ install: FORCE
 ###############################################################################
 # testing
 
-HAMMERNFS_LIBS := $(shell uname | grep -q CYGWIN && echo -lrpc)
+HAMMERNFS_LIBS = $(shell uname | grep -q CYGWIN && echo -lrpc)
 
 hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c hammernfs-libs/nfs_clnt.c
 	cc -O -o hammernfs \
