@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.60 2007/06/06 19:15:04 dancy Exp $
+# $Id: Makefile,v 1.60.2.1 2007/06/14 21:45:00 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -102,11 +102,11 @@ dist-demo: build-demo installer-demo
 demo-dist: dist-demo
 
 update_cobweb: FORCE
-	scp -p dists/setup-nfs-3.0.exe \
+	scp -p dists/setup-nfs-4.5.exe \
 	       layer@cobweb:/www/nfsforwindows/prod/downloadables
 
 update_demo_cobweb: FORCE
-	scp -p dists/setup-nfs-3.0-demo.exe \
+	scp -p dists/setup-nfs-4.5-demo.exe \
 	       layer@cobweb:/www/nfsforwindows/prod/downloadables
 
 ## the following rule is run nightly on hobart to produce a new demo
