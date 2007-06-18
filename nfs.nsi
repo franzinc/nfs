@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.19 2007/05/08 14:12:48 dancy Exp $
+; $Id: nfs.nsi,v 1.19.2.1 2007/06/18 17:01:05 dancy Exp $
 
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
@@ -219,6 +219,19 @@ Function .onInit
     Abort
 
 FunctionEnd
+
+Function un.onInit
+  Call IsUserAdmin
+  Pop $R0   ; at this point $R0 is "true" or "false"
+  StrCmp $R0 "false" 0 IsAdmin
+     MessageBox MB_OK \
+        'You must be a member of the Administrators group to uninstall.'
+     Abort
+ IsAdmin:
+
+FunctionEnd
+
+
 
 ;--------------------------------
 

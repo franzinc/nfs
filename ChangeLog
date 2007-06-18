@@ -1,7 +1,11 @@
 *******************************************************************************
 4.5 release
 *******************************************************************************
+2007-06-18    <dancy@CANDY2K>
 
+	* nfs.nsi: Added un.onInit callback function to make sure
+	uninstallation is only attempted under an account w/ admin privs.
+	
 2007-06-14    <layer@HOBART>
 
 	* Makefile: fix update cobweb rules
