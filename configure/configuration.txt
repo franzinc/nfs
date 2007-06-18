@@ -131,25 +131,60 @@ IP addresses can be specified in several ways:
 
 * Global settings *
  
-  * NFS/Mount protocol debugging: You can turn these options on if you
-    want to see what's going on at the protocol level.  Debugging
-    output will be generated in the console window and in the
-    nfsdebug.txt file in the Allegro NFS installation directory.  Be
-    careful!  Turning on NFS protocol debugging can generate lots of
-    output and severely degrade the performance of Allegro NFS.
+  * Use system portmapper: 
+     auto:
 
-  * Use system portmapper: Possible values are auto, yes and no,
-    meaning auto-detect and use another running portmapper, always use
-    the system portmapper and always use the Allegro portmapper,
-    respectively.  'auto' is the best choice for most people.  If you
-    choose 'yes' and no portmapper is running on your system, then
-    Allegro NFS will not be able to start up properly.  Likewise, if
-    you choose 'no' and a portmapper is running on your system, then
-    Allegro NFS will not be able to start up properly.
+      Allegro NFS will automatically determine if there is another
+      portmapper running on the system and will use it if there is.
+      Otherwise, it will start its own portmapper.  This is the
+      recommended setting.
+
+     yes:
+
+      Allegro NFS will use the portmapper that is already running on
+      the system.  If there isn't one, Allegro NFS will not be able to
+      start.
+ 
+     no:
+  
+      Allegro NFS will start its own portmapper.  If there is already
+      another portmapper running on the system, Allegro NFS will not
+      be able to start its own opermapper and will fail to start up.
+
+  * Set file modification time after every write (10% slower): 
+
+      This option is available for sites that need the file
+      modification time on files written via NFS to always be
+      up-to-date.  When the option is unchecked (the default state),
+      the file modification time of files (as they appear to other
+      Windows programs) will after access to the file is idle for 2
+      seconds.
+
+  * Subprogram port assignments:
+  
+      Normally the port numbers for the mountd, statd, and lockd
+      subprograms are automatically assigned by Windows.  However, if
+      required, you can supply port numbers to be used.  The supplied
+      port number will be used to bind both UDP and TCP sockets.  The
+      port numbers for each subprogram must be different.  If you
+      select a port number that is already in use by another program,
+      Allegro NFS will fail to operate properly.
 
 ----------------------------------------------------------------------------
 
-* Misc *
+* Debug settings *
+
+   You can turn on debugging for the various subprotocols used for NFS
+   operation.  Debugging output will be generated in the console
+   window and in the nfsdebug.txt file in the Allegro NFS installation
+   directory.  Please be aware that turning on NFS protocol debugging
+   can generate a lot of output and severely degrade the performance
+   of Allegro NFS.
+
+
+----------------------------------------------------------------------------
+
+* General Notes *
 
 Exports should always grant at least read access to user id 0 (root)
 so that the root user on remote systems can successfully mount the

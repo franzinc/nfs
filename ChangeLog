@@ -7,6 +7,8 @@
 	
 	* nfs.nsi: Added un.onInit callback function to make sure
 	uninstallation is only attempted under an account w/ admin privs.
+
+	* configure/configuration.txt:  Updated docs for Global and Debug tabs.
 	
 2007-06-14    <layer@HOBART>
 
