@@ -1,8 +1,10 @@
 *******************************************************************************
 4.5 release
 *******************************************************************************
-2007-06-18    <dancy@CANDY2K>
 
+2007-06-18    <dancy@CANDY2K>
+	* Makefile (installer-common): mkdir -p dists
+	
 	* nfs.nsi: Added un.onInit callback function to make sure
 	uninstallation is only attempted under an account w/ admin privs.
 	

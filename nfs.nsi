@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.19.2.2 2007/06/18 18:01:52 dancy Exp $
+; $Id: nfs.nsi,v 1.19.2.3 2007/06/18 18:16:32 dancy Exp $
 
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
@@ -19,7 +19,9 @@ SetCompressor lzma
 ;   Call IsUserAdmin
 ;   Pop $R0   ; at this point $R0 is "true" or "false"
 ;
-Function IsUserAdmin
+
+!macro IsUserAdmin UN
+Function ${UN}IsUserAdmin
 Push $R0
 Push $R1
 Push $R2
@@ -56,6 +58,11 @@ Pop $R2
 Pop $R1
 Exch $R0
 FunctionEnd
+!macroend
+
+!insertmacro IsUserAdmin ""
+!insertmacro IsUserAdmin un.
+
 
 !macro StopAndDeleteService UN
 Function ${UN}StopAndDeleteService
@@ -336,7 +343,7 @@ SectionEnd
 ; Uninstaller
 
 Function un.onInit
-  Call IsUserAdmin
+  Call un.IsUserAdmin
   Pop $R0   ; at this point $R0 is "true" or "false"
   StrCmp $R0 "false" 0 IsAdmin
      MessageBox MB_OK \

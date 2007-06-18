@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.60.2.1 2007/06/14 21:45:00 layer Exp $
+# $Id: Makefile,v 1.60.2.2 2007/06/18 18:16:32 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
@@ -80,6 +80,7 @@ installer-common: FORCE
 	rm -f nfs/nfs.cfg
 	rm -fr nfs/configure
 	cp -pr configure/configure nfs
+	mkdir -p dists
 
 installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
