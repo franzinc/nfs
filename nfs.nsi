@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.19.2.1 2007/06/18 17:01:05 dancy Exp $
+; $Id: nfs.nsi,v 1.19.2.2 2007/06/18 18:01:52 dancy Exp $
 
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
@@ -220,19 +220,6 @@ Function .onInit
 
 FunctionEnd
 
-Function un.onInit
-  Call IsUserAdmin
-  Pop $R0   ; at this point $R0 is "true" or "false"
-  StrCmp $R0 "false" 0 IsAdmin
-     MessageBox MB_OK \
-        'You must be a member of the Administrators group to uninstall.'
-     Abort
- IsAdmin:
-
-FunctionEnd
-
-
-
 ;--------------------------------
 
 ; Pages
@@ -347,6 +334,17 @@ SectionEnd
 ;--------------------------------
 
 ; Uninstaller
+
+Function un.onInit
+  Call IsUserAdmin
+  Pop $R0   ; at this point $R0 is "true" or "false"
+  StrCmp $R0 "false" 0 IsAdmin
+     MessageBox MB_OK \
+        'You must be a member of the Administrators group to uninstall.'
+     Abort
+ IsAdmin:
+
+FunctionEnd
 
 Function un.onUninstSuccess
     ExecShell "open" "http://nfsforwindows.com/uninstall"
