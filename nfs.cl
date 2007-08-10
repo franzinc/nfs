@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.110 2007/06/06 19:27:05 dancy Exp $
+;; $Id: nfs.cl,v 1.111 2007/08/10 00:10:06 dancy Exp $
 
 (in-package :user)
 
@@ -45,7 +45,6 @@
 					    #.*nfs-port*)
       (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
       (mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
-      (mp:process-run-function "dir cache reaper" #'dircache-reaper)
       (let ((server (sunrpc:make-rpc-server :udpsock usock :tcpsock tsock)))
 	
 	(dolist (sock (list usock tsock))
@@ -781,8 +780,10 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
 (defun add-direntries (xdr dirfh dirmax max startindex vers verf plus)
-  (multiple-value-bind (dirlist dc)
+  (declare (optimize (speed 3)))
+  (multiple-value-bind (dirvec dc)
       (nfs-lookup-dir dirfh t)
+    (declare (simple-vector dirvec))
     (let ((index startindex)
 	  (totalbytesadded 8)
 	  (dirbytesadded 0)
@@ -822,11 +823,10 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		(nfs-xdr-post-op-attr xdr dirfh)
 		(xdr-unsigned-hyper xdr (dircache-id dc)))))
       
-      (setf endindex (length dirlist))
-      ;;(logit "startindex: ~D  dirlistlen: ~D~%" startindex endindex)
+      (setf endindex (length dirvec))
 	
       (while (< index endindex)
-	(setf p (nth index dirlist))
+	(setf p (aref dirvec index))
 	  
 	(when p ;; some entries can be nil (due to removal by client)
 	  (multiple-value-setq (bytesadded innerbytesadded)

@@ -1,3 +1,18 @@
+2007-08-09    <dancy@DANCYSOFT>
+4.5.1b
+	* Makefile: Build w/ 8.1 now.
+
+	* dir.cl: Major revision to attempt to work around spr33169
+	issues.  Directory contents are now stored in memory forever.
+
+	* main.cl: Removed some ntservice code that is now in patched 8.1
+	lisps.  Also, supply a description when installing the NFS
+	service.
+
+	* nfs.cl: Don't start dircache-reaper (no longer exists since the
+	cache is never flushed).  Modified add-direntries since
+	nfs-lookup-dir now returns an array instead of a list.
+
 *******************************************************************************
 4.5 release
 *******************************************************************************

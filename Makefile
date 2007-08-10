@@ -1,14 +1,14 @@
-# $Id: Makefile,v 1.60 2007/06/06 19:15:04 dancy Exp $
+# $Id: Makefile,v 1.61 2007/08/10 00:10:06 dancy Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
 ## The `stable' directory is one that is only updated after rigorous
 ## testing, to make sure the base is as stable as possible.
-STABLE := $(shell if test -d "/c/Program Files/acl80-stable"; then echo yes; else echo no; fi)
+STABLE := $(shell if test -d "/c/Program Files/acl81-stable"; then echo yes; else echo no; fi)
 ifeq ($(STABLE),yes)
-LISPDIR = "/c/Program Files/acl80-stable"
+LISPDIR = "/c/Program Files/acl81-stable"
 else
-LISPDIR = "/c/Program Files/acl80"
+LISPDIR = "/c/Program Files/acl81"
 endif
 LISPEXE=$(LISPDIR)/mlisp
 
