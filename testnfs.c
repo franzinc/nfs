@@ -1,5 +1,5 @@
 /* -*- mode: c-mode; c-basic-offset: 4; -*- */
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.10 2007/08/15 15:00:38 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.11 2007/08/15 15:05:18 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -691,7 +691,6 @@ int main(int argc, char **argv) {
 
     while (1) {
 	c=getopt(argc, argv, "o:t:l:f:c:");
-	printf("c is %d\n", c);
 	if (c == -1)
 	    break;
 
