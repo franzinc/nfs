@@ -144,5 +144,5 @@
       (when dc
 	(let ((pos (position file entries :test #'equalp)))
 	  (when pos
-	    (setf (nth pos entries) nil)
+	    (setf (aref entries pos) nil)
 	    (push pos (dircache-free-slots dc))))))))
