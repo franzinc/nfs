@@ -1,5 +1,5 @@
 /* -*- mode: c-mode; c-basic-offset: 4; -*- */
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.9 2007/06/06 19:24:48 dancy Exp $ */
+/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.10 2007/08/15 15:00:38 dancy Exp $ */
 
 /* To build on 'blade', use /opt/SUNWspro/bin/cc */
 
@@ -649,7 +649,7 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
   
   
     snprintf(buffer, sizeof(buffer), 
-	     "on %s /usr/bin/diff %s/%s %s/%s/%s.written",
+	     "/usr/fi/bin/on %s /usr/bin/diff %s/%s %s/%s/%s.written",
 	     nfshost, 
 	     hosttemp, testfile, 
 	     hosttemp, workdirbasename, testfile);
