@@ -113,11 +113,36 @@
     ;; Convert to an array for efficient access.  
     (setf *exports* (coerce new-exports 'vector))))
 
-(defun locate-export (path)
+(defun locate-nearest-export (path)
+  ;; Strip trailing slash if path is not "/"
+  (let ((len (length path)))
+    (if* (and (> len 1)
+	      (char= #\/ (schar path (1- len))))
+       then (decf len)
+	    (setf path (subseq path 0 len)))
+    (locate-nearest-export-1 path len)))
+      
+(defun locate-nearest-export-1 (path end)
+  ;; See if we're there yet.
+  (let ((res (locate-nearest-export-2 path end)))
+    (if* res
+       then (return-from locate-nearest-export-1
+	      (values res (if* (string= (nfs-export-name res) "/")
+			     then (subseq path end)
+			     else (subseq path (1+ end)))))))
+  ;; Trim down the path and repeat.
+  (let ((slashpos (position #\/ path :from-end t :end end)))
+    (if* (null slashpos)
+       then nil
+     elseif (zerop slashpos)
+       then (locate-nearest-export-1 path 1)
+       else (locate-nearest-export-1 path slashpos))))
+
+(defun locate-nearest-export-2 (path end)
   (let (exp)
     (dotimes (n (length *exports*))
       (setf exp (svref *exports* n))
-      (if (string= path (nfs-export-name exp))
+      (if (string= path (nfs-export-name exp) :end1 end)
 	  (return exp)))))
 
 (defun export-host-access-allowed-p (exp addr)
@@ -134,12 +159,4 @@
   (or (export-user-write-access-allowed-p exp uid)
       (eq (nfs-export-ro-users exp) t)
       (member uid (nfs-export-ro-users exp))))
-
-
-
-
-
-  
-
-  
 

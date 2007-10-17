@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: nfs-shared.cl,v 1.7 2007/05/04 01:02:30 dancy Exp $
+;; $Id: nfs-shared.cl,v 1.8 2007/10/17 17:40:09 dancy Exp $
 
 ;; This file contains stuff that is shared between the nfs server code
 ;; and the configuration app code.
@@ -26,27 +26,6 @@
      then (+= $1 "\\")
      else dir))
 
-#+ignore
-(defun cleanup-dir (dir)
-  ;; Change all forward slashes to backslashes.  
-  (setf dir (substitute #\\ #\/ dir))
-  
-  (multiple-value-bind (matched dummy remainder)
-      (match-re "^[a-z]:(.*)" dir :case-fold t)
-    (declare (ignore dummy))
-    (if (not matched)
-	(error "~A is not a valid directory specification." dir))
-    (cond
-     ((string= remainder "")
-      (concatenate 'string dir "\\"))
-     ((string= remainder "\\")
-      dir)
-     ((char= (schar dir (1- (length dir))) #\\)
-      ;; strip trailing backslash
-      (subseq dir 0 (1- (length dir))))
-     (t ;; already in canonical form
-      dir))))
-      
 #+ignore
 (defun test-cleanup-dir ()
   (let (val)

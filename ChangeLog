@@ -1,3 +1,7 @@
+2007-10-17    <dancy@DANCYSOFT>
+4.5.1b3 
+	* Added support for mount requests of subdirs of an export.
+
 2007-08-15    <dancy@CANDY2K>
 4.5.1b2
 	* dir.cl: Fixed bug from new work in 4.5.1b.

@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.30 2007/02/08 23:08:41 dancy Exp $
+;; $Id: mountd.cl,v 1.31 2007/10/17 17:40:09 dancy Exp $
 
 (in-package :mount)
 
@@ -75,34 +75,41 @@
   (mountproc-null arg vers peer cbody))
 
 (defun mountproc-mnt-common (dirpath vers peer)
-  (let ((exp (user::locate-export dirpath)))
+  (multiple-value-bind (exp tail) 
+      (user::locate-nearest-export dirpath)
     (if *mountd-debug* 
-	(user::logit-stamp "MNT~d: ~a: MOUNT ~a " vers (sunrpc:peer-dotted peer) dirpath))
+	(user::logit-stamp "MNT~d: ~a: MOUNT ~a "
+			   vers (sunrpc:peer-dotted peer) dirpath))
     (if* (null exp)
        then (if *mountd-debug* (user::logit "==> Denied (no such export).~%"))
 	    gen-nfs:*nfserr-noent*
-     elseif (not (user::export-host-access-allowed-p exp 
-					       (sunrpc:rpc-peer-addr peer)))
+     elseif (not (user::export-host-access-allowed-p 
+		  exp (sunrpc:rpc-peer-addr peer)))
        then (if *mountd-debug* 
 		(user::logit "==> Denied (host not allowed).~%"))
 	    gen-nfs:*nfserr-acces*
-       else (if *mountd-debug* (user::logit "==> Accepted.~%"))
-	    (pushnew (list (sunrpc:rpc-peer-addr peer) dirpath) *mounts* 
-		     :test #'equalp)
-	    (user::get-export-fhandle exp))))
+       else (let ((fh (user::get-fhandle-for-path tail exp)))
+	      (if* fh
+		 then (if *mountd-debug* (user::logit "==> Accepted.~%"))
+		      (pushnew (list (sunrpc:rpc-peer-addr peer) dirpath) 
+			       *mounts* 
+			       :test #'equalp)
+		      fh
+		 else (if *mountd-debug* (user::logit "==> Not found.~%"))
+		      nil)))))
 
 (defun mountproc-mnt (dirpath vers peer cbody)
   (declare (ignore cbody))
   (let ((fh (mountproc-mnt-common dirpath vers peer)))
     (if* (numberp fh)
-       then (make-fhstatus :fhs-status fh)
+       then (make-fhstatus :fhs-status fh) ;; error code
        else (make-fhstatus :fhs-status 0 :fhs-fhandle fh))))
 
 (defun mountproc3-mnt (dirpath vers peer cbody)
   (declare (ignore cbody))
   (let ((fh (mountproc-mnt-common dirpath vers peer)))
     (if* (numberp fh)
-       then (make-mountres3 :fhs-status fh)
+       then (make-mountres3 :fhs-status fh) ;; error code
        else (make-mountres3 :fhs-status *mnt3-ok* 
 			    :mountinfo 
 			    (make-mountres3-ok :fhandle fh

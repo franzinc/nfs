@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: fhandle.cl,v 1.25 2007/06/06 19:27:05 dancy Exp $
+;; $Id: fhandle.cl,v 1.26 2007/10/17 17:40:09 dancy Exp $
 
 ;; file handle stuff
 
@@ -102,17 +102,25 @@
 		     :export (fh-export dirfh)
 		     :parent dirfh))))
 
-
 ;; Used by mountd
+;; 'tail' is guaranteed to have no leading or trailing slash
+(defun get-fhandle-for-path (tail exp)
+  (let ((dirfh (get-export-fhandle exp)))
+    (when (string/= tail "")
+      (dolist (comp (delimited-string-to-list tail #\/))
+	(let ((fh (ignore-errors (nfs-probe-file dirfh comp))))
+	  (if* (null fh)
+	     then (return-from get-fhandle-for-path nil))
+	  (setf dirfh fh))))
+    dirfh))
+	    
 (defun get-export-fhandle (exp)
   ;; See if it has already been assigned.
   (let* ((path (nfs-export-path exp))
 	 (fh (gethash path *export-roots*)))
     (if* fh
-       then
-	    fh
-       else
-	    ;; first use.
+       then fh
+       else ;; first use.
 	    (setf fh (make-fhandle nil path :root-export exp))
 	    (setf (gethash (fh-id fh) *fhandles*) fh)
 	    (setf (gethash path *export-roots*) fh))))
@@ -388,6 +396,7 @@
 		   (invalidate-fhandles value))
 	       children))))
 
+;; called by finalize-exports
 (defun invalidate-export-fhandles (exp)
   (let ((fh (get-export-fhandle exp)))
     (invalidate-fhandles fh)
