@@ -128,6 +128,22 @@ typedef opaque fhandle3<FHSIZE3>;
            void;
       };
 
+/*                                                                              
+ * POSIX pathconf information                                                   
+ */
+struct ppathcnf {
+        int     pc_link_max;    /* max links allowed */
+        short   pc_max_canon;   /* max line len for a tty */
+        short   pc_max_input;   /* input a tty can eat all at once */
+        short   pc_name_max;    /* max file name length (dir entry) */
+        short   pc_path_max;    /* max path name length (/x/y/x/.. ) */
+        short   pc_pipe_buf;    /* size of a pipe (bytes) */
+        char    pc_vdisable;    /* safe char to turn off c_cc[i] */
+        char    pc_xxx;         /* alignment padding; cc_t == char */
+        short   pc_mask[2];     /* validity and boolean bits */
+};
+
+
 
 program MOUNTPROG {
 	/*
@@ -189,6 +205,73 @@ program MOUNTPROG {
 		exports
 		MOUNTPROC_EXPORTALL(void) = 6;
 	} = 1;
+	/*
+	 * Version two of the mount protocol communicates with version two
+	 * of the NFS protocol.
+	 * The only difference from version one is the addition of a POSIX
+	 * pathconf call.
+	 */
+	version MOUNTVERS_POSIX {
+		/*
+		 * Does no work. It is made available in all RPC services
+		 * to allow server reponse testing and timing
+		 */
+		void
+		MOUNTPROC_NULL(void) = 0;
+
+		/*	
+		 * If fhs_status is 0, then fhs_fhandle contains the
+	 	 * file handle for the directory. This file handle may
+		 * be used in the NFS protocol. This procedure also adds
+		 * a new entry to the mount list for this client mounting
+		 * the directory.
+		 * Unix authentication required.
+		 */
+		fhstatus 
+		MOUNTPROC_MNT(dirpath) = 1;
+
+		/*
+		 * Returns the list of remotely mounted filesystems. The 
+		 * mountlist contains one entry for each hostname and 
+		 * directory pair.
+		 */
+		mountlist
+		MOUNTPROC_DUMP(void) = 2;
+
+		/*
+		 * Removes the mount list entry for the directory
+		 * Unix authentication required.
+		 */
+		void
+		MOUNTPROC_UMNT(dirpath) = 3;
+
+		/*
+		 * Removes all of the mount list entries for this client
+		 * Unix authentication required.
+		 */
+		void
+		MOUNTPROC_UMNTALL(void) = 4;
+
+		/*
+		 * Returns a list of all the exported filesystems, and which
+		 * machines are allowed to import it.
+		 */
+		exports
+		MOUNTPROC_EXPORT(void)  = 5;
+
+		/*
+		 * Identical to MOUNTPROC_EXPORT above
+		 */
+		exports
+		MOUNTPROC_EXPORTALL(void) = 6;
+
+		/*
+		 * POSIX pathconf info (Sun hack)
+		 */
+		ppathcnf
+		MOUNTPROC_PATHCONF(dirpath) = 7;
+	} = 2;
+
          version MOUNT_V3 {
             void      MOUNTPROC3_NULL(void)    = 0;
             mountres3 MOUNTPROC3_MNT(dirpath)  = 1;

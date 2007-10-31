@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: mountd.cl,v 1.31 2007/10/17 17:40:09 dancy Exp $
+;; $Id: mountd.cl,v 1.32 2007/10/31 18:35:02 dancy Exp $
 
 (in-package :mount)
 
@@ -29,25 +29,35 @@
 (defparameter *mountd-port-number* nil)
 
 (sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
-  (
-   (1 ;; version
-     (0 mountproc-null void void)
-     (1 mountproc-mnt dirpath fhstatus)
-     (2 mountproc-dump void mountlist)
-     (3 mountproc-umnt dirpath void)
-     (4 mountproc-umntall void void)
-     (5 mountproc-export void exports)
-     (6 mountproc-exportall void exports)
-   )
-   (3 ;; version
-     (0 mountproc3-null void void)
-     (1 mountproc3-mnt dirpath mountres3)
-     (2 mountproc3-dump void mountlist)
-     (3 mountproc3-umnt dirpath void)
-     (4 mountproc3-umntall void void)
-     (5 mountproc3-export void exports)
-   )
-  ))
+    (
+     (1 ;; version
+      (0 mountproc-null void void)
+      (1 mountproc-mnt dirpath fhstatus)
+      (2 mountproc-dump void mountlist)
+      (3 mountproc-umnt dirpath void)
+      (4 mountproc-umntall void void)
+      (5 mountproc-export void exports)
+      (6 mountproc-exportall void exports)
+      )
+     (2 ;; version
+      (0 mountproc-null void void)
+      (1 mountproc-mnt dirpath fhstatus)
+      (2 mountproc-dump void mountlist)
+      (3 mountproc-umnt dirpath void)
+      (4 mountproc-umntall void void)
+      (5 mountproc-export void exports)
+      (6 mountproc-exportall void exports)
+      (7 mountproc-pathconf dirpath ppathcnf)
+      )
+     (3 ;; version
+      (0 mountproc3-null void void)
+      (1 mountproc3-mnt dirpath mountres3)
+      (2 mountproc3-dump void mountlist)
+      (3 mountproc3-umnt dirpath void)
+      (4 mountproc3-umntall void void)
+      (5 mountproc3-export void exports)
+      )
+     ))
 
 
 (defparameter *mountd-gate* (mp:make-gate nil))
@@ -170,6 +180,39 @@
 
 (defun mountproc-exportall (arg vers peer cbody)
   (mountproc-export arg vers peer cbody))
+
+(defconstant *pc-error* 0)
+(defconstant *pc-link-max* 1)
+(defconstant *pc-max-canon* 2)
+(defconstant *pc-max-input* 3)
+(defconstant *pc-name-max* 4)
+(defconstant *pc-path-max* 5)
+(defconstant *pc-pipe-buf* 6)
+(defconstant *pc-no-trunc* 7)
+(defconstant *pc-vdisable* 8)
+(defconstant *pc-chown-restricted* 9)
+
+(defun mountproc-pathconf (dirpath vers peer cbody)
+  (declare (ignore cbody))
+  (if* *mountd-debug*
+     then (user::logit-stamp "MNT~d: ~a: PATHCONF ~a~%" vers (sunrpc:peer-dotted peer) dirpath))
+  
+  ;; Return information in the same way that Solaris 9 does
+  (make-ppathcnf :pc-link-max 1023 ;; NTFS limit
+		 :pc-max-canon 0 :pc-max-input 0
+		 :pc-name-max 255 :pc-path-max 255
+		 :pc-pipe-buf 0 :pc-vdisable 0 :pc-xxx 0
+		 :pc-mask (list 
+			   (logior 
+			    ;; Indicate which fields are invalid
+			    (ash 1 *pc-max-canon*)
+			    (ash 1 *pc-max-input*)
+			    (ash 1 *pc-pipe-buf*)
+			    (ash 1 *pc-vdisable*)
+			    ;; And indicate behavior
+			    (ash 1 *pc-no-trunc*)
+			    (ash 1 *pc-chown-restricted*))
+			   0)))
 
 ;;;;;;;;;;;;;;;;;;;;
 

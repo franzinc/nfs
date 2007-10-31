@@ -1,6 +1,27 @@
+2007-10-31    <dancy@DANCYSOFT>
+4.5.1b4
+	* mountd.cl, mount.x: 
+
+	INTEROPERABILITY [spr33930] Added support for mount protocol
+	version 2.  This is the same as version 1 but w/ an extra PATHCONF
+	call.  It took a while to get this figured out since it is
+	completely undocumented.
+
+	* nfs-log.cl: Include version number in "Allegro NFS running"
+	message.
+
+	* rpcgen.cl: Avoid trying to defconstant the same constant more
+	than once.
+
+	* xdr.cl: Added xdr-short and xdr-char, both of which are just
+	aliases for xdr-int.  Also fixed defxdrstruct bug when building
+	fixed-length arrays.
+
 2007-10-17    <dancy@DANCYSOFT>
 4.5.1b3 
-	* Added support for mount requests of subdirs of an export.
+	* INTEROPERABILITY: 
+
+	Added support for mount requests of subdirs of an export.
 
 2007-08-15    <dancy@CANDY2K>
 4.5.1b2
@@ -10,8 +31,9 @@
 4.5.1b
 	* Makefile: Build w/ 8.1 now.
 
-	* dir.cl: Major revision to attempt to work around spr33169
-	issues.  Directory contents are now stored in memory forever.
+	* INTEROPERABILITY 
+	dir.cl: Major revision to attempt to work around spr33169 issues.
+	Directory contents are now stored in memory forever.
 
 	* main.cl: Removed some ntservice code that is now in patched 8.1
 	lisps.  Also, supply a description when installing the NFS
@@ -28,7 +50,8 @@
 2007-06-06    <dancy@CANDY2K>
 4.5b17
 	
-	* BUGFIX: attr.cl: nfs-attr-blocks and nfs-attr-used sometimes weren't being updated (minor impact, however).
+	* BUGFIX: attr.cl: nfs-attr-blocks and nfs-attr-used sometimes
+	weren't being updated (minor impact, however).
 
 	* dir.cl: nfs-lookup-dir now takes an argument to control whether
 	or not the directory should be read during a cache miss.  This

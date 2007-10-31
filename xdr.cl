@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.28 2007/06/06 19:27:05 dancy Exp $
+;; $Id: xdr.cl,v 1.29 2007/10/31 18:35:02 dancy Exp $
 
 (defpackage :xdr
   (:use :lisp :excl)
@@ -43,6 +43,8 @@
    #:xdr-int
    #:xdr-long
    #:xdr-int32
+   #:xdr-short
+   #:xdr-char
    #:xdr-bool
    #:xdr-unsigned-hyper
    #:xdr-uint64
@@ -276,12 +278,25 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (xdr-int xdr int))
 
+(defun xdr-short (xdr &optional short)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (xdr-int xdr short))
+
+(defun xdr-char (xdr &optional char)
+  (declare (optimize (speed 3) (safety 0) (debug 0)))
+  (xdr-int xdr char))
 
 (define-compiler-macro xdr-long (xdr &optional int)
   `(xdr-int ,xdr ,int))
 
 (define-compiler-macro xdr-int32 (xdr &optional int)
   `(xdr-int ,xdr ,int))
+
+(define-compiler-macro xdr-short (xdr &optional short)
+  `(xdr-int ,xdr ,short))
+
+(define-compiler-macro xdr-char (xdr &optional char)
+  `(xdr-int ,xdr ,char))
 
 
 (defun xdr-unsigned-int (xdr &optional int)
@@ -632,10 +647,11 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		 (:fixed 'xdr-opaque-fixed)
 		 (:variable 'xdr-opaque-variable))
 		 xdr (,accessor ,obj))
-       else `(,(ecase varfixed
-		 (:fixed 'xdr-array-fixed)
-		 (:variable 'xdr-array-variable))
-		 xdr #',encoder (,accessor ,obj)))))
+       else (ecase varfixed
+	      (:fixed
+	       `(xdr-array-fixed xdr #',encoder :things (,accessor ,obj)))
+	      (:variable
+	       `(xdr-array-variable xdr #',encoder (,accessor ,obj)))))))
 
 (defun xdr-extractor-form (type varfixed len)
   (if* varfixed

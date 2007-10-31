@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: rpcgen.cl,v 1.6 2006/06/14 03:46:02 layer Exp $
+;; $Id: rpcgen.cl,v 1.7 2007/10/31 18:35:02 dancy Exp $
 
 (eval-when (compile load eval)
   (require :osi))
@@ -232,21 +232,25 @@
 	(format f "(defun xdr-optional-~a (xdr &optional arg)~%  (xdr-optional xdr #'xdr-~a arg))~%~%" opt opt))
 
       (format f ";; Programs~%~%(eval-when (compile load eval)~%")
-      (dolist (program programs)
-	(format f ";; ~a~%~%" (program-name program))
-	(format f " (defconstant ~a ~d)~%~%" 
-		(program-name program) (program-number program))
-	(dolist (version (program-versions program))
-	  (format f ";; ~a version ~a~%~%" 
-		  (program-name program) (program-version-number version))
-	  (format f " (defconstant ~a ~d)~%" 
-		  (program-version-name version) 
-		  (program-version-number version))
-	  (dolist (proc (program-version-procedures version))
+      (let (seen-constants)
+	(dolist (program programs)
+	  (format f ";; ~a~%~%" (program-name program))
+	  (format f " (defconstant ~a ~d)~%~%" 
+		  (program-name program) (program-number program))
+	  (dolist (version (program-versions program))
+	    (format f ";; ~a version ~a~%~%" 
+		    (program-name program) (program-version-number version))
 	    (format f " (defconstant ~a ~d)~%" 
-		    (procedure-name proc)
-		    (procedure-number proc)))
-	  (format f "~%")))
+		    (program-version-name version) 
+		    (program-version-number version))
+	    (dolist (proc (program-version-procedures version))
+	      (if* (not (member (procedure-name proc) seen-constants
+				:test #'equal))
+		 then (push (procedure-name proc) seen-constants)
+		      (format f " (defconstant ~a ~d)~%" 
+			      (procedure-name proc)
+			      (procedure-number proc))))
+	    (format f "~%"))))
       (format f ") ;; eval-when~%~%"))
 
     (when programs

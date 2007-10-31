@@ -1,4 +1,4 @@
-;; $Id: nfs-log.cl,v 1.1 2007/05/04 20:37:15 dancy Exp $
+;; $Id: nfs-log.cl,v 1.2 2007/10/31 18:35:02 dancy Exp $
 
 ;; Logging support
 
@@ -170,7 +170,7 @@
 	      (sleep 5)
 	      (go top))
       
-      (format t "Allegro NFS running.~%")
+      (format t "Allegro NFS v~a running.~%" *nfsd-version*)
       
       (unwind-protect
 	  (let ((buf (make-string 65536))
