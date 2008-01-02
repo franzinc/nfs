@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: sunrpc.cl,v 1.41 2007/04/13 23:00:25 dancy Exp $
+;; $Id: sunrpc.cl,v 1.42 2008/01/02 19:24:43 dancy Exp $
 
 (in-package :sunrpc)
 
@@ -275,6 +275,7 @@
 
 (defun send-prog-mismatch-reply (peer xid verf low high)
   (with-accepted-reply (xdr peer xid verf)
+    (xdr-int xdr #.*prog-mismatch*)
     (xdr-unsigned-int xdr low)
     (xdr-unsigned-int xdr high)))
 
