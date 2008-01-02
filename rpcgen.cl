@@ -1,6 +1,6 @@
 (in-package :user)
 
-;; $Id: rpcgen.cl,v 1.7 2007/10/31 18:35:02 dancy Exp $
+;; $Id: rpcgen.cl,v 1.8 2008/01/02 23:19:27 dancy Exp $
 
 (eval-when (compile load eval)
   (require :osi))
@@ -219,7 +219,7 @@
 
       (dolist (td typedefs)
 	(if* (typedef-len td)
-	   then (format f "(defun xdr-~a (xdr &optional arg)~%  (xdr-~a-fixed xdr arg #.~a))~%~%" 
+	   then (format f "(defun xdr-~a (xdr &optional arg)~%  (xdr-array-fixed xdr #'xdr-~a :things arg :len #.~a))~%~%" 
 			(typedef-name td) (typedef-type td) (typedef-len td))
 	 elseif (typedef-optional td)
 	   then (format f "(defun xdr-~a (xdr &optional data)~%  (xdr-optional xdr #'xdr-~a data))~%~%" 
@@ -586,9 +586,11 @@
     (let ((type (rpcgen-lex stream :word)))
 
       (when (string= type "unsigned")
-	(when (equal (rpcgen-peek stream) "int")
-	  (rpcgen-lex stream :word)
-	  (return "unsigned-int"))
+	(let ((next (rpcgen-peek stream)))
+	  (when (or (equal next "int")
+		    (equal next "long"))
+	    (rpcgen-lex stream :word)
+	    (return "unsigned-int")))
 
 	(when (equal (rpcgen-peek stream) "hyper")
 	  (rpcgen-lex stream :word)

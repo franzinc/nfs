@@ -1,5 +1,13 @@
 2008-01-02    <dancy@DANCYSOFT>
+
+	* portmap.x/portmap.cl: Added rpcbind protocol support.  
+
+	* rpcgen.cl: Handle "unsigned long".  Fixed buglet w/ fixed-sized
+	array typedefs.
+	
+2008-01-02    <dancy@DANCYSOFT>
 4.5.1b5
+
 	* BUGFIX: sunrpc.cl: Fixed send-prog-mismatch-reply
 	function.  It wasn't adding the accept_stat before adding the low
 	and high version numbers.
