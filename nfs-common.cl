@@ -6,7 +6,7 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.5.1b5")
+(defvar *nfsd-version* "4.5.1b6")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
@@ -75,7 +75,6 @@
   (/ (roundup value blocksize) blocksize))
 
 (define-compiler-macro howmany (value blocksize &whole whole &environment env)
-  (format t "howmany compiler macro: (howmany ~s ~s)~%" value blocksize)
   (flet ((power-of-two-p (value)
 	   (zerop (nth-value 1 (truncate (log value 2))))))
     (let ((cv 

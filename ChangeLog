@@ -1,10 +1,13 @@
+2008-01-04    <dancy@DANCYSOFT>
+4.5.1b6
+
 2008-01-04  root  <root@gills.dancysoft.com>
 
 	* hammernfs.c: Added TCP support.
 
 2008-01-04    <dancy@DANCYSOFT>
 
-	Changes to allow for international filenames by:
+	ENHANCEMENT: Changes to allow for international filenames by:
 	1) Using utf8 for sending/receiving filenames to/from nfs clients.
 	2) Using new functions for accessing files in Windows using 16-bit
 	charcaters.

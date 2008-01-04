@@ -114,6 +114,8 @@
     (setf *exports* (coerce new-exports 'vector))))
 
 (defun locate-nearest-export (path)
+  (if (null *exports*)
+      (return-from locate-nearest-export))
   ;; Strip trailing slash if path is not "/"
   (let ((len (length path)))
     (if* (and (> len 1)
