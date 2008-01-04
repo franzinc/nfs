@@ -74,6 +74,27 @@
 (defun howmany (value blocksize)
   (/ (roundup value blocksize) blocksize))
 
+(define-compiler-macro howmany (value blocksize &whole whole &environment env)
+  (format t "howmany compiler macro: (howmany ~s ~s)~%" value blocksize)
+  (flet ((power-of-two-p (value)
+	   (zerop (nth-value 1 (truncate (log value 2))))))
+    (let ((cv 
+	   (and (constantp blocksize env) (sys:constant-value blocksize env))))
+      (if* (and cv (power-of-two-p cv))
+	 then (setf blocksize cv)
+	      (let ((v (gensym)))
+		`(let ((,v ,value))
+		   (if* (fixnump ,v)
+		      then (let ()
+			     (declare (fixnum ,v))
+			     (ash (logand (+ ,v ,(1- blocksize))
+					  (lognot ,(1- blocksize)))
+				  ,(- (truncate (log blocksize 2)))))
+		      else (ash (logand (+ ,v ,(1- blocksize))
+					(lognot ,(1- blocksize)))
+				,(- (truncate (log blocksize 2)))))))
+	 else whole))))
+
 (defmacro bailout (format &rest format-args)
   `(progn
      (logit-stamp ,format ,@format-args)
@@ -87,13 +108,21 @@
   :returning :boolean
   :error-value :os-specific)
 
+(ff:def-foreign-call MoveFileExW ((from (* :void)) 
+				  (to (* :void))
+				  (flags :int))
+  :strings-convert nil
+  :returning :boolean
+  :error-value :os-specific)
+
 (defconstant MOVEFILE_REPLACE_EXISTING 1)
 
-(defun my-rename (from to)
+(defun my-rename (from to &key unicode)
   (multiple-value-bind (success winerr)
-      (MoveFileExA from to MOVEFILE_REPLACE_EXISTING)
+      (if* unicode
+	 then (MoveFileExW from to MOVEFILE_REPLACE_EXISTING)
+	 else (MoveFileExA from to MOVEFILE_REPLACE_EXISTING))
     (if* success
        then t
        else (excl.osi:perror (excl.osi::win_err_to_errno winerr)
 			     "rename failed"))))
-	   

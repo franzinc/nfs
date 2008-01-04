@@ -21,7 +21,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: xdr.cl,v 1.29 2007/10/31 18:35:02 dancy Exp $
+;; $Id: xdr.cl,v 1.30 2008/01/04 17:25:11 dancy Exp $
 
 (defpackage :xdr
   (:use :lisp :excl)
@@ -61,6 +61,7 @@
    #:xdr-array-fixed
    #:xdr-array-variable
    #:xdr-string
+   #:xdr-string-utf8
    #:xdr-xdr
    #:xdr-timeval
    #:xdr-optional
@@ -90,6 +91,13 @@
 ;; This is also the amount to expand by when expansion of the internal
 ;; vector is required
 (defconstant *xdrdefaultsize* 1024)
+
+(defmacro compute-padded-len (len)
+  (let ((l (gensym)))
+    `(let ((,l ,len))
+       (declare (optimize (speed 3) (safety 0) (debug 0))
+		(fixnum ,l))
+       (logand (+ ,l 3) -4))))
 
 (defmacro with-xdr-seek ((xdr pos &key absolute) &body body)
   (let ((oldpos (gensym)))
@@ -510,14 +518,6 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
       (xdr-int xdr len)
       (xdr-array-fixed xdr typefunc :len len :things things)))))
 
-(defun compute-padded-len (len)
-  (declare (optimize (speed 3) (safety 0) (debug 0))
-	   (type fixnum len))
-  (let ((table #.(make-array 4 :element-type '(unsigned-byte 8) 
-			     :initial-contents '(0 3 2 1))))
-    (+ len (aref table (logand len 3)))))
-    
-	
 (defun compute-variable-bytes-used (xdr)
   (declare (type xdr xdr))
   ;; variable bytes used is the padded length, plus 4 for the
@@ -526,8 +526,10 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
     (+ 4 (compute-padded-len (xdr-int xdr)))))
 
 (defun xdr-string (xdr &optional string)
-  (declare (type xdr xdr)
-	   (optimize (speed 3)))
+  (declare (optimize speed)
+	   (type xdr xdr)
+	   (simple-string string))
+
   (let (len plen newstring)
     (ecase (xdr-direction xdr)
       (:extract
@@ -538,6 +540,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	 ;; XXX -- should we impose some limits on the string
 	 ;; length?  This is a pretty easy DoS point.
 	 (setf newstring (make-string len))
+	 ;; FIXME: This could be sped up w/ some ll code.
 	 (dotimes (i len)
 	   (setf (schar newstring i)
 	     (code-char (aref vec (+ i pos)))))
@@ -547,6 +550,7 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
        (setf len (length string))
        (setf plen (compute-padded-len len))
        (xdr-unsigned-int xdr len)
+       ;; FIXME:  This could be sped up w/ some ll code.
        (let ((vec (xdr-expand-check xdr plen))
 	     (pos (xdr-pos xdr)))
 	 (declare (type fixnum pos len)
@@ -556,6 +560,30 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 	   (setf (aref vec (+ pos i))
 	     (logand #xff (the fixnum (char-code (schar string i))))))
 	 (xdr-update-pos xdr plen))))))
+
+(defun xdr-string-utf8 (xdr &optional string)
+  (declare (optimize speed)
+	   (simple-string string))
+  (ecase (xdr-direction xdr)
+    (:extract
+     (let ((bytes (xdr-unsigned-int xdr))
+	   (stringbuf (make-string 512)))
+       (declare (dynamic-extent stringbuf))
+       (if (> bytes 512)
+	   (setf stringbuf (make-string bytes)))
+       (let ((chars (user::utf8-to-string (xdr-vec xdr) (xdr-pos xdr) 
+					  bytes stringbuf)))
+	 (xdr-advance xdr (compute-padded-len bytes))
+	 (subseq stringbuf 0 chars))))
+    (:build 
+     (let* ((strlen (length string))
+	    (maxbytes (+ 4 (compute-padded-len (* strlen 3))))
+	    (vec (xdr-expand-check xdr maxbytes))
+	    bytes)
+       (with-xdr-seek (xdr 4)
+	 (setf bytes (user::string-to-utf8 string vec (xdr-pos xdr))))
+       (xdr-unsigned-int xdr bytes)
+       (xdr-update-pos xdr (compute-padded-len bytes))))))
 
 (defun xdr-xdr (xdr &optional xdr2)
   (declare (type xdr xdr))

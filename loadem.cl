@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.50 2007/05/09 17:08:49 dancy Exp $
+;; $Id: loadem.cl,v 1.51 2008/01/04 17:25:11 dancy Exp $
 
 (in-package :user)
 
@@ -34,7 +34,9 @@
 (eval-when (compile load eval)
 (defparameter *filelist*
     '("bswap"
+      "utf8"
       "xdr" 
+      "unicode-file"
       "sunrpc-common"
       "gen-nfs-common"
       "portmap-common"

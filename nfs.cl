@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.111 2007/08/10 00:10:06 dancy Exp $
+;; $Id: nfs.cl,v 1.112 2008/01/04 17:25:11 dancy Exp $
 
 (in-package :user)
 
@@ -285,9 +285,15 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	  (string
 	   (push `(,(first pair) (xdr-string params)) argdefs)
 	   (add-debug `(logit "~A" ,(first pair))))
+	  (filename
+	   (push `(,(first pair) (xdr-string-utf8 params)) argdefs)
+	   (add-debug `(logit "~A" ,(first pair))))
 	  (unsigned
 	   (push `(,(first pair) (xdr-unsigned-int params)) argdefs)
 	   (add-debug `(logit "~D" ,(first pair))))
+	  (access-mask
+	   (push `(,(first pair) (xdr-unsigned-int params)) argdefs)
+	   (add-debug `(logit "~a" (access-mask-to-string ,(first pair)))))
 	  (uint64
 	   (push `(,(first pair) (xdr-unsigned-hyper params)) argdefs)
 	   (add-debug `(logit "~D" ,(first pair))))
@@ -892,7 +898,7 @@ struct entry {
 	   (ecase vers
 	     (2 (xdr-unsigned-int xdr fileid))
 	     (3 (xdr-unsigned-hyper xdr fileid)))
-	   (xdr-string xdr filename)
+	   (xdr-string-utf8 xdr filename)
 	   (ecase vers
 	     (2 (xdr-int xdr cookie))
 	     (3 (xdr-unsigned-hyper xdr cookie)))))
@@ -921,7 +927,7 @@ struct entry {
 ;;; v2 returns: status fhandle attributes (fattr)
 ;;  v3 returns: status fhandle, obj post-op attributes, dir post-op attributes
 
-(define-nfs-proc lookup ((dirfh fhandle) (filename string))
+(define-nfs-proc lookup ((dirfh fhandle) (filename filename))
   (with-dirfh (dirfh)
     (with-permission (dirfh :read)
       (let ((fh (nfs-probe-file dirfh filename :allow-dotnames t)))
@@ -949,20 +955,45 @@ struct entry {
 ;;      NFS3ERR_BADHANDLE
 ;;      NFS3ERR_SERVERFAULT
 
-(define-nfs-proc access ((fh fhandle) (access unsigned))
+(defun access-mask-to-string (value)
+  (declare (optimize (speed 3) (safety 0) (debug 0))
+	   (fixnum value))
+  (let (res)
+    (macrolet ((check (sym)
+		 (let ((name (subseq (symbol-name sym) 
+				     (1+ (length "access3-"))
+				     (1- (length (symbol-name sym))))))
+		   `(if (not (zerop (logand value ,sym)))
+			(push ,name res)))))
+      (check *access3-read*)
+      (check *access3-lookup*)
+      (check *access3-modify*)
+      (check *access3-extend*)
+      (check *access3-delete*)
+      (check *access3-execute*))
+    (list-to-delimited-string (nreverse res) #\|)))
+
+(define-nfs-proc access ((fh fhandle) (access access-mask))
   (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-post-op-attr *nfsdxdr* fh)
   (let ((res 0)
 	(cred (sunrpc:call-body-cred cbody)))
+    (declare (fixnum res))
     (if (nfs-okay-to-read fh cred)
-	(setf res (logior res #x1 #x2 #x20)))
+	(setf res 
+	  (logior res #.(logior *access3-read* *access3-lookup* *access3-execute*))))
     (if (nfs-okay-to-write fh cred)
-	(setf res (logior res #x4 #x8 #x10)))
+	(setf res 
+	  (logior res #.(logior *access3-modify* *access3-extend* *access3-delete*))))
     
     ;; Some clients (Solaris 7 in particular) get upset if we return
     ;; more detailed access information than requested, so use logand
     ;; to only supply the requested bits.
     (setf res (logand res access))
+    
+    (if debug-this-procedure
+	(logit " ==> ~a" (access-mask-to-string res)))
+    
     (xdr-unsigned-int *nfsdxdr* res)))
 
 ;; readargs: fhandle, offset, count, totalcount
@@ -1009,16 +1040,14 @@ struct entry {
 ;; ignores all the supplied attributes except for the 'size'.  I'll do
 ;; mostly the same here.  I accept atime/mtime updates as well. 
 
-(define-nfs-proc create ((dirfh fhandle) (filename string) (sattr sattr))
+(define-nfs-proc create ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
     (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
 	   (newpath (fh-pathname fh)))
-      ;; Atomicity is nonexistent here.  Bogus.
-      (when (null (probe-file newpath))
-	;; Create the file
-	(close (open newpath :direction :output))
-	(update-atime-and-mtime dirfh)
-	(nfs-add-file-to-dir filename dirfh))
+      ;; Create the file is necessary 
+      (close (unicode-open newpath :direction :output :if-exists :overwrite))
+      (update-atime-and-mtime dirfh)
+      (nfs-add-file-to-dir filename dirfh)
       
       (set-file-attributes fh sattr)
       
@@ -1027,7 +1056,7 @@ struct entry {
       (nfs-xdr-fattr *nfsdxdr* fh 2))))
 
 (define-nfs-proc create3 ((dirfh fhandle) 
-			  (filename string) 
+			  (filename filename) 
 			  (how createhow3))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
@@ -1038,26 +1067,26 @@ struct entry {
 
       (ecase (first how)
 	(:unchecked
-	 (when (null (probe-file newpath))
-	   (close (open newpath :direction :output))
-	   (setf created t)))
+	 (close (unicode-open newpath :direction :output
+			      :if-exists :overwrite))
+	 (setf created t))
 	(:guarded
 	 ;; the error handler will handle the *eexist* case.
-	 (close (open newpath :direction :output :if-exists :error))
+	 (close (unicode-open newpath :direction :output :if-exists :error))
 	 (setf created t))
 	(:exclusive
 	 ;; XXX - The verifier information is supposed to be stored in
 	 ;; stable storage but we don't do that because of how 
 	 ;; gross Windows filesystem semantics are with respect to
-	 ;; resolution.  Instead, we fake it by storing some information
+	 ;; time resolution.  Instead, we fake it by storing some information
 	 ;; in the file handle.
 	 (let ((verifier (second how)))
 	   (if* (eql verifier (fh-verifier fh))
 	      then ;; Must be a duplicate request.  Report success.
 		   (if debug-this-procedure 
-		       (logit " Duplicate request (OK)~%"))
+		       (logit " Duplicate request~%"))
 	      else ;; the error handler will handle the *eexist* case
-		   (close (open newpath :direction :output :if-exists :error))
+		   (close (unicode-open newpath :direction :output :if-exists :error))
 		   (setf (fh-verifier fh) verifier)
 		   (setf created t)))))
       
@@ -1068,6 +1097,9 @@ struct entry {
       (if sattr
 	  (set-file-attributes fh sattr))
       
+      (if debug-this-procedure
+	  (logit " ==> OK"))
+
       (xdr-int *nfsdxdr* #.*nfs-ok*)
       (nfs-xdr-post-op-fh *nfsdxdr* fh)
       (nfs-xdr-post-op-attr *nfsdxdr* fh)
@@ -1088,7 +1120,8 @@ struct entry {
 	      (nfs-xdr-post-op-attr *nfsdxdr* nil)
 	      (nfs-xdr-wcc-data *nfsdxdr* nil nil)))))
 
-(define-nfs-proc link ((fh fhandle) (destdirfh fhandle) (destfilename string))
+(define-nfs-proc link ((fh fhandle) (destdirfh fhandle) 
+				    (destfilename filename))
   ;; Many sanity checks to prevent corruption
   (with-permission (destdirfh :write :op :link)
     (with-same-export (fh destdirfh :link)
@@ -1099,7 +1132,7 @@ struct entry {
 	    (let* ((newpath 
 		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
 		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
-	      (link (fh-pathname fh) newpath)
+	      (unicode-link (fh-pathname fh) newpath)
 	      (update-alternate-pathnames fh :add destfilename)
 	      (link-fh-in-dir fh destdirfh destfilename)
 	      (update-atime-and-mtime destdirfh)
@@ -1118,7 +1151,7 @@ struct entry {
 ;; filename name
 
 ;; returns status
-(define-nfs-proc remove ((dirfh fhandle) (filename string))
+(define-nfs-proc remove ((dirfh fhandle) (filename filename))
   ;; nfs-probe-file will throw an error if file doesn't exist
   (let ((pre-op-attrs (get-pre-op-attrs dirfh))
 	(fh (nfs-probe-file dirfh filename))
@@ -1130,7 +1163,7 @@ struct entry {
 	      (xdr-int *nfsdxdr* #.*nfserr-perm*)
 	 else  ;; Don't use (fh-pathname fh) since we may be dealing with 
 	      ;; a hard link.  Use the filename provided instead.
-	      (delete-file path)
+	      (unicode-unlink path)
 	      (update-atime-and-mtime dirfh)
 	      ;; Update dircache.
 	      (nfs-remove-file-from-dir filename dirfh)
@@ -1231,12 +1264,12 @@ struct entry {
 	      (mtime (sattr-mtime sattr)))
 	    
 	  (when newsize
-	    (os-truncate p newsize)
+	    (unicode-truncate p newsize)
 	    (set-cached-file-size fh newsize)
 	    (update-atime-and-mtime fh))
 	    
 	  (when (or atime mtime)
-	    (utime p atime mtime))
+	    (unicode-utime p atime mtime))
 	  
 	  (if atime
 	      (setf (nfs-attr-atime current-attr) atime))
@@ -1293,9 +1326,9 @@ struct entry {
 ;; for NFSv2, we return *nfserr-acces* (ala Linux)
 
 (define-nfs-proc rename ((fromdirfh fhandle) 
-			 (fromfilename string)
+			 (fromfilename filename)
 			 (todirfh fhandle)
-			 (tofilename string))
+			 (tofilename filename))
   (with-same-export (fromdirfh todirfh :rename)
     (with-permission (fromdirfh :write)
       ;; not really necessary since they have to be the same export...
@@ -1324,7 +1357,7 @@ struct entry {
 		    (format t "~%rename ~a~%" fromfh)
 		    ;; This will auto-delete any existing destination
 		    ;; file.
-		    (my-rename from to)
+		    (my-rename from to :unicode t)
 		    ;; If there was an existing destination file, remove
 		    ;; its file handle information.
 		    (when tofh
@@ -1350,13 +1383,15 @@ struct entry {
 ;;; returns: status
 ;;   fhandle, attributes (if okay status)
 ;; We don't use the supplied attributes.
-(define-nfs-proc mkdir ((dirfh fhandle) (filename string) (sattr sattr))
+(define-nfs-proc mkdir ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
     (let ((pre-op-attrs (get-pre-op-attrs dirfh))
 	  (fh (lookup-fh-in-dir dirfh filename :create t)))
-      (make-directory (fh-pathname fh))
+      (unicode-mkdir (fh-pathname fh))
       (nfs-add-file-to-dir filename dirfh)
       (update-atime-and-mtime dirfh)
+      (if debug-this-procedure
+	  (logit " ==> OK"))
       (xdr-int *nfsdxdr* #.*nfs-ok*)
       (ecase vers
 	(2
@@ -1368,20 +1403,25 @@ struct entry {
 	 (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))))
 
 
-(define-nfs-proc rmdir ((dirfh fhandle) (filename string))
+(define-nfs-proc rmdir ((dirfh fhandle) (filename filename))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
 	   (fh (lookup-fh-in-dir dirfh filename :create t))
 	   (path (fh-pathname fh)))
-      ;; rmdir doesn't return a decent error if the object is
-      ;; not a directory, so check here.
-      (if* (not (file-directory-p path))
-	 then (xdr-int *nfsdxdr* *nfserr-notdir*)
-	 else (rmdir path) ;; throws error if non-empty
+      ;; rmdir system cal doesn't return a decent error if the object
+      ;; is not a directory (it returns "invalid argument", so check
+      ;; here first.
+      (if* (zerop (logand (unicode-stat path) excl::*s-ifdir*))
+	 then (if debug-this-procedure
+		  (logit " ==> [Not a directory]"))
+	      (xdr-int *nfsdxdr* *nfserr-notdir*)
+	 else (unicode-rmdir path) ;; throws error if non-empty
 	      (update-atime-and-mtime dirfh)
 	      (nfs-remove-file-from-dir filename dirfh)
 	      (uncache-attr fh)
 	      (remove-fhandle fh filename)
+	      (if debug-this-procedure
+		  (logit " ==> OK"))
 	      (xdr-int *nfsdxdr* #.*nfs-ok*))
       (if (= vers 3)
 	  (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
@@ -1404,16 +1444,16 @@ struct entry {
 
 ;; args:  fromdir handle, fromfile,  path, attributes
 (define-nfs-proc symlink ((dirfh fhandle) 
-			  (filename string)
-			  (symlink string)
+			  (filename filename)
+			  (symlink filename)
 			  (sattr sattr))
   (with-permission (dirfh :write)
     (nfs-unsupported)))
 
 (define-nfs-proc symlink3 ((dirfh fhandle) 
-			   (filename string) 
+			   (filename filename) 
 			   (attrs sattr)
-			   (symlink string))
+			   (symlink filename))
   (with-permission (dirfh :write)
     (nfs-unsupported)))
 
@@ -1423,7 +1463,7 @@ struct entry {
   (with-permission (fh :read)
     (nfs-unsupported)))
 
-(define-nfs-proc mknod ((dirfh fhandle) (filename string))
+(define-nfs-proc mknod ((dirfh fhandle) (filename filename))
   (with-permission (dirfh :write)
     (nfs-unsupported)))
 

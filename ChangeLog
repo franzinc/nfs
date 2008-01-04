@@ -1,3 +1,22 @@
+2008-01-04    <dancy@DANCYSOFT>
+
+	Changes to allow for international filenames by:
+	1) Using utf8 for sending/receiving filenames to/from nfs clients.
+	2) Using new functions for accessing files in Windows using 16-bit
+	charcaters.
+
+	* utf8.cl, unicode-file.cl: new
+
+	* attr.cl, dir.cl, loadem.cl, nfs.cl, openfile.cl, xdr.cl: Modified.
+
+	* nfs-common.cl: Added a compiler macro for 'howmany' function.
+	Updated my-rename function to allow for unicode support.
+
+	* nfs.cl: Improved debugging output for 'access' procedure (and a
+	few minor improvements to some other procs).
+
+	* xdr.cl: Improved compute-padded-len function code.
+	
 2008-01-02    <dancy@DANCYSOFT>
 
 	* portmap.x/portmap.cl: Added rpcbind protocol support.  

@@ -32,8 +32,8 @@
 	(setf of (make-openfile :direction direction))
 	(setf (openfile-stream of)
 	  (if* (eq direction :input)
-	     then (open (fh-pathname fh) :direction :input)
-	     else (open (fh-pathname fh) :direction :io
+	     then (unicode-open (fh-pathname fh) :direction :input)
+	     else (unicode-open (fh-pathname fh) :direction :io
 			:if-exists :open
 			:if-does-not-exist :create)))
 	#+ignore
@@ -55,7 +55,7 @@
 	      (format t "Reopening for output...~%")
 	      ;; This could possibly result in an error.
 	      (setf (openfile-stream of)
-		(open (fh-pathname fh) :direction :io
+		(unicode-open (fh-pathname fh) :direction :io
 		      :if-exists :open
 		      :if-does-not-exist :create))
 	      (put-open-file fh of)

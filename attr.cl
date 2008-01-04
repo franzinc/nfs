@@ -1,5 +1,7 @@
 (in-package :user)
 
+(eval-when (compile) (declaim (optimize (speed 3))))
+
 ;; file types
 (defconstant *NFNON* 0)
 (defconstant *NFREG* 1)
@@ -24,9 +26,10 @@
   blocks ;; v2 only
   fsid
   fileid
-  atime
-  mtime
-  ctime)
+  atime ;; stored as universal time
+  mtime ;; stored as universal time
+  ctime ;; stored as universal time
+  )
 
 ;; should always be larger than *openfilereaptime*.
 (defparameter *attr-cache-reap-time* 5) 
@@ -42,6 +45,7 @@
     (#o0100000
      *NFREG*)))
 
+#+ignore
 (defun nfs-attr (fh)
   (declare (optimize (speed 3)))
   (let* ((s (stat (fh-pathname fh)))
@@ -67,6 +71,29 @@
      :mtime (stat-mtime s)
      :ctime (stat-ctime s))))
 
+(defun nfs-attr (fh)
+  (declare (optimize (speed 3)))
+  (multiple-value-bind (mode nlink uid gid size atime mtime ctime)
+      (unicode-stat (fh-pathname fh))
+    (let ((type (stat-mode-to-type mode)))
+      (if* (eq type *NFDIR*)
+	 then (setf size 512))
+      (make-nfs-attr
+       :type type
+       :mode mode
+       :nlinks (if (eq nlink 0) 1 nlink)
+       :uid uid 
+       :gid gid
+       :size size
+       :blocksize 512
+       :used size
+       :blocks (howmany size 512)
+       :fsid (nfs-export-id (fh-export fh))
+       :fileid (fh-id fh)
+       :atime atime
+       :mtime mtime
+       :ctime ctime))))
+
 (defstruct nfs-attr-cache 
   attr
   atime)
@@ -75,9 +102,9 @@
   (mp:with-process-lock (*attr-cache-lock*)
     (let ((attr-cache (gethash fh *nfs-attr-cache*)))
       (if* attr-cache
-	 then
-	      ;; update access time
-	      (setf (nfs-attr-cache-atime attr-cache) (excl::cl-internal-real-time)) 
+	 then  ;; update access time
+	      (setf (nfs-attr-cache-atime attr-cache) 
+		(excl::cl-internal-real-time)) 
 	 else ;; new cache entry
 	      (setf attr-cache 
 		(make-nfs-attr-cache 
