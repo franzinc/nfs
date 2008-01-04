@@ -1,4 +1,4 @@
-;; $Id: nfs-log.cl,v 1.2 2007/10/31 18:35:02 dancy Exp $
+;; $Id: nfs-log.cl,v 1.3 2008/01/04 19:13:36 dancy Exp $
 
 ;; Logging support
 
@@ -54,7 +54,10 @@
   
   (when (null *log-stream*)
     (setf *nfs-debug-stream*
-      (open *log-file* :direction :output :if-exists :append
+      (open *log-file* 
+	    :direction :output 
+	    :external-format :utf8
+	    :if-exists :append
 	    :if-does-not-exist :create))
 
     (if* (eq *program-mode* :service)

@@ -1,5 +1,6 @@
 2008-01-04    <dancy@DANCYSOFT>
 4.5.1b6
+        * nfs-log.cl:  Use utf8 external format for logfile.
 
 2008-01-04  root  <root@gills.dancysoft.com>
 
