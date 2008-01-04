@@ -1,3 +1,7 @@
+2008-01-04  root  <root@gills.dancysoft.com>
+
+	* hammernfs.c: Added TCP support.
+
 2008-01-04    <dancy@DANCYSOFT>
 
 	Changes to allow for international filenames by:

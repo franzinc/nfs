@@ -21,7 +21,7 @@ void print_fh(struct file_handle *fh) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] host:/export/path/to/file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] [ -p udp|tcp ] host:/export/path/to/file_to_read\n", prg);
   exit(1);
 }
 
@@ -79,6 +79,11 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
   clnt->cl_auth=auth;
   
   fhstatus=mountproc_mnt_1(&export, clnt);
+
+  if (!fhstatus) {
+    printf("mountproc_mnt_1 returned NULL\n");
+    exit(1);
+  }
 
   if (fhstatus->fhs_status != 0) {
     printf("mount failed: status %d\n", fhstatus->fhs_status);
@@ -309,8 +314,9 @@ int main(int argc, char **argv) {
   char *testpath=NULL; 
   char *exportname=NULL;
   int quiet = 0;
+  char *proto="udp";
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:q"))!=-1) {
+  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:qp:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -337,6 +343,13 @@ int main(int argc, char **argv) {
       break;
     case 'b':
       blocksize=atoi(optarg);
+      break;
+    case 'p':
+      if (strcmp(optarg, "udp") !=0 && strcmp(optarg,"tcp") != 0) {
+	fprintf(stderr, "Invalid protocol: '%s'. Must be udp or tcp.\n", optarg);
+	exit(1);
+      }
+      proto=strdup(optarg);
       break;
     default:
       usage(argv[0]);
@@ -369,6 +382,11 @@ int main(int argc, char **argv) {
   if (!strlen(testpath))
     usage(argv[0]);
 
+  if (!strcmp(proto,"udp") && blocksize > 8192) {
+    fprintf(stderr, "Max NFS blocksize over UDP is 8192\n");
+    exit(1);
+  }
+
   printf("export:   %s\n", exportname);
   printf("testpath: %s\n", testpath);
 
@@ -378,7 +396,7 @@ int main(int argc, char **argv) {
 
   rootfh=get_export_fh(vers, host, exportname, auth);
 
-  clnt=clnt_create(host, NFS_PROGRAM, vers, "udp");
+  clnt=clnt_create(host, NFS_PROGRAM, vers, proto);
   if (!clnt) {
     printf("clnt_create failed\n");
     exit(1);
