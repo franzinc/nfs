@@ -1,9 +1,10 @@
-;; $Id: unicode-file.cl,v 1.1 2008/01/04 17:25:11 dancy Exp $
+;; $Id: unicode-file.cl,v 1.2 2008/01/26 13:26:43 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
-  (require :winapi))
+  (require :winapi)
+  (require :ef-fat-le))
 
 ;; Functions to allow unicode filenames.  Needed until Allegro CL
 ;; has built-in support.
@@ -200,11 +201,81 @@ struct __stat64 {
 		   `(ff:fslot-value-typed 'stat64 :foreign-static-gc sb ,@rest)))
 	(macrolet ((timeslot (name)
 		     `(excl.osi:unix-to-universal-time (slot ,name :low))))
-	  (values (slot 'mode) (slot 'nlink) (slot 'uid) (slot 'gid) 
-		  (logior (slot 'size 'low) (ash (slot 'size 'high) 32))
-		  (timeslot 'atime) (timeslot 'mtime) (timeslot 'ctime)))))))
-    
-  
+	  (let ((mode (slot 'mode)))
+	    (if (symlink-p filename)
+		(setf mode #o0120777))
+	    (values mode (slot 'nlink) (slot 'uid) (slot 'gid) 
+		    (logior (slot 'size 'low) (ash (slot 'size 'high) 32))
+		    (timeslot 'atime) (timeslot 'mtime) (timeslot 'ctime))))))))
+
+(ff:def-foreign-call (GetFileAttributes "GetFileAttributesW")
+    ((lpFileName (* :void)))
+  :returning :int
+  :error-value :os-specific)
+
+(defconstant INVALID_FILE_ATTRIBUTES -1)
+(defconstant FILE_ATTRIBUTE_SYSTEM 4)
+(defconstant FILE_ATTRIBUTE_DIRECTORY 16)
+
+(defconstant *symlink-header* 
+    #.(make-array 8 :element-type '(unsigned-byte 8)
+		  :initial-contents '(#x49 #x6e #x74 #x78 #x4c #x4e #x4b #x01)))
+
+(defun symlink-header-p (buf)
+  (declare (optimize speed (safety 0) (debug 0))
+	   ((simple-array (unsigned-byte 8) (*)) buf))
+  (dotimes (n 8 t)
+    (if (not (eq (aref buf n)
+		 (aref *symlink-header* n)))
+	(return))))
+
+(defun symlink-p (filename)
+  (declare (optimize speed))
+  (let ((res (GetFileAttributes filename)))
+    (when (and (not (eq res INVALID_FILE_ATTRIBUTES))
+	       (not (zerop (logand res FILE_ATTRIBUTE_SYSTEM)))
+	       (zerop (logand res FILE_ATTRIBUTE_DIRECTORY))
+	       (evenp (file-length filename)))
+      (let ((buf (make-array 8 :element-type '(unsigned-byte 8))))
+	(declare (optimize (safety 0))
+		 (dynamic-extent buf))
+	(with-open-file (f filename)
+	  (if (and (eq 8 (read-vector buf f))
+		   (symlink-header-p buf))
+	      t))))))
+
+(defun unicode-readlink (filename)
+  (declare (optimize speed))
+  (let ((buf (make-array 8 :element-type '(unsigned-byte 8))))
+    (declare (optimize (safety 0))
+	     (dynamic-extent buf))
+    (with-open-file (f filename :external-format :fat-le)
+      (let ((flen (file-length f)))
+	(if* (and (evenp flen)
+		  (eq 8 (read-vector buf f))
+		  (symlink-header-p buf))
+	   then (let ((string (make-string (ash (- flen 8) -1))))
+		  (read-vector string f)
+		  string)
+	   else (excl::.syscall-error "readlink" *einval*))))))
+
+(ff:def-foreign-call (SetFileAttributes "SetFileAttributesW")
+    ((lpFileName (* :void))
+     (dwFileAttributes win:dword))
+  :returning :boolean
+  :error-value :os-specific)
+
+;; XXX This is not atomic link it is supposed to be.  One possible
+;; workaround would be to create a temporary file, then rename it.
+(defun unicode-symlink (oldpath newpath)
+  (with-open-file (f newpath :direction :output
+		   :external-format :fat-le)
+    (write-vector *symlink-header* f)
+    (write-string oldpath f))
+  (multiple-value-bind (ok err)
+      (SetFileAttributes newpath FILE_ATTRIBUTE_SYSTEM)
+    (or ok (excl::.winapi-error "SetFileAttributesW" err))))
+
 (defun unicode-truncate (filename len)
   (with-unicode-open (s filename :direction :output :if-exists :overwrite)
     (os-ftruncate s len)))

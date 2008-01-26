@@ -1,3 +1,10 @@
+2008-01-26    <dancy@CANDY2K>
+4.5.1b7
+	* ENHANCEMENT: Symbolic link support added.
+
+	* nfs-common.cl: map-errno-to-nfs-error: Map *einval* to
+	*nfserr-inval*.
+
 2008-01-04    <dancy@DANCYSOFT>
 4.5.1b6
         * nfs-log.cl:  Use utf8 external format for logfile.

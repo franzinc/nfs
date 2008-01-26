@@ -38,12 +38,14 @@
 (defparameter *nfs-attr-cache* (make-hash-table :test #'eq))
 (defparameter *attr-cache-lock* (mp:make-process-lock))
 
-(defun stat-mode-to-type (mode)
-  (ecase (logand mode #o0170000)
-    (#o0040000
-     *NFDIR*)
-    (#o0100000
-     *NFREG*)))
+(defmacro stat-mode-to-type (mode)
+  `(ecase (logand ,mode #o0170000)
+     (#o0040000
+      *NFDIR*)
+     (#o0100000
+      *NFREG*)
+     (#o0120000
+      *NFLNK*)))
 
 #+ignore
 (defun nfs-attr (fh)

@@ -6,7 +6,7 @@
   (use-package :gen-nfs))
 
 ;;;
-(defvar *nfsd-version* "4.5.1b6")
+(defvar *nfsd-version* "4.5.1b7")
 (defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 ;;; 
 
@@ -57,6 +57,7 @@
     (#.*enfile* *nfserr-acces*)
     (#.*enotempty* *nfserr-notempty*) 
     (#.*eexist* *nfserr-exist*)
+    (#.*einval* *nfserr-inval*)
     ;; very general... avoid.  For v3, should should be
     ;; *nfserr-serverfault*
     (t *nfserr-io*))) 

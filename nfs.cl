@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.112 2008/01/04 17:25:11 dancy Exp $
+;; $Id: nfs.cl,v 1.113 2008/01/26 13:26:43 dancy Exp $
 
 (in-package :user)
 
@@ -741,7 +741,12 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
   ;; Can set time on files
   ;; homogeneous (all files have same pathconf information)
   ;; hard links supported
-  (xdr-unsigned-int *nfsdxdr* #x19))
+  ;; symbolink links supported 
+  (xdr-unsigned-int *nfsdxdr* 
+		    #.(logior *fsf3-link*
+			      *fsf3-symlink*
+			      *fsf3-homogeneous*
+			      *fsf3-cansettime*)))
 
 
 ;;; readdirargs:  fhandle dir, cookie, count
@@ -1437,31 +1442,49 @@ struct entry {
   (xdr-bool *nfsdxdr* t) ;; case_insensitive;
   (xdr-bool *nfsdxdr* t)) ;; case_preserving
 
-  
+(define-nfs-proc readlink ((fh fhandle))
+  (with-permission (fh :read)
+    (let ((result (unicode-readlink (fh-pathname fh))))
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
+      (if (eq vers 3)
+	  (nfs-xdr-post-op-attr *nfsdxdr* fh))
+      (if debug-this-procedure
+	  (logit " ==> ~a" result))
+      (xdr-filename *nfsdxdr* result))))
 
-;;; Unsupported section
-
-
-;; args:  fromdir handle, fromfile,  path, attributes
 (define-nfs-proc symlink ((dirfh fhandle) 
 			  (filename filename)
 			  (symlink filename)
 			  (sattr sattr))
   (with-permission (dirfh :write)
-    (nfs-unsupported)))
+    (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
+	   (newpath (fh-pathname fh)))
+      (unicode-symlink symlink newpath)
+      (update-atime-and-mtime dirfh)
+      (nfs-add-file-to-dir filename dirfh)
+      (if debug-this-procedure
+	  (logit " ==> OK"))
+      (xdr-int *nfsdxdr* #.*nfs-ok*))))
 
 (define-nfs-proc symlink3 ((dirfh fhandle) 
 			   (filename filename) 
 			   (attrs sattr)
 			   (symlink filename))
   (with-permission (dirfh :write)
-    (nfs-unsupported)))
+    (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
+	   (fh (lookup-fh-in-dir dirfh filename :create t))
+	   (newpath (fh-pathname fh)))
+      (unicode-symlink symlink newpath)
+      (update-atime-and-mtime dirfh)
+      (nfs-add-file-to-dir filename dirfh)
+      (if debug-this-procedure
+	  (logit " ==> OK"))
+      (xdr-int *nfsdxdr* #.*nfs-ok*)
+      (nfs-xdr-post-op-fh *nfsdxdr* fh)
+      (nfs-xdr-post-op-attr *nfsdxdr* fh)
+      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
 
-;; Could also return NFSERR_INVAL since we would never have
-;; supplied a file handle to a symbolic link.
-(define-nfs-proc readlink ((fh fhandle))
-  (with-permission (fh :read)
-    (nfs-unsupported)))
+;;; Unsupported section
 
 (define-nfs-proc mknod ((dirfh fhandle) (filename filename))
   (with-permission (dirfh :write)
