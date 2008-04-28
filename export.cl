@@ -1,5 +1,7 @@
 (in-package :user)
 
+(eval-when (compile) (declaim (optimize (speed 3))))
+
 (defparameter *exports* nil)
 (defparameter *old-exports* nil)
 (defparameter *next-export-id* 1)
@@ -148,17 +150,26 @@
 	  (return exp)))))
 
 (defun export-host-access-allowed-p (exp addr)
+  (declare (optimize speed (safety 0) (debug 0)))
   (dolist (allow (nfs-export-hosts-allow exp))
     (if (addr-in-network-p addr allow)
 	(return t))))
 
+;; uid is an integer (or nil if auth-unix auth info was
+;; not supplied)
 (defun export-user-write-access-allowed-p (exp uid)
-  (or (= uid (nfs-export-uid exp))
-      (eq (nfs-export-rw-users exp) t)
-      (member uid (nfs-export-rw-users exp))))
+  (declare (optimize speed (safety 0) (debug 0)))
+  (let ((rw-users (nfs-export-rw-users exp)))
+    (or (eq rw-users t)
+	(eq uid (nfs-export-uid exp))
+	(member uid rw-users :test #'eq))))
 
+;; uid is an integer (or nil if auth-unix auth info was
+;; not supplied)
 (defun export-user-read-access-allowed-p (exp uid)
-  (or (export-user-write-access-allowed-p exp uid)
-      (eq (nfs-export-ro-users exp) t)
-      (member uid (nfs-export-ro-users exp))))
+  (declare (optimize speed (safety 0) (debug 0)))
+  (let ((ro-users (nfs-export-ro-users exp)))
+    (or (eq ro-users t)
+	(export-user-write-access-allowed-p exp uid)
+	(member uid ro-users :test #'eq))))
 

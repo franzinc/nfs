@@ -5,7 +5,7 @@
 ;; (http://opensource.franz.com/preamble.html),
 ;; known as the LLGPL.
 ;;
-;; $Id: ipaddr.cl,v 1.3 2007/04/13 23:00:25 dancy Exp $
+;; $Id: ipaddr.cl,v 1.4 2008/04/28 20:06:02 dancy Exp $
 
 (in-package :user)
 
@@ -49,10 +49,27 @@
       (error "Invalid mask length: ~A" value))
   (- #xffffffff (1- (expt 2 (- 32 value)))))
 
-  
+(defun test (net)
+  (declare (optimize speed (safety 0) (debug 0)))
+  (let ((addr (socket:dotted-to-ipaddr "1.2.3.4")))
+    (dotimes (n 10000000)
+      (addr-in-network-p addr net))))
+
+#+ignore
 (defun addr-in-network-p (addr net)
+  (declare (optimize speed (safety 0) (debug 0)))
   (if (stringp addr)
       (setf addr (socket:dotted-to-ipaddr addr)))
   (= (logand addr (network-address-mask net))
      (network-address-network net)))
+
+;; Optimized version
+(defun addr-in-network-p (addr net)
+  (declare (optimize speed (safety 0) (debug 0)))
+  (if (stringp addr)
+      (setf addr (socket:dotted-to-ipaddr addr)))
+  (let ((addr (comp::ll :integer-to-mi addr))
+	(mask (comp::ll :integer-to-mi (network-address-mask net)))
+	(network (comp::ll :integer-to-mi (network-address-network net))))
+    (eq (comp::ll :logand addr mask) network)))
 

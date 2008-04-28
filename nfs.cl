@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.113 2008/01/26 13:26:43 dancy Exp $
+;; $Id: nfs.cl,v 1.114 2008/04/28 20:06:02 dancy Exp $
 
 (in-package :user)
 
@@ -1493,18 +1493,28 @@ struct entry {
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun nfs-okay-to-write (fh cred)
-  (when (= #.sunrpc:*auth-unix* (sunrpc:opaque-auth-flavor cred))
-    (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-      (export-user-write-access-allowed-p 
-       (fh-export fh) 
-       (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr))))))
-
+  (declare (optimize speed (safety 0) (debug 0)))
+  (let ((exp (fh-export fh)))
+    (case (sunrpc:opaque-auth-flavor cred)
+      (#.sunrpc:*auth-unix* 
+       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	 (export-user-write-access-allowed-p 
+	  exp
+	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+      (#.sunrpc:*auth-null*
+       (export-user-write-access-allowed-p exp nil)))))
+  
 (defun nfs-okay-to-read (fh cred)
-  (when (= #.sunrpc:*auth-unix* (sunrpc:opaque-auth-flavor cred))
-    (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-      (export-user-read-access-allowed-p 
-       (fh-export fh) 
-       (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr))))))
+  (declare (optimize speed (safety 0) (debug 0)))
+  (let ((exp (fh-export fh)))
+    (case (sunrpc:opaque-auth-flavor cred)
+      (#.sunrpc:*auth-unix* 
+       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	 (export-user-read-access-allowed-p 
+	  exp
+	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+      (#.sunrpc:*auth-null*
+       (export-user-read-access-allowed-p exp nil)))))
 
 ;;; configuration program interface
 

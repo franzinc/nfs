@@ -1,3 +1,25 @@
+2008-04-28    <dancy@CANDY2K>
+4.5.1b8
+	* export.cl: Added (eval-when (compile) (declaim (optimize (speed 3)))) 
+	to top of file.  
+
+	Added (declare (optimize speed (safety 0) (debug 0))) to some
+	heavily-used functions.  
+
+	export-user-write-access-allowed-p/export-user-read-access-allowed-p:
+	Tweaked a bit so that 'uid' can be nil (meaning the client did not
+	provide uid information).  In this case, the functions will only
+	return true if 'everyone' is listed in the appropriate access
+	list.
+
+	* ipaddr.cl: Rewrote addr-in-network-p using 'll' code so it's
+	about 5 times faster.  However, the overall impact on the program
+	is minor.
+
+	* nfs.cl: nfs-okay-to-write/nfs-okay-to-read: Tweaked to allow for
+	RPC calls made with auth-null authentication.  In this case, we
+	pass 'nil' as the uid to export-user-{write,read}-access-allowed-p.  
+
 2008-01-26    <dancy@CANDY2K>
 4.5.1b7
 	* ENHANCEMENT: Symbolic link support added.
