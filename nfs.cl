@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: nfs.cl,v 1.114 2008/04/28 20:06:02 dancy Exp $
+;; $Id: nfs.cl,v 1.115 2008/06/05 16:11:15 dancy Exp $
 
 (in-package :user)
 
@@ -30,7 +30,8 @@
 
 (eval-when (compile load eval)
   (use-package :gen-nfs)
-  (use-package :xdr))
+  (use-package :xdr)
+  (require :autozoom))
 
 (defparameter *socketbuffersize* (* 128 1024))
 (defparameter *nfsd-start-time* nil)
@@ -151,29 +152,6 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	   (return-from nfsd-message-handler)))))))
        
 
-(defmacro with-backtrace-on-non-file-error (() &body body)
-  `(handler-bind
-       ((error
-	 (lambda (c)
-	   (ignore-errors 
-	    (if (not (typep c 'file-error))
-		(with-open-file (f "c:\\temp\\nfs-errlog.txt"
-				 :direction :output
-				 :if-does-not-exist :create
-				 :if-exists :append)
-		  (let ((*print-readably* nil)
-			(*print-miser-width* 40)
-			(*print-pretty* t)
-			(*print-structure* nil)
-			(*print-array* nil)
-			(tpl:*zoom-print-circle* t)
-			(tpl:*zoom-print-level* nil)
-			(tpl:*zoom-print-length* nil)
-			(*terminal-io* f)
-			(*standard-output* f))
-		    (tpl:do-command "zoom" :from-read-eval-print-loop nil))))))))
-     ,@body))
-
 (defun file-or-syscall-error (c xdr savedpos vers debug-this-procedure)
   (setf (xdr:xdr-pos xdr) savedpos)
   ;; Make some errors look less alarming. 
@@ -191,33 +169,48 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		(excl::syscall-error-errno c)))
   (if (= vers 3)
       (nfs-xdr-wcc-data xdr nil nil)))
-  
 
 (defmacro with-nfs-err-handler ((xdr vers) &body body)
-  (let ((savepossym (gensym)))
+  (let ((savepossym (gensym))
+	(c (gensym))
+	(out (gensym)))
     `(let ((,savepossym (xdr:xdr-pos ,xdr)))
-       (handler-case
-	   (with-backtrace-on-non-file-error ()
-	     ,@body)
-	 (illegal-filename-error (c)
-	   (declare (ignore c))
-	   (setf (xdr:xdr-pos ,xdr) ,savepossym)
-	   (when debug-this-procedure (logit "Illegal filename~%"))
-	   (xdr-int ,xdr #.*nfserr-acces*) ;; rfc1813 says to use this
-	   (if (= ,vers 3)
-	       (nfs-xdr-wcc-data ,xdr nil nil)))
-	 (file-error (c)
-	   (file-or-syscall-error c ,xdr ,savepossym ,vers debug-this-procedure))
-	 (syscall-error (c)
-	   (file-or-syscall-error c ,xdr ,savepossym ,vers debug-this-procedure))
-	   
-	 (error (c)
-	   (setf (xdr:xdr-pos ,xdr) ,savepossym)
-	   (logit-stamp "Handling unexpected error: ~A~%" c)
-	   (xdr-int ,xdr #.*nfserr-io*)
-	   (if (= ,vers 3)
-	       (nfs-xdr-wcc-data ,xdr nil nil)))))))
-    
+       (tagbody
+	 (handler-bind 
+	     ((illegal-filename-error 
+	       (lambda (,c)
+		 (declare (ignore ,c))
+		 (setf (xdr:xdr-pos ,xdr) ,savepossym)
+		 (when debug-this-procedure (logit "Illegal filename~%"))
+		 (xdr-int ,xdr #.*nfserr-acces*) ;; rfc1813 says to use this
+		 (if (= ,vers 3)
+		     (nfs-xdr-wcc-data ,xdr nil nil))
+		 (go ,out)))
+	      (file-error 
+	       (lambda (,c)
+		 (file-or-syscall-error ,c ,xdr ,savepossym ,vers debug-this-procedure)
+		 (go ,out)))
+	      (syscall-error
+	       (lambda (,c)
+		 (file-or-syscall-error ,c ,xdr ,savepossym ,vers debug-this-procedure)
+		 (go ,out)))
+	      (error 
+	       (lambda (,c)
+		 ;; Generate a backtrace
+		 (ignore-errors 
+		  (with-open-file (f "c:\\temp\\nfs-errlog.txt"
+				   :direction :output
+				   :if-does-not-exist :create
+				   :if-exists :append)
+		    (top-level.debug:zoom f :count t)))
+		 (setf (xdr:xdr-pos ,xdr) ,savepossym)
+		 (logit-stamp "Handling unexpected error: ~a~%" ,c)
+		 (xdr-int ,xdr #.*nfserr-io*)
+		 (if (= ,vers 3)
+		     (nfs-xdr-wcc-data ,xdr nil nil))
+		 (go ,out))))
+	   (progn ,@body))
+	 ,out))))
 
 (defmacro with-valid-fh ((xdr vers fhs) &body body)
   (let ((block (gensym))

@@ -1,4 +1,4 @@
-;; $Id: unicode-file.cl,v 1.2 2008/01/26 13:26:43 dancy Exp $
+;; $Id: unicode-file.cl,v 1.3 2008/06/05 16:11:15 dancy Exp $
 
 (in-package :user)
 
@@ -80,6 +80,13 @@
 	  (win:FindClose handle))
 	res))))
 
+;; Workaround for bug17857
+(ff:def-foreign-call (excl.osi::sys-allocate-pseudofd "allocate_pseudofd")
+    ((filedes :unsigned-int)
+     (kind :unsigned-short))
+  :strings-convert nil
+  :returning :int)
+
 (ff:def-foreign-call (syscall-wopen "_wopen")
     ((file (* :void))
      (flags :int)
@@ -126,6 +133,8 @@
 		       #o666)
       (if* (>= fd 0)
 	 then (let ((handle (excl.osi::allocate-pseudofd fd)))
+		(if* (< handle 0)
+		   then (error "allocate-pseudofd returned ~d for fd ~d" handle fd))
 		(make-instance 'file-simple-stream
 		  :filename filename
 		  :input-handle handle

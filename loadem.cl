@@ -22,7 +22,7 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
 
-;; $Id: loadem.cl,v 1.51 2008/01/04 17:25:11 dancy Exp $
+;; $Id: loadem.cl,v 1.52 2008/06/05 16:11:15 dancy Exp $
 
 (in-package :user)
 
@@ -91,7 +91,7 @@
     
     (generate-executable
      "nfs" 
-     (append '(:sock :acldns :seq2 :foreign :efmacs
+     (append '(:sock :acldns :seq2 :foreign :efmacs :autozoom
 	       #+nfs-profiling :prof
 	       #+nfs-profiling :pe ;; needed for prof:show-flat-profile
 	       #+nfs-debug :trace)
