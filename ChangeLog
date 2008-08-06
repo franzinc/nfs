@@ -137,7 +137,7 @@
 	should save some unnecessary work during certain operations.
 
 	* BUGFIX (spr33156): fhandle.cl: Rename operations
-	(rename-fhandle) weren't probably updating the fh-pathname slot.
+	(rename-fhandle) weren't properly updating the fh-pathname slot.
 	Unfortunately the linux NFS client was masking this bug.  Added a
 	test function.  Tweaked the hard link stuff a bit as well.  This
 	stuff needs to be totally revamped.
