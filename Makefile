@@ -1,18 +1,25 @@
-# $Id: Makefile,v 1.61 2007/08/10 00:10:06 dancy Exp $
+# $Id: Makefile,v 1.62 2008/12/11 20:23:50 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
+#
+# Building on 64-bit Windows (hobart128):
+# make LISPDIR="/c/Program Files (x86)/acl81-32.patched" all
+
+PROGRAM_FILES := $(shell if test -d "/c/Program Files (x86)"; then echo "/c/Program Files (x86)"; else echo "/c/Program Files"; fi)
 
 ## The `stable' directory is one that is only updated after rigorous
 ## testing, to make sure the base is as stable as possible.
-STABLE := $(shell if test -d "/c/Program Files/acl81-stable"; then echo yes; else echo no; fi)
+ifndef LISPDIR
+STABLE := $(shell if test -d "$(PROGRAM_FILES)/acl81-stable"; then echo yes; else echo no; fi)
 ifeq ($(STABLE),yes)
-LISPDIR = "/c/Program Files/acl81-stable"
+LISPDIR = "$(PROGRAM_FILES)/acl81-stable"
 else
-LISPDIR = "/c/Program Files/acl81"
+LISPDIR = "$(PROGRAM_FILES)/acl81"
+endif
 endif
 LISPEXE=$(LISPDIR)/mlisp
 
-MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
+MAKENSIS = "$(PROGRAM_FILES)/NSIS/makensis.exe"
 
 version = $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
@@ -53,7 +60,7 @@ rpc: FORCE
 	echo '(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x")) (write-line file) (rpcgen file))' >> b.tmp
 	echo '(rpcgen "nfs.x" :out-base "gen-nfs")' >> b.tmp
 	echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +B +cn +s b.tmp -batch
+	"$(LISPEXE)" +B +cn +s b.tmp -batch
 	rm b.tmp
 
 do_build: prereqs rpc FORCE
@@ -66,7 +73,7 @@ endif
 	echo '(load "loadem.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +B +cn +s b.tmp -batch
+	"$(LISPEXE)" +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 	$(MAKE) -C configure

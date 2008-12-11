@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 ;;
-;; $Id: main.cl,v 1.26 2007/08/10 00:10:06 dancy Exp $
+;; $Id: main.cl,v 1.27 2008/12/11 20:23:50 layer Exp $
 
 (eval-when (compile eval load) (require :ntservice))
 
@@ -34,7 +34,8 @@
 (defparameter *nsm-process* nil)
 (defparameter *nlm-process* nil)
 
-;;#+nfs-debug (eval-when (eval load) (require :trace))
+#+nfs-telnet-server ;; because the first thing you want to do is `trace'
+(eval-when (eval load) (require :trace))
 
 (defun ping-nfsd ()
   (multiple-value-bind (res error)

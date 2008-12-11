@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.16 2007/08/10 00:32:10 dancy Exp $
+# $Id: Makefile,v 1.17 2008/12/11 20:23:50 layer Exp $
 
 ## The `stable' directory is one that is only updated after rigorous
 ## testing, to make sure the base is as stable as possible.
@@ -17,7 +17,7 @@ build: configure/configure.exe configure.exe.manifest
 	$(MT) -manifest configure.exe.manifest -outputresource:configure/configure.exe
 
 configure/configure.exe:
-	$(ALLEGRO) -L buildit.cl
+	"$(ALLEGRO)" -L buildit.cl
 
 clean:
 	rm -fr *.fasl configure *.build-dribble 
