@@ -1,4 +1,4 @@
-;; $Id: sunrpc-service.cl,v 1.9 2007/04/13 23:00:25 dancy Exp $
+;; $Id: sunrpc-service.cl,v 1.10 2008/12/11 00:29:46 dancy Exp $
 
 ;; Service stuff
 
@@ -278,8 +278,21 @@ Accepting new tcp connection and adding it to the client list.~%"))
 						 :buffer buffer)
 		(socket-error (c) 
 		  (if *rpc-debug* 
-		      (user::logit-stamp "Ignoring error condition ~S~%" c))
-		  nil))
+		      (user::logit-stamp "Ignoring socket error: ~a~%" c))
+		  nil)
+		(errno-stream-error (c)
+		  (case (stream-error-code c)
+		    (10035 ;; WSAEWOULDBLOCK.. ignore
+		     (if *rpc-debug* 
+			 (user::logit-stamp "Ignoring stream error: ~a~%" c))
+		     nil)
+		    (t
+		     (user::logit-stamp "rpc-get-message: Unexpected stream error during receive-from: ~a~%" c)
+		     (error c))))
+		(t (c)
+		  (user::logit-stamp "rpc-get-message: Unexpected error during receive-from: ~a~%" c)
+		  (error c)))
+
 	    (when vec
 	      (setf (rpc-peer-type peer) :datagram)
 	      (setf (rpc-peer-socket peer) udpsock)

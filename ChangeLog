@@ -1,3 +1,11 @@
+2008-12-10    <dancy@CANDY2K>
+4.5.1b10
+	
+	* BUGFIX: sunrpc-service.cl: rpc-get-message: Log unexpected
+	errors that may occur during receive-from to aid in debugging.
+	Also, ignore WSAEWOULDBLOCK errors that might occur during
+	receive-from.
+
 2008-06-05    <dancy@CANDY2K>
 4.5.1b9	
 	* nfs.cl: Rearranged with-nfs-err-handler.  It was sometimes
