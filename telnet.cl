@@ -1,4 +1,4 @@
-;; $Id: telnet.cl,v 1.3 2006/12/19 17:26:01 dancy Exp $
+;; $Id: telnet.cl,v 1.4 2009/01/16 20:41:46 layer Exp $
 
 ;; Source code for telnet-server example
 (in-package :user)
@@ -49,6 +49,7 @@ WARNING: do not use :exit or (exit).  Use ~s to quit."
   (unwind-protect
       (catch 'end-telnet-session
         (let ((*in-telnet-session* t))
+	  (setq excl::*set-acl-running-mutex* nil)
           (tpl:start-interactive-top-level
            s 'tpl:top-level-read-eval-print-loop nil)))
     (ignore-errors (close s)))
