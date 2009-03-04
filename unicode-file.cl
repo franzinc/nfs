@@ -1,4 +1,4 @@
-;; $Id: unicode-file.cl,v 1.3 2008/06/05 16:11:15 dancy Exp $
+;; $Id: unicode-file.cl,v 1.4 2009/03/04 20:42:36 dancy Exp $
 
 (in-package :user)
 
@@ -274,7 +274,7 @@ struct __stat64 {
   :returning :boolean
   :error-value :os-specific)
 
-;; XXX This is not atomic link it is supposed to be.  One possible
+;; XXX This is not atomic like it is supposed to be.  One possible
 ;; workaround would be to create a temporary file, then rename it.
 (defun unicode-symlink (oldpath newpath)
   (with-open-file (f newpath :direction :output
