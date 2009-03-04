@@ -1,5 +1,5 @@
 2009-01-16    <layer@HOBART128>
-54.5.1b11
+4.5.1b11
 
 	* telnet.cl: excl::*set-acl-running-mutex* => nil, so we don't
 	  have problems with update.exe running
