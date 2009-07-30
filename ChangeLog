@@ -1,3 +1,17 @@
+2009-07-30    <dancy@DANCYSOFT>
+
+	* Makefiles: Removed double-quotes from lisp invocations.  Doesn't
+	work on my system.
+
+	* Makefile: 
+
+	installer-common: mkdir -p dists
+
+	prereqs: Replaced cvs style w/ git style (but simpler).  Left the
+	cvs style stuff in there but commented out.
+
+	* access-control.txt & configure/ipaddr.cl: line ending changes.
+	
 2009-01-16    <layer@HOBART128>
 4.5.1b11
 

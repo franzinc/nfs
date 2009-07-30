@@ -29,25 +29,35 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-CVS_BRANCH_ARG := $(shell cvstag.sh .)
-DATE_CVS_BRANCH_ARG := $(shell cvstag.sh date)
-DEMOWARE_CVS_BRANCH_ARG := $(shell cvstag.sh demoware)
+# CVS_BRANCH_ARG := $(shell cvstag.sh .)
+# DATE_CVS_BRANCH_ARG := $(shell cvstag.sh date)
+# DEMOWARE_CVS_BRANCH_ARG := $(shell cvstag.sh demoware)
+
+# prereqs: FORCE
+# 	@if test ! -d date; then \
+# 	    echo Checking out date module; \
+# 	    cvs co $(CVS_BRANCH_ARG) date; \
+# 	elif test "$(CVS_BRANCH_ARG)" != "$(DATE_CVS_BRANCH_ARG)"; then \
+# 	    echo cvs update -d $(CVS_BRANCH_ARG) date; \
+# 	    (cd date; cvs update -d $(CVS_BRANCH_ARG)); \
+# 	fi
+# 	@if test ! -d demoware; then \
+# 	    echo Checking out demoware module; \
+# 	    cvs co $(CVS_BRANCH_ARG) demoware; \
+# 	elif test "$(CVS_BRANCH_ARG)" != "$(DEMOWARE_CVS_BRANCH_ARG)"; then \
+# 	    echo cvs update -d $(CVS_BRANCH_ARG) demoware; \
+# 	    (cd demoware; cvs update -d $(CVS_BRANCH_ARG)); \
+# 	fi
+
+GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
 
 prereqs: FORCE
-	@if test ! -d date; then \
-	    echo Checking out date module; \
-	    cvs co $(CVS_BRANCH_ARG) date; \
-	elif test "$(CVS_BRANCH_ARG)" != "$(DATE_CVS_BRANCH_ARG)"; then \
-	    echo cvs update -d $(CVS_BRANCH_ARG) date; \
-	    (cd date; cvs update -d $(CVS_BRANCH_ARG)); \
-	fi
-	@if test ! -d demoware; then \
-	    echo Checking out demoware module; \
-	    cvs co $(CVS_BRANCH_ARG) demoware; \
-	elif test "$(CVS_BRANCH_ARG)" != "$(DEMOWARE_CVS_BRANCH_ARG)"; then \
-	    echo cvs update -d $(CVS_BRANCH_ARG) demoware; \
-	    (cd demoware; cvs update -d $(CVS_BRANCH_ARG)); \
-	fi
+	@for module in date demoware; do \
+	  if test ! -d $$module; then \
+	     echo Checking out $$module module;  \
+             git clone $(GIT_REPO_BASE)/$$module; \
+	  fi; \
+        done
 
 build: FORCE
 	@$(MAKE) $(MFLAGS) do_build
@@ -60,7 +70,7 @@ rpc: FORCE
 	echo '(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x")) (write-line file) (rpcgen file))' >> b.tmp
 	echo '(rpcgen "nfs.x" :out-base "gen-nfs")' >> b.tmp
 	echo '(exit 0)' >> b.tmp
-	"$(LISPEXE)" +B +cn +s b.tmp -batch
+	$(LISPEXE) +B +cn +s b.tmp -batch
 	rm b.tmp
 
 do_build: prereqs rpc FORCE
@@ -73,7 +83,7 @@ endif
 	echo '(load "loadem.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
-	"$(LISPEXE)" +B +cn +s b.tmp -batch
+	$(LISPEXE) +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 	$(MAKE) -C configure
@@ -87,6 +97,7 @@ installer-common: FORCE
 	rm -f nfs/nfs.cfg
 	rm -fr nfs/configure
 	cp -pr configure/configure nfs
+	mkdir -p dists
 
 installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
