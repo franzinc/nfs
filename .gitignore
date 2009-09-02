@@ -1,12 +1,13 @@
-*~
 *.fasl
 *.tmp
 *.zip
+*~
+/date/
+/demoware/
+Makefile.local
 autoloads.out
-nfs
-nfs.cfg
-diffs
 configure/module-report.txt
+diffs
 gen-nfs-client.cl
 gen-nfs-common.cl
 gen-nfs-server.cl
@@ -14,6 +15,8 @@ hammernfs-libs
 mount-client.cl
 mount-common.cl
 mount-server.cl
+nfs
+nfs.cfg
 nlm-client.cl
 nlm-common.cl
 nlm-server.cl
@@ -24,3 +27,4 @@ portmap-client.cl
 portmap-common.cl
 portmap-server.cl
 sunrpc-common.cl
+dists/

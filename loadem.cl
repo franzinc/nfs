@@ -74,6 +74,8 @@
 )
 
 (eval-when (compile load eval)
+  (setq excl::*warn-smp-usage* nil)
+  
   (require :osi)
   (use-package :excl.osi)
   (with-compilation-unit ()

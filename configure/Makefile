@@ -1,13 +1,16 @@
-# $Id: Makefile,v 1.17 2008/12/11 20:23:50 layer Exp $
 
-## The `stable' directory is one that is only updated after rigorous
-## testing, to make sure the base is as stable as possible.
-STABLE := $(shell if test -d "/c/Program Files/acl81-stable"; then echo yes; else echo no; fi)
-ifeq ($(STABLE),yes)
-LISPDIR = "/c/Program Files/acl81-stable"
-else
-LISPDIR = "/c/Program Files/acl81"
+PROGRAM_FILES = /c/Program Files
+
+DO_MAKEFILE_LOCAL := $(shell if test -f ../Makefile.local; then echo yes; fi)
+
+ifeq ($(DO_MAKEFILE_LOCAL),yes)
+include ../Makefile.local
 endif
+
+ifndef LISPDIR
+LISPDIR = "$(PROGRAM_FILES)/acl81"
+endif
+
 ALLEGRO=$(LISPDIR)/allegro
 
 # Worst directory name ever

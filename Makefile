@@ -1,22 +1,18 @@
-# $Id: Makefile,v 1.62 2008/12/11 20:23:50 layer Exp $
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
-#
-# Building on 64-bit Windows (hobart128):
-# make LISPDIR="/c/Program Files (x86)/acl81-32.patched" all
 
-PROGRAM_FILES := $(shell if test -d "/c/Program Files (x86)"; then echo "/c/Program Files (x86)"; else echo "/c/Program Files"; fi)
+PROGRAM_FILES = /c/Program Files
 
-## The `stable' directory is one that is only updated after rigorous
-## testing, to make sure the base is as stable as possible.
+DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
+
+ifeq ($(DO_MAKEFILE_LOCAL),yes)
+include Makefile.local
+endif
+
 ifndef LISPDIR
-STABLE := $(shell if test -d "$(PROGRAM_FILES)/acl81-stable"; then echo yes; else echo no; fi)
-ifeq ($(STABLE),yes)
-LISPDIR = "$(PROGRAM_FILES)/acl81-stable"
-else
 LISPDIR = "$(PROGRAM_FILES)/acl81"
 endif
-endif
+
 LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "$(PROGRAM_FILES)/NSIS/makensis.exe"
@@ -28,26 +24,6 @@ default: build
 # use `dists' because ``dist dist-demo'' does not work.. see comment below
 # near `dists' for why.
 all: clean dists
-
-# CVS_BRANCH_ARG := $(shell cvstag.sh .)
-# DATE_CVS_BRANCH_ARG := $(shell cvstag.sh date)
-# DEMOWARE_CVS_BRANCH_ARG := $(shell cvstag.sh demoware)
-
-# prereqs: FORCE
-# 	@if test ! -d date; then \
-# 	    echo Checking out date module; \
-# 	    cvs co $(CVS_BRANCH_ARG) date; \
-# 	elif test "$(CVS_BRANCH_ARG)" != "$(DATE_CVS_BRANCH_ARG)"; then \
-# 	    echo cvs update -d $(CVS_BRANCH_ARG) date; \
-# 	    (cd date; cvs update -d $(CVS_BRANCH_ARG)); \
-# 	fi
-# 	@if test ! -d demoware; then \
-# 	    echo Checking out demoware module; \
-# 	    cvs co $(CVS_BRANCH_ARG) demoware; \
-# 	elif test "$(CVS_BRANCH_ARG)" != "$(DEMOWARE_CVS_BRANCH_ARG)"; then \
-# 	    echo cvs update -d $(CVS_BRANCH_ARG) demoware; \
-# 	    (cd demoware; cvs update -d $(CVS_BRANCH_ARG)); \
-# 	fi
 
 GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
 

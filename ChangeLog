@@ -1,3 +1,18 @@
+****(leave this at the top of this file... thanks)
+****NOTE: change version in nfs-common.cl
+
+2009-09-02    <layer@HOBART>
+4.6
+	* Makefile:
+	- revamp the way the lisp is found--use Makefile.local to
+	override the defaults
+	- remove CVS-based rules to checkout modules
+	* configure/Makefile: use ../Makefile.local
+	* configure/configure.lpr: auto updated by IDE
+	* loadem.cl: set excl::*warn-smp-usage* to nil
+	* xdr.cl: workaround for new warning in ACL 8.2.beta -- it's
+	a real bug in the code, but Ahmon doesn't have time to fix it now
+
 2009-07-30    <dancy@DANCYSOFT>
 
 	* Makefiles: Removed double-quotes from lisp invocations.  Doesn't
@@ -11,7 +26,7 @@
 	cvs style stuff in there but commented out.
 
 	* access-control.txt & configure/ipaddr.cl: line ending changes.
-	
+
 2009-01-16    <layer@HOBART128>
 4.5.1b11
 

@@ -66,7 +66,8 @@
    #:xdr-timeval
    #:xdr-optional
    #:defxdrstruct
-   #:defxdrunion))
+   #:defxdrunion
+   #:xdr-opaque))
 
 (in-package :xdr)
 
@@ -823,3 +824,6 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 		 ,(xdr-predicate type)
 		 ,@accessors)))))
 
+(defun xdr-opaque (foo)
+  (declare (ignore foo))
+  (error "xdr-opaque caleld."))
