@@ -1,0 +1,3 @@
+
+LISPDIR = "$(PROGRAM_FILES)/acl81.patched"
+#LISPDIR = "$(PROGRAM_FILES)/Allegro CL 8.2 beta"
