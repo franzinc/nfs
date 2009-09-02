@@ -17,7 +17,7 @@ LISPEXE=$(LISPDIR)/mlisp
 
 MAKENSIS = "$(PROGRAM_FILES)/NSIS/makensis.exe"
 
-version = $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
+version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
 default: build
 
@@ -27,13 +27,24 @@ all: clean dists
 
 GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
 
+REPOS = date demoware
+
 prereqs: FORCE
-	@for module in date demoware; do \
+	@for module in $(REPOS); do \
 	  if test ! -d $$module; then \
 	     echo Checking out $$module module;  \
              git clone $(GIT_REPO_BASE)/$$module; \
 	  fi; \
         done
+
+tag_name = nfs$(version)$(release_suffix)
+
+tag: FORCE
+ifndef release_suffix
+	$(error release_suffix is not defined.)
+endif
+	git tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
+	@echo NOTE: do this to push the tag: git push origin $(tag_name)
 
 build: FORCE
 	@$(MAKE) $(MFLAGS) do_build
