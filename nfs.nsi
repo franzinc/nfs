@@ -119,16 +119,16 @@ FunctionEnd
 
 ;------------------------------------------------------------------------------
 
-!define REGKEY "Software\Franz Inc.\Allegro NFS"
+!define REGKEY "Software\Franz Inc.\Allegro NFS ${VERSION}"
 !define VERBOSE_PROD "Allegro NFS ${VERSION} Server for Windows"
-!define SHORT_PROD "Allegro NFS"
+!define SHORT_PROD "Allegro NFS ${VERSION}"
 ; for DEP workaround
 !define APPCOMPATLAYERS "SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
 
 Name "${VERBOSE_PROD}"
 
 ; The installer program that will be created
-OutFile "dists\setup-nfs-${VERSION}.exe"
+OutFile "dists\setup-nfs-${VERSION2}.exe"
 
 ; The default installation directory
 InstallDir "$PROGRAMFILES\${SHORT_PROD}"

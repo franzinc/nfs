@@ -79,7 +79,10 @@ installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
 
 installer-demo: installer-common
-	$(MAKENSIS) /V1 /DNFSDEMO=true /DVERSION=$(version)-demo nfs.nsi
+	$(MAKENSIS) /V1 /DNFSDEMO=true \
+		/DVERSION="$(version) Demo" \
+		/DVERSION2=$(version)-demo \
+		nfs.nsi
 
 # Each build runs in a separate make because there are some
 # shared dependencies.. and make will merge them .. and we don't
