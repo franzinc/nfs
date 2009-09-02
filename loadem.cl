@@ -110,10 +110,11 @@
      ;; +Cx disable console window exit.
      ;; +N sets program name used in system tray menu     
      (format nil 
-	     "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS\""
+	     "~a -o nfs/nfs.exe +t ~s +cx +Ti +Cx +N \"Allegro NFS ~a\""
 	     (truename "sys:bin;setcmd.exe")
-	     #+nfs-demo "Allegro NFS Server demo"
-	     #-nfs-demo "Allegro NFS Server")
+	     #+nfs-demo (format nil "Allegro NFS ~a Server demo" *nfsd-version*)
+	     #-nfs-demo (format nil "Allegro NFS ~a Server" *nfsd-version*)
+	     *nfsd-version*)
      :show-window :hide)))
 
 

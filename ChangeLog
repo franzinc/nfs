@@ -9,7 +9,9 @@
 	- remove CVS-based rules to checkout modules
 	* configure/Makefile: use ../Makefile.local
 	* configure/configure.lpr: auto updated by IDE
-	* loadem.cl: set excl::*warn-smp-usage* to nil
+	* loadem.cl:
+	- set excl::*warn-smp-usage* to nil
+	- put version into exe/console resource
 	* nfs.nsi: put ${VERSION} in VERBOSE_PROD
 	* xdr.cl: workaround for new warning in ACL 8.2.beta -- it's
 	a real bug in the code, but Ahmon doesn't have time to fix it now
