@@ -2,7 +2,7 @@
 ****NOTE: change version in nfs-common.cl
 
 2009-09-02    <layer@HOBART>
-4.6
+4.6rc1
 	* Makefile:
 	- revamp the way the lisp is found--use Makefile.local to
 	override the defaults
