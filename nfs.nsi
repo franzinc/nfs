@@ -131,7 +131,7 @@ Name "${VERBOSE_PROD}"
 OutFile "dists\setup-nfs-${VERSION2}.exe"
 
 ; The default installation directory
-InstallDir "$PROGRAMFILES\${SHORT_PROD}"
+InstallDir "$PROGRAMFILES\Allegro NFS"
 
 ; Registry key to check for directory (so if you install again, it will 
 ; overwrite the old one automatically)
