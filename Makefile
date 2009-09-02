@@ -76,7 +76,7 @@ installer-common: FORCE
 	mkdir -p dists
 
 installer: installer-common
-	$(MAKENSIS) /V1 /DVERSION=$(version) nfs.nsi
+	$(MAKENSIS) /V1 /DVERSION=$(version) /DVERSION2=$(version) nfs.nsi
 
 installer-demo: installer-common
 	$(MAKENSIS) /V1 /DNFSDEMO=true \
