@@ -120,7 +120,7 @@ FunctionEnd
 ;------------------------------------------------------------------------------
 
 !define REGKEY "Software\Franz Inc.\Allegro NFS"
-!define VERBOSE_PROD "Allegro NFS Server for Windows"
+!define VERBOSE_PROD "Allegro NFS ${VERSION} Server for Windows"
 !define SHORT_PROD "Allegro NFS"
 ; for DEP workaround
 !define APPCOMPATLAYERS "SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
