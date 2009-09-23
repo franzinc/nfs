@@ -1,6 +1,11 @@
 ****(leave this at the top of this file... thanks)
 ****NOTE: change version in nfs-common.cl
 
+2009-09-23    <layer@HOBART>
+
+	* readme.txt: info for testing
+	* configure/buildit.cl: don't increment build #
+
 2009-09-02    <layer@HOBART>
 4.6rc1
 	* Makefile:
