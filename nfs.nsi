@@ -351,7 +351,7 @@ Section "Start Menu Shortcuts"
   CreateShortCut "${SMDIR}\${SHORT_PROD} Console.lnk" \
 		"$INSTDIR\nfs.exe" "/console"
   CreateShortCut "${SMDIR}\Check for program update.lnk" \
-		"http://nfsforwindows.com/updatecheck?current=${VERSION}"
+		"http://nfsforwindows.com/updatecheck?version=${VERSION}"
 SectionEnd
 
 Section "Start service after install"
