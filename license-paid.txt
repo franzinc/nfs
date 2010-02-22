@@ -302,10 +302,10 @@ BUTTON AND THE SOFTWARE WILL NOT BE INSTALLED.
     Government, use, duplication or disclosure is subject to
     restrictions as set forth in FAR Section 12.212 and FAR
     Section 52.227-19(c)(1) and (2). For these purposes the
-    manufacturer is Franz Corporation, 555 12th Street,
-    Suite 1450, Oakland, California 94607.
+    manufacturer is Franz Corporation, 2201 Broadway,
+    Suite 715, Oakland, California 94612.
 
-COPYRIGHT NOTICE: (c) 2004 Franz Inc. All rights reserved.
+COPYRIGHT NOTICE: (c) 2010 Franz Inc. All rights reserved.
 
 TRADEMARK NOTICE: "Franz" and the names of Franz products or
 processes and all Franz logos are trademarks or registered
@@ -317,7 +317,7 @@ info@franz.com, or write to:
 
    CUSTOMER SERVICE
    FRANZ INC.
-   555 12th St., Suite 1450
-   Oakland, CA 94607
+   2201 Broadway, Suite 715
+   Oakland, CA 94612
 
 -end-

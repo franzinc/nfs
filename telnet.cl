@@ -1,10 +1,8 @@
-;; $Id: telnet.cl,v 1.4 2009/01/16 20:41:46 layer Exp $
-
-;; Source code for telnet-server example
-(in-package :user)
-;; A telnet server for Allegro CL.
+;; -*- mode: common-lisp -*-
 ;;
 ;; This source code is in the public domain.
+
+(in-package :user)
 
 (defun start-telnet-server (&key (port 1234))
   (mp:process-run-function "telnet server" 'start-telnet-server-1 port))

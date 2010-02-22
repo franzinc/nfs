@@ -1,8 +1,6 @@
 # This makefile assumes that cygwin has been installed (ie, it assumes
 # GNU make).
 
-PROGRAM_FILES = /c/Program Files
-
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
 ifeq ($(DO_MAKEFILE_LOCAL),yes)
@@ -10,12 +8,12 @@ include Makefile.local
 endif
 
 ifndef LISPDIR
-LISPDIR = "$(PROGRAM_FILES)/acl81"
+LISPDIR = c:/acl82
 endif
 
 LISPEXE=$(LISPDIR)/mlisp
 
-MAKENSIS = "$(PROGRAM_FILES)/NSIS/makensis.exe"
+MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
@@ -27,15 +25,10 @@ all: clean dists
 
 GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
 
-REPOS = date demoware
+MODULES = .:master date:acl82 demoware:master
 
 prereqs: FORCE
-	@for module in $(REPOS); do \
-	  if test ! -d $$module; then \
-	     echo Checking out $$module module;  \
-             git clone $(GIT_REPO_BASE)/$$module; \
-	  fi; \
-        done
+	@sh verify_modules.sh $(MODULES)
 
 tag_name = nfs$(version)$(release_suffix)
 
@@ -52,6 +45,23 @@ build: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
+do_build: prereqs rpc FORCE
+# make sure the demo and non-demo versions do not share fasls:
+	rm -fr nfs *.fasl b.tmp build.out
+	echo '(dribble "build.out")' >> b.tmp
+	echo '(setq excl::*break-on-warnings* t)' >> b.tmp
+ifdef DEMOWARE
+	echo '(push :nfs-demo *features*)' >> b.tmp
+endif
+	echo '(load "loadem.cl")' >> b.tmp
+	echo '(buildit)' >> b.tmp
+	echo '(dribble)' >> b.tmp
+	echo '(exit 0)' >> b.tmp
+	$(LISPEXE) +B +cn +s b.tmp -batch
+	@rm -f b.tmp
+	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
+	$(MAKE) -C configure
+
 rpc: FORCE
 	echo '(load (compile-file-if-needed "rpcgen"))' > b.tmp
 	echo '(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x")) (write-line file) (rpcgen file))' >> b.tmp
@@ -59,21 +69,6 @@ rpc: FORCE
 	echo '(exit 0)' >> b.tmp
 	$(LISPEXE) +B +cn +s b.tmp -batch
 	rm b.tmp
-
-do_build: prereqs rpc FORCE
-# make sure the demo and non-demo versions do not share fasls:
-	rm -fr nfs *.fasl b.tmp
-	echo '(setq excl::*break-on-warnings* t)' >> b.tmp
-ifdef DEMOWARE
-	echo '(push :nfs-demo *features*)' >> b.tmp
-endif
-	echo '(load "loadem.cl")' >> b.tmp
-	echo '(buildit)' >> b.tmp
-	echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +B +cn +s b.tmp -batch
-	@rm -f b.tmp
-	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
-	$(MAKE) -C configure
 
 # Forcibly rebuild the configure program
 configure: FORCE

@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2005 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -21,8 +21,6 @@
 ;; http://www.gnu.org/copyleft/lesser.txt (until superseded by a newer
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
-;;
-;; $Id: nlm.cl,v 1.18 2007/05/02 19:34:02 dancy Exp $
 
 ;; This file implements the Network Lock Monitor (NLM) protocol. 
 

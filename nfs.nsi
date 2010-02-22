@@ -131,16 +131,16 @@ Name "${VERBOSE_PROD}"
 OutFile "dists\setup-nfs-${VERSION2}.exe"
 
 ; The default installation directory
-InstallDir "$PROGRAMFILES\Allegro NFS"
+InstallDir "c:\AllegroNFS"
 
 ; Registry key to check for directory (so if you install again, it will 
 ; overwrite the old one automatically)
 InstallDirRegKey HKLM "${REGKEY}" "Install_Dir"
 
 !ifdef NFSDEMO
-LicenseData demo-license.txt
+LicenseData license-demo.txt
 !else
-LicenseData binary-license.txt
+LicenseData license-paid.txt
 !endif
 
 ;--------------------------------
@@ -251,17 +251,52 @@ Section "${VERBOSE_PROD}"
 ;;;;;;; now install the files...
 
   File /r "nfs\*"
-  File "binary-license.txt"
+!ifdef NFSDEMO
+  File /oname=license.txt "license-demo.txt"
+!else
+  File /oname=license.txt "license-paid.txt"
+!endif
   File "nfs.cfg.default"
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; nfs.cfg 
+
   ; If nfs.cfg is already there, don't overwrite it.
-  IfFileExists "$INSTDIR\nfs.cfg" +2
-	File /oname=nfs.cfg nfs.cfg.default
+  IfFileExists "$INSTDIR\nfs.cfg" HasExistingConfig
+
+  ;; Check for configuration files from previous versions, and copy
+  ;; it into the newly named installation directory.
+  IfFileExists "C:\Program Files (x86)\Allegro NFS\nfs.cfg" 0 CheckFor32Bit
+	StrCpy $0 "C:\Program Files (x86)\Allegro NFS\nfs.cfg"
+	StrCpy $1 "$INSTDIR\nfs.cfg"
+	StrCpy $2 1        ; 0 to overwrite file if it already exists
+	System::Call 'kernel32::CopyFile(t r0, t r1, b r2) l'
+	Pop $0 ; pops a bool.  if overwrite is off and there is a file then error will be 1
+	StrCmp $0 "true" 0 HasExistingConfig
+     	    MessageBox MB_OK 'Error creating nfs.cfg [1]'
+     	    Abort
+
+CheckFor32Bit:
+  IfFileExists "C:\Program Files\Allegro NFS\nfs.cfg" 0 DefaultConfig
+	StrCpy $0 "C:\Program Files\Allegro NFS\nfs.cfg"
+	StrCpy $1 "$INSTDIR\nfs.cfg"
+	StrCpy $2 1        ; 0 to overwrite file if it already exists
+	System::Call 'kernel32::CopyFile(t r0, t r1, b r2) l'
+	Pop $0 ; pops a bool.  if overwrite is off and there is a file then error will be 1
+	StrCmp $0 "true" 0 HasExistingConfig
+     	    MessageBox MB_OK 'Error creating nfs.cfg [2]'
+     	    Abort
+	Goto HasExistingConfig
+
+DefaultConfig:
+  File /oname=nfs.cfg nfs.cfg.default
+
+HasExistingConfig:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
-
-
 
   ; See if we need to work around DEP
   Push $1
@@ -315,6 +350,8 @@ Section "Start Menu Shortcuts"
 		"$INSTDIR\configure\configure.exe"
   CreateShortCut "${SMDIR}\${SHORT_PROD} Console.lnk" \
 		"$INSTDIR\nfs.exe" "/console"
+  CreateShortCut "${SMDIR}\Check for program update.lnk" \
+		"http://nfsforwindows.com/updatecheck?current=${VERSION}"
 SectionEnd
 
 Section "Start service after install"
@@ -335,9 +372,11 @@ SectionEnd
 
 ; Uninstaller
 
+!ifdef NFSDEMO
 Function un.onUninstSuccess
     ExecShell "open" "http://nfsforwindows.com/uninstall"
 FunctionEnd
+!endif
 
 Section Uninstall
   SetShellVarContext all 
@@ -355,6 +394,7 @@ Section Uninstall
   Rmdir /r "$INSTDIR\system-dlls"
   ; would have used rmdir /r $INSTDIR but the config
   ; file is there too and we might want to preserve it.  Bleh
+  Delete /rebootok "$INSTDIR\files.bu"
   Delete /rebootok "$INSTDIR\*.txt"
   Delete /rebootok "$INSTDIR\*.dll"
   Delete /rebootok "$INSTDIR\*.dxl"
@@ -363,6 +403,7 @@ Section Uninstall
   Delete /rebootok "$INSTDIR\nfs.cfg.default"
   Delete /rebootok "$INSTDIR\nsm-state"
   Rmdir /r "$INSTDIR\configure"
+  Rmdir /r "$INSTDIR\locales"
 
   IfFileExists "$INSTDIR\nfs.cfg" 0 no_nfs_cfg
     MessageBox MB_YESNO|MB_ICONQUESTION \
