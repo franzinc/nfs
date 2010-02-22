@@ -3,7 +3,7 @@
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
 ;;SetCompress off
-SetCompressor lzma
+SetCompressor /SOLID lzma
 
 !include WinMessages.nsh
 !include servicelib.nsh
