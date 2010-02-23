@@ -36,8 +36,9 @@ tag: FORCE
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
-	git tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
-	@echo NOTE: do this to push the tag: git push origin $(tag_name)
+	./git.sh tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
+	@echo NOTE: do this to push the tag:
+	@echo ./git.sh push origin $(tag_name)
 
 build: FORCE
 	@$(MAKE) $(MFLAGS) do_build
@@ -104,49 +105,6 @@ dist-demo: build-demo installer-demo
 # Alias
 demo-dist: dist-demo
 
-update_cobweb: FORCE
-	scp -p dists/setup-nfs-3.0.exe \
-	       layer@cobweb:/www/nfsforwindows/prod/downloadables
-
-update_demo_cobweb: FORCE
-	scp -p dists/setup-nfs-3.0-demo.exe \
-	       layer@cobweb:/www/nfsforwindows/prod/downloadables
-
-## the following rule is run nightly on hobart to produce a new demo
-## version that expires 30 days into the future.  See nightly.bat.
-nightly: dist-demo update_demo_cobweb
-
-###############################################################################
-## source distribution
-###############################################################################
-
-nfs_source_files = Makefile ChangeLog *.cl *.txt \
-		nfs.cfg.default nfs.ico nfs.nsi
-configure_source_files = configure/Makefile configure/*.cl \
-			configure/*.txt configure/configure.lpr \
-			configure/*.bil 
-
-srczip = dists/nfs-$(version)-src.zip
-
-srcdist: FORCE
-	rm -f $(srczip)
-	rm -fr nfs-$(version)-src
-	mkdir nfs-$(version)-src \
-	 nfs-$(version)-src/configure
-	cp -p $(nfs_source_files) nfs-$(version)-src
-	cp -p $(configure_source_files) nfs-$(version)-src/configure
-	zip -r $(srczip) nfs-$(version)-src
-	rm -fr nfs-$(version)-src
-
-###############################################################################
-
-# Assumes cygwin mounted c:\ on /c
-install: FORCE
-	rm -fr /c/nfs.old
-	-mv /c/nfs /c/nfs.old
-	mkdir /c/nfs
-	cp -rp nfs/*.* /c/nfs
-
 ###############################################################################
 # testing
 
@@ -164,21 +122,6 @@ hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c hammernfs-libs/nfs_clnt.c
 
 ###############################################################################
 # misc
-
-BRANCH_NAME = 
-
-release_branch: FORCE
-	@if test -z "$(BRANCH_NAME)"; then \
-	    echo BRANCH_NAME is null.;\
-	    exit 1;\
-	fi
-	for m in nfs date demoware; do \
-	    echo Doing module $$m;\
-	    cvs -Q rtag $(BRANCH_NAME)_branch_point $$m;\
-	    cvs -Q rtag $(BRANCH_NAME)_merge_begin $$m;\
-	    cvs -Q rtag $(BRANCH_NAME)_merge_end $$m;\
-	    cvs -Q rtag -b -r $(BRANCH_NAME)_branch_point $(BRANCH_NAME) $$m;\
-	done
 
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
