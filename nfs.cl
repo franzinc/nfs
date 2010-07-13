@@ -1184,6 +1184,7 @@ struct entry {
 		      f
 		      :start (opaque-offset data)
 		      :end (+ (opaque-offset data) (+ (opaque-len data))))
+      (finish-output f)
       
       (update-attr-times-and-size f fh *nfs-set-mtime-on-write*)
       (xdr-int *nfsdxdr* #.*nfs-ok*)
@@ -1214,6 +1215,7 @@ struct entry {
 			   :start oo
 			   :end (+ oo count))
 	     oo))
+	(finish-output f)
 	(update-attr-times-and-size f fh *nfs-set-mtime-on-write*)
 	(if (> stable-how 0) 
 	    (fsync f))
