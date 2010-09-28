@@ -126,7 +126,11 @@
 					       (list sunrpc:*auth-unix*))))))
 
 (defun mountproc-dump (arg vers peer cbody)
-  (declare (ignore arg cbody))  
+  (declare (ignore arg cbody))
+  (when *showmount-disabled*
+    (when *mountd-debug* 
+      (user::logit-stamp "MNT~d: ~A: DUMP is disabled via config." vers (sunrpc:peer-dotted peer)))
+    (return ()))
   (if *mountd-debug* 
       (user::logit-stamp "MNT~d: ~a: DUMP~%" vers (sunrpc:peer-dotted peer)))
   (let (res)

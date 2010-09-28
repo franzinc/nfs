@@ -28,8 +28,9 @@
 (in-package :mount)
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
+(defparameter *showmount-disabled* nil)
 (eval-when (compile load eval)
-  (export '(*mountd-debug* *mountd-port-number*)))
+  (export '(*mountd-debug* *mountd-port-number* *showmount-disabled*)))
 
 (in-package :nsm)
 (defparameter *nsm-debug* nil)
@@ -966,6 +967,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (setf mount:*mountd-debug* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
+
+(defun configform-showmount-disable-checkbox-on-change (widget new-value old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf mount:*showmount-disabled* new-value)
+  (refresh-apply-button (parent widget))
+  t)
 
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
