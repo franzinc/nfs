@@ -26,6 +26,7 @@
 
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
+(defvar *showmount-disabled*)
 
 (sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
     (

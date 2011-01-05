@@ -14,7 +14,9 @@ endif
 ALLEGRO=$(LISPDIR)/allegro
 
 # Worst directory name ever
+ifndef MT
 MT="/c/Program Files/Microsoft Platform SDK for Windows Server 2003 R2/Bin/mt.exe"
+endif
 
 build: configure/configure.exe configure.exe.manifest
 	$(MT) -manifest configure.exe.manifest -outputresource:configure/configure.exe
