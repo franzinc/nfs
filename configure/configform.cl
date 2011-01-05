@@ -28,7 +28,7 @@
 (in-package :mount)
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
-(defparameter *showmount-disabled* nil)
+(defvar *showmount-disabled* nil)
 (eval-when (compile load eval)
   (export '(*mountd-debug* *mountd-port-number* *showmount-disabled*)))
 
