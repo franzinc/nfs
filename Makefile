@@ -13,7 +13,9 @@ endif
 
 LISPEXE=$(LISPDIR)/mlisp
 
+ifndef MAKENSIS
 MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
+endif
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
