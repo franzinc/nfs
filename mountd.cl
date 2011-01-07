@@ -26,7 +26,10 @@
 
 (defparameter *mountd-debug* nil)
 (defparameter *mountd-port-number* nil)
-(defvar *showmount-disabled*)
+(defvar *showmount-disabled* ())
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (export '(*showmount-disabled*)))
 
 (sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
     (
@@ -128,10 +131,6 @@
 
 (defun mountproc-dump (arg vers peer cbody)
   (declare (ignore arg cbody))
-  (when *showmount-disabled*
-    (when *mountd-debug* 
-      (user::logit-stamp "MNT~d: ~A: DUMP is disabled via config." vers (sunrpc:peer-dotted peer)))
-    (return ()))
   (if *mountd-debug* 
       (user::logit-stamp "MNT~d: ~a: DUMP~%" vers (sunrpc:peer-dotted peer)))
   (let (res)
@@ -169,6 +168,10 @@
 
 (defun mountproc-export (arg vers peer cbody)
   (declare (ignore arg cbody))
+  (when mount:*showmount-disabled*
+    (when *mountd-debug* 
+      (user::logit-stamp "MNT~d: ~A: EXPORT is disabled via config.~%" vers (sunrpc:peer-dotted peer)))
+    (return-from mountproc-export))
   (if *mountd-debug* 
       (user::logit-stamp "MNT~d: ~a: EXPORT~%" vers (sunrpc:peer-dotted peer))) 
   (let (res)

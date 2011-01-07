@@ -555,6 +555,13 @@ Leave an entry blank to use an automatically-assigned port number."
                        :tab-control '(:tab-control :global) :title
                        "Subprogram port assignments" :top 93 :width
                        357)
+	(make-instance 'check-box :font
+                       (make-font-ex nil "Tahoma / ANSI" 11) :left 26
+                       :name :set-showmount-disable-checkbox :on-change
+                       'configform-showmount-disable-checkbox-on-change
+                       :tab-control '(:tab-control :global) :title
+                       "Disable export listings via remote showmount."
+                       :top 210 :width 297)
         (make-instance 'tab-control :font
                        (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range

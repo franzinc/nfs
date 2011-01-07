@@ -1525,6 +1525,8 @@ struct entry {
     (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
       (logit-stamp "Reloading configuration file...~%")
       (read-nfs-cfg *configfile*)
+      (when mount:*showmount-disabled*
+	(logit-stamp "Disabling export listing via showmount."))
       (xdr-unsigned-int xdr 1))))
 
 ;; Console program interface 

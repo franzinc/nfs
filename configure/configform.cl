@@ -130,6 +130,7 @@
     (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
     (push `(mount:*mountd-port-number* ,mount:*mountd-port-number*) config)
+    (push `(mount:*showmount-disabled* ,mount:*showmount-disabled*) config)
     (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
     (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
@@ -171,6 +172,8 @@
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
+  (setf (value (my-find-component :showmount-disable-checkbox form))
+    mount:*showmount-disabled*)
   (setf (value (my-find-component :nsm-debug-checkbox form))
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
@@ -969,10 +972,10 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   t) ; Accept the new value
 
 (defun configform-showmount-disable-checkbox-on-change (widget new-value old-value)
-  (declare (ignore-if-unused widget new-value old-value))
+  (declare (ignore-if-unused old-value))
   (setf mount:*showmount-disabled* new-value)
   (refresh-apply-button (parent widget))
-  t)
+  t) 
 
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
