@@ -307,12 +307,6 @@
                        'configform-nfs-debug-filter-on-change
                        :tab-control '(:tab-control :debug) :title
                        "ACCESS" :top 240 :width 76)
-        (make-instance 'check-box :font
-		       (make-font-ex nil "Tahoma / ANSI" 11) :left 22
-		       :name :showmount-disable-checkbox :on-change
-		       'configform-showmount-disable-checkbox-on-change
-		       :tab-control '(:tab-control :debug) :title
-		       "~disable showmount" :top 300 :width 76)
         (make-instance 'group-box :contained-widgets
                        '(:debug-nfs-read :debug-nfs-remove
                          :debug-nfs-null :debug-nfs-link
