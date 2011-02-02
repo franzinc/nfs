@@ -30,9 +30,60 @@
 (defvar *program-mode* nil) ;; nil or :service
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
+(defvar *log-rotation-file-size* 0)
+(defvar *log-rotation-file-count* 0)
+(defvar *log-rotation-current-count* 0)
+(defvar *log-rotation* nil)
+(defvar *log-file* "sys:nfsdebug.txt")
+(defvar *nfs-debug-stream* nil)
+
+(defun log-rotateable (string)
+  "Returns true if the *log-stream* will need rotation to write
+a given string."
+  (and *log-rotation*
+       (< *log-rotation-file-size* 
+	  (+ (file-length *log-stream*)
+	     (length string)))))
+
+(defun rotate-log ()
+  "Rotates *log-stream*"
+  ;; Setup the next log file count.
+  (incf *log-rotation-current-count*)
+  (when (< *log-rotation-file-count*
+	   *log-rotation-current-count*)
+    (setf *log-rotation-current-count* 0))
+  
+  ;; Open up the new log file
+  (let ((new-log (open (format nil 
+			       "~A.~A"
+			       *log-file*
+			       *log-rotation-current-count*)
+			    :direction :output
+			    :if-does-not-exist :create
+			    :if-exists :supersede
+			    :external-format :utf8)))
+    (when (and new-log
+	       (open-stream-p new-log))
+      ;; If streams are open, flush and close.
+      (flet ((close-stream (stream)
+	       (when (open-stream-p stream)
+		 (finish-output stream)
+		 (close stream :abort nil))))
+	(close-stream *nfs-debug-stream*)
+	(close-stream *log-stream*))
+      ;; If we are running as a service then use the new file in both places.
+      (if* (eq *program-mode* :service)
+	 then (setf *log-stream* new-log
+		    *nfs-debug-stream* new-log)
+	 ;; Otherwise we setup the log-stream to be debug plus terminal io.
+	 else (setf *nfs-debug-stream* new-log
+		    *log-stream* (make-broadcast-stream *initial-terminal-io* 
+							*nfs-debug-stream*))))))
 
 (defun logit-1 (string)
   (when *log-stream*
+    (when (log-rotateable string)
+	(rotate-log))
     (write-string string *log-stream*)
     (force-output *log-stream*))
   (when (eq *program-mode* :service)
@@ -61,13 +112,9 @@
 	   year month day hour min sec)
     (apply #'logit format-string format-args)))
 
-(defvar *nfs-debug-stream* nil)
-
 (eval-when (compile eval load)
   (require :streamc) ;; for make-broadcast-stream
   )
-
-(defvar *log-file* "sys:nfsdebug.txt")
 
 (defun setup-logging (&optional reopen)
   (when reopen
@@ -76,7 +123,9 @@
   
   (when (null *log-stream*)
     (setf *nfs-debug-stream*
-      (open *log-file* 
+      (open (if *log-rotation*
+		(format nil "~A.~A" *log-file* *log-rotation-current-count*)
+		*log-file* )
 	    :direction :output 
 	    :external-format :utf8
 	    :if-exists :append
