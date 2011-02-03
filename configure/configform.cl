@@ -19,6 +19,17 @@
 
 (defparameter *nfs-gc-debug* nil)
 
+(in-package :user)
+(defvar *log-rotation-file-size* 0)
+(defvar *log-rotation-file-count* 1)
+(defvar *kilobyte* 1024)
+(defvar *megabyte* (* *kilobyte* *kilobyte*))
+(defvar *gigabyte* (* *megabyte* *kilobyte*))
+(defvar *terabyte* (* *gigabyte* *kilobyte*))
+
+(defvar *log-rotation-file-size-magnitude*
+  *megabyte*)
+
 (in-package :portmap)
 (defparameter *portmap-debug* nil)
 (defparameter *use-system-portmapper* :auto)
@@ -30,7 +41,9 @@
 (defparameter *mountd-port-number* nil)
 (defvar *showmount-disabled* nil)
 (eval-when (compile load eval)
-  (export '(*mountd-debug* *mountd-port-number* *showmount-disabled*)))
+  (export '(*mountd-debug* 
+            *mountd-port-number*
+	    *showmount-disabled*)))
 
 (in-package :nsm)
 (defparameter *nsm-debug* nil)
@@ -131,6 +144,13 @@
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
     (push `(mount:*mountd-port-number* ,mount:*mountd-port-number*) config)
     (push `(mount:*showmount-disabled* ,mount:*showmount-disabled*) config)
+    (push `(user::*log-rotation-file-size* ,user::*log-rotation-file-size*) 
+	  config)
+    (push `(user::*log-rotation-file-count* ,user::*log-rotation-file-count*)
+	  config)
+    (push `(user::*log-rotation-file-size-magnitude*
+	    ,user::*log-rotation-file-size-magnitude*)
+	  config)
     (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
     (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
@@ -172,8 +192,12 @@
     *nfs-gc-debug*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
-  (setf (value (my-find-component :showmount-disable-checkbox form))
+  (setf (value (my-find-component :set-showmount-disable-checkbox form))
     mount:*showmount-disabled*)
+  (setf (value (my-find-component :log-rotation-file-size form))
+     (format nil "~D" user::*log-rotation-file-size*))
+  (setf (value (my-find-component :log-rotation-file-count form))
+     (format nil "~D" user::*log-rotation-file-count*))
   (setf (value (my-find-component :nsm-debug-checkbox form))
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
@@ -181,6 +205,18 @@
   (setf (value (my-find-component :set-mtime-on-write-checkbox form))
     *nfs-set-mtime-on-write*)
   
+(setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude
+				  form))
+	(cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
+	       :Kb)
+	      ((= user::*log-rotation-file-size-magnitude* user::*megabyte*)
+	       :Mb)
+	      ((= user::*log-rotation-file-size-magnitude* user::*gigabyte*)
+	       :Gb)
+	      ((= user::*log-rotation-file-size-magnitude* user::*terabyte*)
+	       :Tb)
+	      (t :Mb)))
+
   (setf (value (my-find-component :combo-box-port-mapper form))
     (if* (null portmap:*use-system-portmapper*)
        then :no
@@ -977,6 +1013,52 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (refresh-apply-button (parent widget))
   t) 
 
+(defun on-log-rotation-file-size-change (widget new-value old-value)
+  (declare (ignore old-value))
+  (setf new-value (string-trim '(#\space) new-value))
+
+  (if* (string= new-value "")
+     then (setf (value widget) new-value)
+          (refresh-apply-button (parent widget))
+          (return-from on-log-rotation-file-size-change t))
+
+  (let ((size (extract-number new-value)))
+    (if* (and size (>= size 0))
+	 then (setf (value widget) (format nil "~D" size)
+		    user::*log-rotation-file-size* size)
+              (refresh-apply-button (parent widget))
+	      t
+         else (pop-up-message-dialog (parent widget)
+				     "Invalid file size!"
+				     "Must be a number greater than 0."
+				     error-icon
+				     "OK")
+	       nil)))
+
+
+
+(defun on-log-rotation-file-count-change (widget new-value old-value)
+  (declare (ignore old-value))
+  (setf new-value (string-trim '(#\space) new-value))
+
+  (if* (string= new-value "")
+     then (setf (value widget) new-value)
+          (refresh-apply-button (parent widget))
+          (return-from on-log-rotation-file-count-change t))
+
+  (let ((count (extract-number new-value)))
+    (if* (and count (>= count 1))
+	 then (setf (value widget) (format nil "~D" count)
+		    user::*log-rotation-file-count* count)
+	      (refresh-apply-button (parent widget))
+              t
+         else (pop-up-message-dialog (parent widget)
+				     "Invalid file count!"
+				     "Must be a number greater than 0."
+				     error-icon
+				     "OK")
+	       nil)))
+
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
@@ -994,8 +1076,18 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
-
-
+(defun configform-combo-box-log-rotation-file-size-magnitude-on-change 
+  (widget new-value old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf user::*log-rotation-file-size-magnitude*
+	(cond ((eq :Kb new-value) user::*kilobyte*)
+	      ((eq :Mb new-value) user::*megabyte*)
+	      ((eq :Gb new-value) user::*gigabyte*)
+	      ((eq :Tb new-value) user::*terabyte*)
+	      (t user::*megabyte*)))
+  (refresh-apply-button (parent widget))
+  t)
+  
 (defun root-has-read-access-p (exp)
   (block nil
     (if (= (nfs-export-uid exp) 0)

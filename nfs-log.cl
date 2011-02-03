@@ -31,37 +31,48 @@
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
 (defvar *log-rotation-file-size* 0)
-(defvar *log-rotation-file-count* 0)
+(defvar *log-rotation-file-count* 1)
 (defvar *log-rotation-current-count* 0)
-(defvar *log-rotation* nil)
-(defvar *log-file* "sys:nfsdebug.txt")
+(defvar *log-file* "sys:nfsdebug-~D.txt")
 (defvar *nfs-debug-stream* nil)
+
+(defvar *kilobyte* 1024)
+(defvar *megabyte* (* *kilobyte* *kilobyte*))
+(defvar *gigabyte* (* *megabyte* *kilobyte*))
+(defvar *terabyte* (* *gigabyte* *kilobyte*))
+
+(defvar *log-rotation-file-size-magnitude*
+  *megabyte*)
 
 (defun log-rotateable (string)
   "Returns true if the *log-stream* will need rotation to write
 a given string."
-  (and *log-rotation*
-       (< *log-rotation-file-size* 
-	  (+ (file-length *log-stream*)
-	     (length string)))))
+  (and (not (= 0 *log-rotation-file-size*))
+       (< (* *log-rotation-file-size*
+	     *log-rotation-file-size-magnitude*)
+         (+ (file-length *log-stream*)
+	    (length string)))))
+
+(defun make-log-rotation-name (index)
+  "Appends a version onto the logfile name."
+  (format nil *log-file* index))
 
 (defun rotate-log ()
   "Rotates *log-stream*"
   ;; Setup the next log file count.
+  (write-string "Rotating away from this logfile." *log-stream*)
   (incf *log-rotation-current-count*)
-  (when (< *log-rotation-file-count*
-	   *log-rotation-current-count*)
+  (when (<= *log-rotation-file-count*
+	    *log-rotation-current-count*)
     (setf *log-rotation-current-count* 0))
   
   ;; Open up the new log file
-  (let ((new-log (open (format nil 
-			       "~A.~A"
-			       *log-file*
-			       *log-rotation-current-count*)
-			    :direction :output
-			    :if-does-not-exist :create
-			    :if-exists :supersede
-			    :external-format :utf8)))
+  (let ((new-log (open (make-log-rotation-name
+			*log-rotation-current-count*)
+		       :direction :output
+		       :if-does-not-exist :create
+		       :if-exists :supersede
+		       :external-format :utf8)))
     (when (and new-log
 	       (open-stream-p new-log))
       ;; If streams are open, flush and close.
@@ -75,6 +86,8 @@ a given string."
       (if* (eq *program-mode* :service)
 	 then (setf *log-stream* new-log
 		    *nfs-debug-stream* new-log)
+	      (logit-stamp "~&Rotated logfile successfully to ~A~%"
+			   (file-namestring new-log))
 	 ;; Otherwise we setup the log-stream to be debug plus terminal io.
 	 else (setf *nfs-debug-stream* new-log
 		    *log-stream* (make-broadcast-stream *initial-terminal-io* 
@@ -116,20 +129,35 @@ a given string."
   (require :streamc) ;; for make-broadcast-stream
   )
 
+(defun find-latest-log-file ()
+  (let ((latest (make-log-rotation-name 0)))
+    ;; Ensure the file exists.
+    (unless (probe-file latest)
+      (with-open-file (f latest 
+			 :direction :output
+			 :if-does-not-exist :create)))
+    (loop for i from 0 to (1- *log-rotation-file-count*)
+	  when (probe-file (make-log-rotation-name i))
+	  do (let ((newest (make-log-rotation-name i)))
+	       (when (< (file-write-date latest)
+			(file-write-date newest))
+		 (setf latest newest
+		       *log-rotation-current-count* i))))
+    latest))
+
 (defun setup-logging (&optional reopen)
   (when reopen
     (when *nfs-debug-stream* (close *nfs-debug-stream*))
     (setf *log-stream* nil))
-  
-  (when (null *log-stream*)
-    (setf *nfs-debug-stream*
-      (open (if *log-rotation*
-		(format nil "~A.~A" *log-file* *log-rotation-current-count*)
-		*log-file* )
-	    :direction :output 
-	    :external-format :utf8
-	    :if-exists :append
-	    :if-does-not-exist :create))
+
+  (let ((latest (find-latest-log-file)))
+    (when (null *log-stream*)
+      (setf *nfs-debug-stream*
+	    (open latest
+		  :direction :output 
+		  :external-format :utf8
+		  :if-exists :append
+		  :if-does-not-exist :create))
 
     (if* (eq *program-mode* :service)
        then (setf *log-stream* *nfs-debug-stream*)
@@ -137,7 +165,7 @@ a given string."
        else (setf *log-stream*(make-broadcast-stream *initial-terminal-io* 
 						     *nfs-debug-stream*)))
     (logit-stamp "Log file: ~a~%"
-		 (translate-logical-pathname (pathname *log-file*)))))
+		 (translate-logical-pathname latest)))))
 
 (eval-when (compile load eval)
   (defconstant *nfs-log-limit* 32768)) ;; # of strings.  Use a power of 2

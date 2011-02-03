@@ -1,19 +1,19 @@
-;; -*- lisp-version: "8.2.beta [Windows] (Aug 28, 2009 8:16)"; cg: "1.134"; -*-
+;; -*- lisp-version: "8.2 [Windows] (Jan 25, 2010 15:06)"; cg: "1.134"; -*-
 
 (in-package :cg-user)
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "..\\xdr")
-                 (make-instance 'module :name "..\\sunrpc-common")
-                 (make-instance 'module :name "..\\portmap-common")
-                 (make-instance 'module :name "..\\mount-common")
-                 (make-instance 'module :name "..\\nsm-common")
-                 (make-instance 'module :name "..\\nlm-common")
-                 (make-instance 'module :name "..\\gen-nfs-common")
-                 (make-instance 'module :name "..\\nfs-common")
-                 (make-instance 'module :name "..\\nfs-shared")
-                 (make-instance 'module :name "..\\portmap-client")
-                 (make-instance 'module :name "..\\sunrpc")
+  :modules (list (make-instance 'module :name "../xdr")
+                 (make-instance 'module :name "../sunrpc-common")
+                 (make-instance 'module :name "../portmap-common")
+                 (make-instance 'module :name "../mount-common")
+                 (make-instance 'module :name "../nsm-common")
+                 (make-instance 'module :name "../nlm-common")
+                 (make-instance 'module :name "../gen-nfs-common")
+                 (make-instance 'module :name "../nfs-common")
+                 (make-instance 'module :name "../nfs-shared")
+                 (make-instance 'module :name "../portmap-client")
+                 (make-instance 'module :name "../sunrpc")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
                  (make-instance 'module :name "ipaddr")
@@ -37,10 +37,10 @@
                          :cg.item-list :cg.keyboard-shortcuts :cg.lisp-widget
                          :cg.message-dialog :cg.multi-line-editable-text :cg.os-widget
                          :cg.picture-widget :cg.pixmap :cg.pixmap-widget
-                         :cg.pixmap.file-io :cg.radio-button :cg.static-text
-                         :cg.string-dialog :cg.tab-control :cg.text-edit-pane
-                         :cg.text-or-combo :cg.text-widget :cg.toggling-widget
-                         :cg.utility-dialog)
+                         :cg.pixmap.file-io :cg.radio-button :cg.scroll-bar-mixin
+                         :cg.static-text :cg.string-dialog :cg.tab-control
+                         :cg.text-edit-pane :cg.text-or-combo :cg.text-widget
+                         :cg.toggling-widget :cg.up-down-control :cg.utility-dialog)
   :splash-file-module (make-instance 'build-module :name "")
   :icon-file-module (make-instance 'build-module :name "")
   :include-flags (list :local-name-info)
