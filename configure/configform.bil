@@ -392,8 +392,8 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        :name :static-text-19 :tab-control (list :tab-control :global)
                        :top 185 :value "NLM (lockd)")
         (make-instance 'group-box :contained-widgets
-                       (list :static-text-6 :editable-text-1 :editable-text-3
-                             :editable-text-2 :static-text-17 :static-text-18
+                       (list :static-text-6 :mountd-port-number :nsm-port-number
+                             :nlm-port-number :static-text-17 :static-text-18
                              :static-text-19)
                        :font (make-font-ex nil "Tahoma / ANSI" 11) :height 116 :left 31
                        :name :group-box-3 :tab-control (list :tab-control :global) :title
@@ -404,6 +404,17 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        (list :tab-control :global) :title
                        "Disable export listings via remote showmount." :top 210 :width
                        297)
+        (make-instance 'editable-text :font (make-font-ex nil "Tahoma / Default" 11)
+                       :left 154 :name :dircache-update-interval :on-change
+                       'on-dircache-update-interval-change :tab-control
+                       (list :tab-control :global) :top 232 :value "2" :width 23)
+        (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       26 :name :static-text-20 :tab-control (list :tab-control :global)
+                       :tooltip "How often the directoy cache is updated." :top 234
+                       :value "Directory Caching Interval:" :width 135)
+        (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       177 :name :static-text-21 :tab-control (list :tab-control :global)
+                       :top 234 :value "seconds" :width 48)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :static-text-log-rotation :tab-control
                        (list :tab-control :log) :top 43 :value
@@ -459,7 +470,9 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :nlm-port-number :static-text-17
                                               :static-text-18 :static-text-19
                                               :group-box-3
-                                              :set-showmount-disable-checkbox))
+                                              :set-showmount-disable-checkbox
+                                              :dircache-update-interval :static-text-20
+                                              :static-text-21))
                              (make-instance 'tab-info :id :log :label "Logging" :widgets
                                             '(:log-rotation-file-count
                                               :log-rotation-file-size
@@ -483,7 +496,7 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :debug-nfs-create :debug-nfs-mknod
                                               :debug-nfs-mkdir :debug-nfs-access
                                               :group-box-2)))
-                       :top 9 :value :log :width 514)
+                       :top 9 :value :exports :width 514)
         (make-instance 'cancel-button :font (make-font-ex nil "Tahoma / ANSI" 11) :left
                        444 :name :cancel-button-1 :on-change
                        'configform-cancel-button-on-change :top 304)))
