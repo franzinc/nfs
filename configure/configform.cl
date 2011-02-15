@@ -28,7 +28,9 @@
 (defvar *terabyte* (* *gigabyte* *kilobyte*))
 
 (defvar *log-rotation-file-size-magnitude*
-  *megabyte*)
+    *megabyte*)
+;; defined in dir.cl
+(defvar *nfs-dircache-update-interval* 2)
 
 (in-package :portmap)
 (defparameter *portmap-debug* nil)
@@ -146,10 +148,14 @@
     (push `(mount:*showmount-disabled* ,mount:*showmount-disabled*) config)
     (push `(user::*log-rotation-file-size* ,user::*log-rotation-file-size*) 
 	  config)
-    (push `(user::*log-rotation-file-count* ,user::*log-rotation-file-count*)
+    (push `(user::*log-rotation-file-count* 
+	   ,user::*log-rotation-file-count*)
 	  config)
     (push `(user::*log-rotation-file-size-magnitude*
-	    ,user::*log-rotation-file-size-magnitude*)
+	   ,user::*log-rotation-file-size-magnitude*)
+	  config)
+    (push `(user::*nfs-dircache-update-interval* 
+	   ,user::*nfs-dircache-update-interval*) 
 	  config)
     (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
@@ -195,9 +201,11 @@
   (setf (value (my-find-component :set-showmount-disable-checkbox form))
     mount:*showmount-disabled*)
   (setf (value (my-find-component :log-rotation-file-size form))
-     (format nil "~D" user::*log-rotation-file-size*))
+    (format nil "~D" user::*log-rotation-file-size*))
   (setf (value (my-find-component :log-rotation-file-count form))
-     (format nil "~D" user::*log-rotation-file-count*))
+    (format nil "~D" user::*log-rotation-file-count*))
+  (setf (value (my-find-component :dircache-update-interval form))
+    (format nil "~D" user::*nfs-dircache-update-interval*))
   (setf (value (my-find-component :nsm-debug-checkbox form))
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
@@ -1055,6 +1063,29 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
          else (pop-up-message-dialog (parent widget)
 				     "Invalid file count!"
 				     "Must be a number greater than 0."
+				     error-icon
+				     "OK")
+	       nil)))
+
+
+(defun on-dircache-update-interval-change (widget new-value old-value)
+  (declare (ignore old-value))
+  (setf new-value (string-trim '(#\space) new-value))
+
+  (if* (string= new-value "")
+     then (setf (value widget) new-value)
+          (refresh-apply-button (parent widget))
+          (return-from on-dircache-update-interval-change t))
+
+  (let ((count (extract-number new-value)))
+    (if* (and count (>= count 0))
+	 then (setf (value widget) (format nil "~D" count)
+		    user::*nfs-dircache-update-interval* count)
+	      (refresh-apply-button (parent widget))
+              t
+         else (pop-up-message-dialog (parent widget)
+				     "Invalid file count!"
+				     "Must be a number of seconds 0 or greater."
 				     error-icon
 				     "OK")
 	       nil)))
