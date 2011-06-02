@@ -115,8 +115,8 @@
     ;; Convert to an array for efficient access.  
     (setf *exports* (coerce new-exports 'vector))))
 
-(defun locate-nearest-export (path)
-  (if (null *exports*)
+(defun locate-nearest-export (path &key (exports *exports*))
+  (if (null exports)
       (return-from locate-nearest-export nil))
   ;; Strip trailing slash if path is not "/"
   (let ((len (length path)))
@@ -124,30 +124,30 @@
 	      (char= #\/ (schar path (1- len))))
        then (decf len)
 	    (setf path (subseq path 0 len)))
-    (locate-nearest-export-1 path len)))
+    (locate-nearest-export-1 path len :exports exports)))
       
-(defun locate-nearest-export-1 (path end)
+(defun locate-nearest-export-1 (path end &key (exports *exports*))
   ;; See if we're there yet.
-  (let ((res (locate-nearest-export-2 path end)))
+  (let ((res (locate-nearest-export-2 path end :exports exports)))
     (if* res
        then (return-from locate-nearest-export-1
 	      (values res (if* (string= (nfs-export-name res) "/")
 			     then (subseq path end)
 			     else (subseq path (1+ end)))))
-     elseif (null *exports*)
+     elseif (null exports)
        then (return-from locate-nearest-export-1 nil)))
   ;; Trim down the path and repeat.
   (let ((slashpos (position #\/ path :from-end t :end end)))
     (if* (null slashpos)
        then nil
      elseif (zerop slashpos)
-       then (locate-nearest-export-1 path 1)
-       else (locate-nearest-export-1 path slashpos))))
+       then (locate-nearest-export-1 path 1 :exports exports)
+       else (locate-nearest-export-1 path slashpos :exports exports))))
 
-(defun locate-nearest-export-2 (path end)
+(defun locate-nearest-export-2 (path end &key (exports *exports*))
   (let (exp)
-    (dotimes (n (length *exports*))
-      (setf exp (svref *exports* n))
+    (dotimes (n (length exports))
+      (setf exp (svref exports n))
       (if (string= path (nfs-export-name exp) :end1 end)
 	  (return exp)))))
 
