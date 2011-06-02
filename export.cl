@@ -117,7 +117,7 @@
 
 (defun locate-nearest-export (path)
   (if (null *exports*)
-      (return-from locate-nearest-export))
+      (return-from locate-nearest-export nil))
   ;; Strip trailing slash if path is not "/"
   (let ((len (length path)))
     (if* (and (> len 1)
@@ -133,7 +133,9 @@
        then (return-from locate-nearest-export-1
 	      (values res (if* (string= (nfs-export-name res) "/")
 			     then (subseq path end)
-			     else (subseq path (1+ end)))))))
+			     else (subseq path (1+ end)))))
+     elseif (null *exports*)
+       then (return-from locate-nearest-export-1 nil)))
   ;; Trim down the path and repeat.
   (let ((slashpos (position #\/ path :from-end t :end end)))
     (if* (null slashpos)
