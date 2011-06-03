@@ -97,7 +97,10 @@ installer-demo: installer-common
 # shared dependencies.. and make will merge them .. and we don't
 # want that.  Specifically, ``installer-common'' will be run once
 # instead of twice.
-dists: FORCE
+#
+# `clean' added to make sure that configure is really rebuilt.  There
+# was evidence in June of 2011 that this wasn't happening.  -Kevin/Elliott
+dists: clean
 	$(MAKE) $(MFLAGS) dist
 	$(MAKE) $(MFLAGS) dist-demo
 
