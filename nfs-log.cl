@@ -27,6 +27,8 @@
 (in-package :user)
 
 (defvar *log-stream* nil)
+(defvar *log-stream-lock* (mp:make-process-lock)
+  "A gate for use in logging.")
 (defvar *program-mode* nil) ;; nil or :service
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
@@ -73,32 +75,35 @@ a given string."
 		       :if-does-not-exist :create
 		       :if-exists :supersede
 		       :external-format :utf8)))
-    (when (and new-log
-	       (open-stream-p new-log))
-      ;; If streams are open, flush and close.
-      (flet ((close-stream (stream)
-	       (when (open-stream-p stream)
-		 (finish-output stream)
-		 (close stream :abort nil))))
-	(close-stream *nfs-debug-stream*)
-	(close-stream *log-stream*))
-      ;; If we are running as a service then use the new file in both places.
-      (if* (eq *program-mode* :service)
-	 then (setf *log-stream* new-log
-		    *nfs-debug-stream* new-log)
-	      (logit-stamp "~&Rotated logfile successfully to ~A~%"
-			   (file-namestring new-log))
-	 ;; Otherwise we setup the log-stream to be debug plus terminal io.
-	 else (setf *nfs-debug-stream* new-log
-		    *log-stream* (make-broadcast-stream *initial-terminal-io* 
-							*nfs-debug-stream*))))))
+      (when (and new-log
+		 (open-stream-p new-log))
+	;; If streams are open, flush and close.
+	(mp:with-process-lock (*log-stream-lock*)
+	  (flet ((close-stream (stream)
+		   (when (open-stream-p stream)
+		     (finish-output stream)
+		     (close stream :abort nil))))
+	    (close-stream *nfs-debug-stream*)
+	    (close-stream *log-stream*))
+	  ;; If we are running as a service then use the new file in both places.
+	  (if* (eq *program-mode* :service)
+	     then (setf *log-stream* new-log
+			*nfs-debug-stream* new-log)
+		  (logit-stamp "~&Rotated logfile successfully to ~A~%"
+			       (file-namestring new-log))
+		  ;; Otherwise we setup the log-stream to be debug plus terminal io.
+	     else (setf *nfs-debug-stream* new-log
+			*log-stream* (make-broadcast-stream *initial-terminal-io* 
+							    *nfs-debug-stream*)))))))
 
 (defun logit-1 (string)
-  (when *log-stream*
-    (when (log-rotateable string)
+  (mp:with-process-lock (*log-stream-lock*)
+    (when *log-stream*
+      (when (log-rotateable string)
 	(rotate-log))
-    (write-string string *log-stream*)
-    (force-output *log-stream*))
+      (write-string string *log-stream*)
+      (force-output *log-stream*)))
+ 
   (when (eq *program-mode* :service)
     (mp:with-process-lock (*console-sockets-lock*)
       (let (ok)
@@ -146,26 +151,27 @@ a given string."
     latest))
 
 (defun setup-logging (&optional reopen)
-  (when reopen
-    (when *nfs-debug-stream* (close *nfs-debug-stream*))
-    (setf *log-stream* nil))
+  (mp:with-process-lock (*log-stream-lock*)
+    (when reopen
+      (when *nfs-debug-stream* (close *nfs-debug-stream*))
+      (setf *log-stream* nil))
 
-  (let ((latest (find-latest-log-file)))
-    (when (null *log-stream*)
-      (setf *nfs-debug-stream*
-	    (open latest
-		  :direction :output 
-		  :external-format :utf8
-		  :if-exists :append
-		  :if-does-not-exist :create))
+    (let ((latest (find-latest-log-file)))
+      (when (null *log-stream*)
+	(setf *nfs-debug-stream*
+	  (open latest
+		:direction :output 
+		:external-format :utf8
+		:if-exists :append
+		:if-does-not-exist :create))
 
-    (if* (eq *program-mode* :service)
-       then (setf *log-stream* *nfs-debug-stream*)
-	    (mp:process-run-function "Console server" #'console-server)
-       else (setf *log-stream*(make-broadcast-stream *initial-terminal-io* 
-						     *nfs-debug-stream*)))
-    (logit-stamp "Log file: ~a~%"
-		 (translate-logical-pathname latest)))))
+	(if* (eq *program-mode* :service)
+	   then (setf *log-stream* *nfs-debug-stream*)
+		(mp:process-run-function "Console server" #'console-server)
+	   else (setf *log-stream*(make-broadcast-stream *initial-terminal-io* 
+							 *nfs-debug-stream*)))
+	(logit-stamp "Log file: ~a~%"
+		     (translate-logical-pathname latest))))))
 
 (eval-when (compile load eval)
   (defconstant *nfs-log-limit* 32768)) ;; # of strings.  Use a power of 2
