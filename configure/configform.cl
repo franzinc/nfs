@@ -797,7 +797,13 @@
 ;; or returns nil after complaining.
 (defun check-export-name (form name)
   (block nil
-    (setf name (string-trim '(#\space) name))
+    (setf name (user::canonicalize-name name))
+    (unless (user::canonical-name-p name)
+      (pop-up-message-dialog form 
+			     "New export" 
+			     (format nil "Your chosen name, ('~A') is invalid, it must begin with a '/'" name)
+			     error-icon
+			     "OK"))
     ;; Check for duplicates
     (when (member name (export-names) :test #'string=)
       (pop-up-message-dialog form "New export" "That name is already in use" error-icon "OK")

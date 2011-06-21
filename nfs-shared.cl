@@ -65,3 +65,29 @@
 	       (car x)
 	       val)))))
 
+(defvar *canonical-name-regexp*
+    (compile-re "^/(?:.*[^/])?$")
+  "A regexp to match canonical names.  The rules of which are the following:
+
+  1) must begin with a #\/
+  2) may or maynot have more path.
+  3) must not end with a #\/.")
+
+(defun canonical-name-p (name)
+  "Returns true if a name is canonical."
+  (when (match-re *canonical-name-regexp* name)
+    t))
+
+(defvar *canonicalize-name-regexp*
+    (compile-re "^(/.*[^/])|(/)$")
+  "A regexp to return a valid match.  There are two captures and
+if there is a match then one or the other is to be used.
+They are mutually exclusive.")
+
+(defun canonicalize-name (name)
+  "Standardizes export names."
+  (if (canonical-name-p name)
+      name
+    (multiple-value-bind (ok match complex-match simple-match)
+	(match-re *canonicalize-name-regexp* name)
+      (and ok match (or complex-match simple-match)))))

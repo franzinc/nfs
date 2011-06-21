@@ -23,23 +23,26 @@
   (when (null path)
     (error ":path must be specified for define-export"))
   ;; canonicalize
-  (if (and hosts-allow (not (listp hosts-allow)))
-      (setf hosts-allow (list hosts-allow)))
-  (if (and rw-users (not (listp rw-users)))
-      (setf rw-users (list rw-users)))
-  (if (and ro-users (not (listp ro-users)))
-      (setf ro-users (list ro-users)))
-  (setf *exports*
-    (append *exports*
-            (list
-             (make-nfs-export
-              :index (length *exports*)
-              :name name
-              :path (user::cleanup-dir path)
-              :uid uid
-              :gid gid
-              :umask umask
-              :set-mode-bits set-mode-bits
-              :hosts-allow hosts-allow
-              :rw-users rw-users
-              :ro-users ro-users)))))
+  (let ((canonical-name (user::canonicalize-name name)))
+    (unless (user::canonical-name-p canonical-name)
+      (error "The export with name '~A' is invalid!" name))
+    (if (and hosts-allow (not (listp hosts-allow)))
+	(setf hosts-allow (list hosts-allow)))
+    (if (and rw-users (not (listp rw-users)))
+	(setf rw-users (list rw-users)))
+    (if (and ro-users (not (listp ro-users)))
+	(setf ro-users (list ro-users)))
+    (setf *exports*
+      (append *exports*
+	      (list
+	       (make-nfs-export
+		:index (length *exports*)
+		:name canonical-name
+		:path (user::cleanup-dir path)
+		:uid uid
+		:gid gid
+		:umask umask
+		:set-mode-bits set-mode-bits
+		:hosts-allow hosts-allow
+		:rw-users rw-users
+		:ro-users ro-users))))))
