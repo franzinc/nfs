@@ -8,7 +8,7 @@ include ../Makefile.local
 endif
 
 ifndef LISPDIR
-LISPDIR = "$(PROGRAM_FILES)/acl81"
+LISPDIR = /c/acl82.patched
 endif
 
 ALLEGRO=$(LISPDIR)/allegro

@@ -8,13 +8,13 @@ include Makefile.local
 endif
 
 ifndef LISPDIR
-LISPDIR = c:/acl82
+LISPDIR = /c/acl82.patched
 endif
 
 LISPEXE=$(LISPDIR)/mlisp
 
 ifndef MAKENSIS
-MAKENSIS = "/c/Program Files/NSIS/makensis.exe"
+MAKENSIS = "/c/Program Files (x86)/NSIS/makensis.exe"
 endif
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
@@ -101,8 +101,12 @@ installer-demo: installer-common
 # `clean' added to make sure that configure is really rebuilt.  There
 # was evidence in June of 2011 that this wasn't happening.  -Kevin/Elliott
 dists: clean
+ifndef release_suffix
+	$(error release_suffix is not defined.)
+endif
 	$(MAKE) $(MFLAGS) dist
 	$(MAKE) $(MFLAGS) dist-demo
+	$(MAKE) $(MFLAGS) tag
 
 dist: build installer
 
