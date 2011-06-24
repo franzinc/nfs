@@ -42,8 +42,14 @@ endif
 	@echo NOTE: do this to push the tag:
 	@echo ./git.sh push origin $(tag_name)
 
-build: FORCE
+build: check_cpp
 	@$(MAKE) $(MFLAGS) do_build
+
+check_cpp: FORCE
+	@if ! which cpp > /dev/null 2>&1; then \
+	    echo Error: cpp not installed.; \
+	    exit 1; \
+	fi
 
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
