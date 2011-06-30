@@ -196,7 +196,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	       (lambda (,c)
 		 ;; Generate a backtrace
 		 (ignore-errors 
-		  (with-open-file (f "c:\\temp\\nfs-errlog.txt"
+		  (with-open-file (f "sys:nfs-errlog.txt"
 				   :direction :output
 				   :if-does-not-exist :create
 				   :if-exists :append)
