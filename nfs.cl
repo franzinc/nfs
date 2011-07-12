@@ -29,6 +29,7 @@
 (eval-when (compile load eval)
   (use-package :gen-nfs)
   (use-package :xdr)
+  (require :pe)
   (require :autozoom))
 
 (defparameter *socketbuffersize* (* 128 1024))
