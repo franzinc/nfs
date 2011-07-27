@@ -9,7 +9,17 @@
 ;;;;;;NOTE: when `test' release is removed, remove telnet server in
 ;;;;;;           loadem.cl
 (defvar *nfsd-version* "5.1")
-(defvar *nfsd-long-version* (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
+(defvar *nfsd-long-version*
+    (format nil "~a (NFSv2/NFSv3)~%~a"
+	    *nfsd-version*
+	    (multiple-value-bind (commit-id ignore1 exit-status)
+		(excl.osi:command-output "git log -n1 --pretty=format:%H HEAD"
+					 :whole t)
+	      (declare (ignore ignore1))
+	      (or (= 0 exit-status)
+		  (error "Getting commit id for HEAD failed with status: ~d."
+			 exit-status))
+	      commit-id)))
 ;;; 
 
 ;; Filesystem allocation unit size.  Only used by statfs procedure.
