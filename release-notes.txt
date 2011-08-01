@@ -1,4 +1,17 @@
-Version 5.0, in progress:
+Version 5.1, 1 Aug, 2011:
+ * performance improvements
+ * minor license changes
+ * new: toggling of response to showmount requests.
+ * new: configurable log rotation.  Defaults to previous behavior.
+ * new: directory and file caching duration is now configurable.
+ * fix: interoperability fixes with VMware ESXi.
+ * fix: hanging of the server and 100% cpu usage problems are removed.
+ * fix: moving the error log into the install directory.
+ * fix: proper locking around exports and logging operations.
+ * small modifications to icons.
+
+*******************************************************************************
+Version 5.0, 22 Feb, 2010:
  * performance improvements
  * better support Windows Vista/7
  * new: support for symbolic links
