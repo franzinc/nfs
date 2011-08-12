@@ -71,3 +71,19 @@
 	(network (comp::ll :integer-to-mi (network-address-network net))))
     (eq (comp::ll :logand addr mask) network)))
 
+(defun network-address-to-printable-string (network-address)
+  (let ((mask (network-address-mask network-address))
+        (addr (socket:ipaddr-to-dotted 
+                          (network-address-network network-address))))
+    (cond ((and (integerp mask)(= mask 0)
+		(stringp addr) (string= addr "0.0.0.0"))
+           (setf mask nil
+		 addr "*"))
+	  ((= #xffffffff mask) 
+           (setf mask nil)
+           (let ((name (socket:ipaddr-to-hostname 
+			(network-address-network network-address))))
+             (when name 
+               (setf addr name))))
+          (t (setf mask (socket:ipaddr-to-dotted mask))))
+    (format nil "~A~@[/~A~]" addr mask)))	

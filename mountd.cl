@@ -176,10 +176,22 @@
       (user::logit-stamp "MNT~d: ~a: EXPORT~%" vers (sunrpc:peer-dotted peer))) 
   (let (res)
     (dotimes (n (length user::*exports*))
-      (setf res  
-	(make-exportnode :ex-dir (user::nfs-export-name 
-				  (svref user::*exports* n))
-			 :ex-next res)))
+      (let ((export (svref user::*exports* n)))
+	(setf res  
+	      (make-exportnode 
+	       :ex-dir (user::nfs-export-name export)
+	       :ex-groups 
+	       (let ((groups (reverse (user::nfs-export-hosts-allow export)))
+		     grp)
+		 (dotimes (g (length groups))
+		   (setf grp
+			 (make-groupnode
+			  :gr-name 
+			  (user::network-address-to-printable-string 
+                            (elt groups g))
+			  :gr-next grp)))
+		 grp)
+	       :ex-next res))))
     res))
 
 (defun mountproc3-export (arg vers peer cbody)
