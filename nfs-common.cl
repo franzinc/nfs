@@ -8,7 +8,7 @@
 ;;;
 ;;;;;;NOTE: when `test' release is removed, remove telnet server in
 ;;;;;;           loadem.cl
-(defvar *nfsd-version* "5.1")
+(defvar *nfsd-version* "5.1.5")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (defvar *nfsd-commit-id*
@@ -23,7 +23,8 @@
 ;;; 
 
 ;; Filesystem allocation unit size.  Only used by statfs procedure.
-(defconstant *blocksize* 8192)
+;;   See discussion in spr39245 for why this was changed from 8192.
+(defconstant *blocksize* 512)
 
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-gc-debug* nil)
