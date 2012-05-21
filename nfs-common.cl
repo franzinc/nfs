@@ -131,11 +131,15 @@
 (defconstant MOVEFILE_REPLACE_EXISTING 1)
 
 (defun my-rename (from to &key unicode)
-  (multiple-value-bind (success winerr)
+  (loop for i from 0 to 99 do
+    (multiple-value-bind (success winerr)
       (if* unicode
 	 then (MoveFileExW from to MOVEFILE_REPLACE_EXISTING)
 	 else (MoveFileExA from to MOVEFILE_REPLACE_EXISTING))
     (if* success
-       then t
-       else (excl.osi:perror (excl.osi::win_err_to_errno winerr)
-			     "rename failed"))))
+       then (return))
+    (if* (or (/= winerr 5) (= i 99))
+       then (excl.osi:perror (excl.osi::win_err_to_errno winerr)
+	             "rename failed"))
+    (logit-stamp "rename failed: [winerr=~d]~%" winerr)
+    (sleep 0.1))))
