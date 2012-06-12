@@ -1,4 +1,5 @@
 (bcc :t (pc (d 839 (:reg 7 :edi :di))))
+#+(version>= 9 0) (nop.w)
 (move.l (:iparam 2) (:reg 1 :ecx :cx :cl))
 (bswap-eax)
 (move.l (:reg 0 :eax :ax :al) (xl -10 (:reg 2 :edx :dx :dl) (:reg 1 :ecx :cx :cl)))
