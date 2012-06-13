@@ -148,7 +148,7 @@
 		     (concatenate 'string out-base "-common.cl")
 		     :direction :output
 		     :if-exists :supersede)
-
+      #+mswindows (setf (eol-convention f) :dos)
       (write-line *header* f)
       
       (format f "(defpackage :~a~%  (:use :lisp :excl :xdr)~%  (:export~%"

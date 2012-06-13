@@ -8,10 +8,14 @@ include ../Makefile.local
 endif
 
 ifndef LISPDIR
-LISPDIR = /c/acl82.patched
+LISPDIR = /c/acl90
 endif
 
+ifeq ($(LISPDIR),/c/acl82.patched)
 ALLEGRO=$(LISPDIR)/allegro
+else
+ALLEGRO=$(LISPDIR)/mlisp
+endif
 
 # Worst directory name ever
 ifndef MT
