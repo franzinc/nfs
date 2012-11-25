@@ -30,7 +30,7 @@ GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $
 MODULES = .:master date:acl82 demoware:master
 
 prereqs: FORCE
-	@sh verify_modules.sh $(MODULES)
+	# @sh verify_modules.sh $(MODULES)
 
 tag_name = nfs$(version)$(release_suffix)
 

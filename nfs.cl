@@ -1347,11 +1347,15 @@ struct entry {
 		 (tofh (lookup-fh-in-dir todirfh tofilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (to (add-filename-to-dirname (fh-pathname todirfh)
-					      tofilename)))
+					      tofilename))
+		 ;; See if the destination is a directory.
+		 (tofa (GetFileAttributes to)))
 	    (if* (or 
 		  (eq (close-open-file fromfh :check-refcount t) :still-open)
 		  (eq (close-open-file tofh :check-refcount t) :still-open))
 	       then (xdr-int *nfsdxdr* #.*nfserr-perm*)
+	       elseif (and tofh (not (zerop (logand tofa FILE_ATTRIBUTE_DIRECTORY))))
+	       then (xdr-int *nfsdxdr* #.*nfserr-notempty*)
 	       else #+ignore
 		    (format t "~%rename ~a~%" fromfh)
 		    ;; This will auto-delete any existing destination

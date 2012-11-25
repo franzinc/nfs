@@ -66,8 +66,8 @@
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"
-      "date/date"
-      #+nfs-demo "demoware/demoware"
+      ; "date/date"
+      ; #+nfs-demo "demoware/demoware"
       ))
 )
 
