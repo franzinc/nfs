@@ -1,11 +1,11 @@
 
 (in-package :cl-user)
 
-#+(version>= 9 0 :pre-final)
+#+(version>= 9 0)
 (eval-when (compile eval load) (require :ide))
 
 (defun buildit ()
-  #+(version>= 9 0 :pre-final)
+  #+(version>= 9 0)
   (setq *print-readably* nil)
   
   (ide.project:build-project 
@@ -25,5 +25,5 @@
 #+(version= 8 2)
 (push 'buildit ide:*ide-startup-hook*)
 
-#+(version>= 9 0 :pre-final)
+#+(version>= 9 0)
 (buildit)

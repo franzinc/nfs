@@ -8,7 +8,7 @@ include ../Makefile.local
 endif
 
 ifndef LISPDIR
-LISPDIR = /c/acl90
+LISPDIR = /c/acl90.patched
 endif
 
 ifeq ($(LISPDIR),/c/acl82.patched)
