@@ -18,6 +18,7 @@
   
 
 (defparameter *nfs-gc-debug* nil)
+(defparameter *nfs-debug-timings* nil)
 
 (in-package :user)
 (defvar *log-rotation-file-size* 0)
@@ -164,6 +165,7 @@
     (push `(*nfs-debug* ,*nfs-debug*) config)
     (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
     (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
+    (push `(*nfs-debug-timings* ,*nfs-debug-timings*) config)
     (push `(*nfs-set-mtime-on-write* ,*nfs-set-mtime-on-write*) config)
     
     config))
@@ -196,6 +198,8 @@
     *nfs-debug*)
   (setf (value (my-find-component :gc-debug-checkbox form))
     *nfs-gc-debug*)
+  (setf (value (my-find-component :log-timestamps-checkbox form))
+    *nfs-debug-timings*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
   (setf (value (my-find-component :set-showmount-disable-checkbox form))
@@ -1099,6 +1103,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-log-timestamps-checkbox-on-change (widget new-value old-value)
+  (declare (ignore-if-unused widget new-value old-value))
+  (setf *nfs-debug-timings* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 

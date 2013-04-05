@@ -1,4 +1,4 @@
-;; -*- lisp-version: "8.2 [Windows] (Jan 25, 2010 15:06)"; cg: "1.134"; -*-
+;; -*- lisp-version: "9.0 [Windows] (Mar 11, 2013 12:56)"; cg: "9.0"; -*-
 
 (in-package :cg-user)
 
@@ -29,18 +29,19 @@
   :project-package-name :common-graphics-user
   :main-form 'configform
   :compilation-unit t
+  :concatenate-project-fasls nil
   :verbose nil
-  :runtime-modules (list :cg-dde-utils :cg.base :cg.button :cg.caret :cg.check-box
-                         :cg.clipboard :cg.clipboard-stack :cg.clipboard.pixmap
-                         :cg.combo-box :cg.common-control :cg.comtab :cg.dialog-item
-                         :cg.directory-dialog-os :cg.editable-text :cg.group-box :cg.icon
-                         :cg.item-list :cg.keyboard-shortcuts :cg.lisp-widget
-                         :cg.message-dialog :cg.multi-line-editable-text :cg.os-widget
-                         :cg.picture-widget :cg.pixmap :cg.pixmap-widget
-                         :cg.pixmap.file-io :cg.radio-button :cg.scroll-bar-mixin
-                         :cg.static-text :cg.string-dialog :cg.tab-control
-                         :cg.text-edit-pane :cg.text-or-combo :cg.text-widget
-                         :cg.toggling-widget :cg.up-down-control :cg.utility-dialog)
+  :runtime-modules (list :cg-dde-utils :cg.base :cg.bitmap-stream :cg.button :cg.caret
+                         :cg.check-box :cg.clipboard :cg.clipboard-stack
+                         :cg.clipboard.pixmap :cg.combo-box :cg.common-control :cg.comtab
+                         :cg.dialog-item :cg.directory-dialog-os :cg.editable-text
+                         :cg.group-box :cg.icon :cg.item-list :cg.keyboard-shortcuts
+                         :cg.lisp-widget :cg.message-dialog :cg.multi-line-editable-text
+                         :cg.os-widget :cg.picture-widget :cg.pixmap :cg.pixmap-widget
+                         :cg.pixmap.file-io :cg.scrolling-static-text :cg.static-text
+                         :cg.string-dialog :cg.tab-control :cg.text-edit-pane
+                         :cg.text-or-combo :cg.text-widget :cg.timer :cg.toggling-widget
+                         :cg.tooltip :cg.utility-dialog)
   :splash-file-module (make-instance 'build-module :name "")
   :icon-file-module (make-instance 'build-module :name "")
   :include-flags (list :local-name-info)

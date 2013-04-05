@@ -26,6 +26,8 @@ Author
 ------
 
 Ahmon Dancy, Franz Inc.
+Elliott Johnson, Franz Inc.
+Kevin Layer, Franz Inc.
 
 Author comments
 ---------------
@@ -38,12 +40,12 @@ on Windows 2000.
 Platforms
 ----------
 
-Microsoft Windows 2000 and newer (including Vista).
+Microsoft Windows XP and newer (including Windows 8).
 
 Dependencies
 ------------
 
-Gnu make via cygwin for the Makefile.  Allegro Common Lisp 8.1.
+Gnu make via cygwin for the Makefile.  Allegro Common Lisp 9.0.
 
 Installation
 ------------

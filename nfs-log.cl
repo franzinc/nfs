@@ -124,10 +124,12 @@ a given string."
   (logit-1 (apply #'format nil format-string format-args)))
 
 (defun logit-stamp (format-string &rest format-args)
-  (multiple-value-bind (sec min hour day month year)
+  (multiple-value-bind (sec min hour day month year ignore usec)
       (get-decoded-time)
-    (logit "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d| " 
-	   year month day hour min sec)
+    (declare (ignore ignore))
+    (multiple-value-setq (ignore usec) (excl::acl-internal-real-time))
+    (logit "~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d.~3,'0d| " 
+	   year month day hour min sec (truncate usec 1000))
     (apply #'logit format-string format-args)))
 
 (eval-when (compile eval load)

@@ -328,7 +328,8 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	 "define-nfs-proc:  There must be at least one fhandle variable"))
     `(defun ,funcname (peer xid params cbody)
        (let* ((vers (sunrpc:call-body-vers cbody))
-	      procedure-start-time debug-this-procedure
+	      procedure-start-time-secs procedure-start-time-usecs
+	      debug-this-procedure
 	      ,@argdefs)
 	 (when (nfs-debug-filter-on ,debugtype)
 	   (setf debug-this-procedure t)
@@ -338,7 +339,10 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		  (quote ,name))
 	   ,@debugs
 	   (if *nfs-debug-timings*
-	       (setf procedure-start-time (get-internal-real-time))))
+	       (multiple-value-setq (procedure-start-time-secs
+				     procedure-start-time-usecs)
+		 (excl::acl-internal-real-time))))
+	 
 	 (sunrpc:with-successful-reply (*nfsdxdr* peer xid sunrpc:*nullverf*)
 	   (with-valid-fh (*nfsdxdr* vers ,fhsyms)
 	     (with-allowed-host-access (vers *nfsdxdr* 
@@ -373,9 +377,12 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		 #-nfs-debug ,@body
 		 (when debug-this-procedure
 		   (if *nfs-debug-timings*
-		       (logit " ==> ~dms~%" 
-			      (- (get-internal-real-time) 
-				 procedure-start-time))
+		       (multiple-value-bind (secs usecs)
+			   (excl::acl-internal-real-time)
+			 (logit " ==> ~d.~3,'0d secs~%" 
+				(- secs procedure-start-time-secs)
+				(truncate (- usecs procedure-start-time-usecs)
+					  1000)))
 		     (logit "~%")))))))))))
 
 		   

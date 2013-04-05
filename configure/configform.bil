@@ -14,7 +14,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 440 89 973 431)) (name :configform)
+     (interior (make-box 626 84 1159 426)) (name :configform)
      (title "NFS Server for Windows Configuration Utility") (border :frame) (child-p t)
      form-p)
   (let ((owner
@@ -140,6 +140,11 @@
                        'configform-gc-debug-checkbox-on-change :tab-control
                        (list :tab-control :debug) :title "Memory management debugging"
                        :top 40 :width 196)
+        (make-instance 'check-box :font (make-font-ex nil "Tahoma / ANSI" 11) :left 316
+                       :name :log-timestamps-checkbox :on-change
+                       'configform-log-timestamps-checkbox-on-change :tab-control
+                       (list :tab-control :debug) :title "Log time stamps" :top 60 :width
+                       196)
         (make-instance 'check-box :font (make-font-ex nil "Tahoma / ANSI" 11) :left 24
                        :name :debug-nfs-read :on-change
                        'configform-nfs-debug-filter-on-change :tab-control
@@ -484,19 +489,19 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                             '(:nfs-debug-checkbox :portmap-debug-checkbox
                                               :mountd-debug-checkbox :nlm-debug-checkbox
                                               :nsm-debug-checkbox :gc-debug-checkbox
-                                              :debug-nfs-read :debug-nfs-remove
-                                              :debug-nfs-null :debug-nfs-link
-                                              :debug-nfs-symlink :debug-nfs-commit
-                                              :debug-nfs-pathconf :debug-nfs-fsinfo
-                                              :debug-nfs-fsstat :debug-nfs-statfs
-                                              :debug-nfs-rename :debug-nfs-write
-                                              :debug-nfs-readdir :debug-nfs-readlink
-                                              :debug-nfs-getattr :debug-nfs-setattr
-                                              :debug-nfs-lookup :debug-nfs-rmdir
-                                              :debug-nfs-create :debug-nfs-mknod
-                                              :debug-nfs-mkdir :debug-nfs-access
-                                              :group-box-2)))
-                       :top 9 :value :exports :width 514)
+                                              :log-timestamps-checkbox :debug-nfs-read
+                                              :debug-nfs-remove :debug-nfs-null
+                                              :debug-nfs-link :debug-nfs-symlink
+                                              :debug-nfs-commit :debug-nfs-pathconf
+                                              :debug-nfs-fsinfo :debug-nfs-fsstat
+                                              :debug-nfs-statfs :debug-nfs-rename
+                                              :debug-nfs-write :debug-nfs-readdir
+                                              :debug-nfs-readlink :debug-nfs-getattr
+                                              :debug-nfs-setattr :debug-nfs-lookup
+                                              :debug-nfs-rmdir :debug-nfs-create
+                                              :debug-nfs-mknod :debug-nfs-mkdir
+                                              :debug-nfs-access :group-box-2)))
+                       :top 9 :value :debug :width 514)
         (make-instance 'cancel-button :font (make-font-ex nil "Tahoma / ANSI" 11) :left
                        444 :name :cancel-button-1 :on-change
                        'configform-cancel-button-on-change :top 304)))
