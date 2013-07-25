@@ -27,7 +27,7 @@ all: clean dists
 
 GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
 
-MODULES = .:master date:acl90 demoware:master
+MODULES = .:nfs52 date:acl90 demoware:master
 
 prereqs: FORCE
 	@sh verify_modules.sh $(MODULES)
