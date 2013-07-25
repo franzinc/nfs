@@ -38,9 +38,9 @@ tag: FORCE
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
-	./git.sh tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
+	git.sh tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
 	@echo NOTE: do this to push the tag:
-	@echo ./git.sh push origin $(tag_name)
+	@echo git.sh push origin $(tag_name)
 
 build: check_cpp
 	@$(MAKE) $(MFLAGS) do_build
@@ -145,4 +145,3 @@ clean: FORCE
 	$(MAKE) -C configure clean
 
 FORCE:
-
