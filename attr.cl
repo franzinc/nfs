@@ -72,24 +72,34 @@
 
 (defstruct nfs-attr-cache 
   attr
-  atime)
+  expiration
+  )
 
 (defun lookup-attr (fh)
   (mp:with-process-lock (*attr-cache-lock*)
     (let ((attr-cache (gethash fh *nfs-attr-cache*)))
       (if* attr-cache
-	 then  ;; update access time
-	      (setf (nfs-attr-cache-atime attr-cache) 
-		(excl::cl-internal-real-time)) 
-	 else ;; new cache entry
-	      (setf attr-cache 
-		(make-nfs-attr-cache 
-		 :attr (nfs-attr fh)
-		 :atime (excl::cl-internal-real-time)))
-	      (setf (gethash fh *nfs-attr-cache*) attr-cache))
-      ;; return results
-      (nfs-attr-cache-attr attr-cache))))
-
+	 then ;; We have a cached entry.  Check it's expiration
+	      (let ((now (excl::cl-internal-real-time)))
+		(if* (>= now (nfs-attr-cache-expiration attr-cache))
+		   then ;; It expired.  Refresh the attributes and return.
+			(let ((attr (nfs-attr fh)))
+			  (setf (nfs-attr-cache-attr attr-cache) attr)
+			  (setf (nfs-attr-cache-expiration attr-cache) (+ now *attr-cache-reap-time*))
+			  ;; Good to go
+			  attr)
+		   else ;; Not expired.  Use the cached attributes
+			(nfs-attr-cache-attr attr-cache)))
+	 else ;; No cached entry.  Make one.
+	      (let ((attr (nfs-attr fh)))
+		(setf (gethash fh *nfs-attr-cache*) 
+		  (make-nfs-attr-cache 
+		   :attr attr
+		   :expiration (+ (excl::cl-internal-real-time) *attr-cache-reap-time*)))
+		
+		;; Return new attrs
+		attr)))))
+  
 ;; list of size, mtime, ctime
 (defun get-pre-op-attrs (fh)
   (let ((attrs (lookup-attr fh)))
@@ -118,13 +128,14 @@
 ;;; this more.
 (defun reap-attr-cache ()
   (mp:with-process-lock (*attr-cache-lock*)
-    (maphash
-     #'(lambda (key attr-cache)
-	 (if (> (- (excl::cl-internal-real-time) 
-		   (nfs-attr-cache-atime attr-cache))
-		*attr-cache-reap-time*)
+    (let ((now (excl::cl-internal-real-time)))
+
+      (maphash
+       #'(lambda (key attr-cache)
+	   (when (>= now (nfs-attr-cache-expiration attr-cache))
+	     ;; Expired entry.  Remove it.
 	     (remhash key *nfs-attr-cache*)))
-     *nfs-attr-cache*)))
+       *nfs-attr-cache*))))
 
 ;; XXX -- callers to this function should make sure they've
 ;; written out any cached attr updates before calling.
