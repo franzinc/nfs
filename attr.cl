@@ -47,32 +47,6 @@
      (#o0120000
       *NFLNK*)))
 
-#+ignore
-(defun nfs-attr (fh)
-  (declare (optimize (speed 3)))
-  (let* ((s (stat (fh-pathname fh)))
-	 (mode (stat-mode s))
-	 (type (stat-mode-to-type mode))
-	 (size (if* (eq type *NFDIR*)
-		  then 512 
-		  else (stat-size s))))
-    (make-nfs-attr
-     :type type
-     :mode mode
-     :nlinks (let ((nlink (stat-nlink s)))
-	       (if (eq nlink 0) 1 nlink))
-     :uid (stat-uid s)
-     :gid (stat-gid s)
-     :size size
-     :blocksize 512
-     :used size
-     :blocks (howmany size 512)
-     :fsid (nfs-export-id (fh-export fh))
-     :fileid (fh-id fh)
-     :atime (stat-atime s)
-     :mtime (stat-mtime s)
-     :ctime (stat-ctime s))))
-
 (defun nfs-attr (fh)
   (declare (optimize (speed 3)))
   (multiple-value-bind (mode nlink uid gid size atime mtime ctime)
