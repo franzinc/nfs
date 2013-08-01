@@ -32,6 +32,12 @@ git_remote_exists_p()
     git show-ref --quiet --verify -- "refs/remotes/$1"
 }
 
+compute_origin_base_url()
+{
+    dirname `git config --get remote.origin.url`
+}
+
+
 back=$(pwd)
 for thing in $*; do
     if test "$thing" = "."; then
@@ -45,7 +51,8 @@ for thing in $*; do
 	repo=`echo $thing | sed 's/\(.*\):\(.*\)/\1/'`
 	if test ! -d $repo; then
 	    echo "checking out $repo..."
-	    git clone -q git:/repo/git/$repo $repo
+	    url=`compute_origin_base_url`/$repo
+	    git clone -q $url $repo
 	fi
     fi
 
