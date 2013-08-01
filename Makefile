@@ -25,8 +25,6 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-GIT_REPO_BASE=$(shell dirname `git remote show origin | grep URL | awk '{print $$2}'`)
-
 MODULES = .:nfs52 date:acl90 demoware:master
 
 prereqs: FORCE
