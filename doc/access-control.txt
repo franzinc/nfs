@@ -1,4 +1,3 @@
-$Id: access-control.txt,v 1.2 2003/07/02 22:19:41 dancy Exp $
 
 *hosts-allow* and *hosts-deny* control which hosts are allowed to
  access the NFS server.  When an NFS or mount request comes in, the IP
