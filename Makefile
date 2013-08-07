@@ -28,7 +28,7 @@ all: clean dists
 MODULES = .:nfs52 date:acl90 demoware:master
 
 prereqs: FORCE
-	@sh verify_modules.sh $(MODULES)
+	@bin/verify_modules.sh $(MODULES)
 
 tag_name = nfs$(version)$(release_suffix)
 
@@ -123,14 +123,14 @@ demo-dist: dist-demo
 
 HAMMERNFS_LIBS = $(shell uname | grep -q CYGWIN && echo -lrpc)
 
-hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c hammernfs-libs/nfs_clnt.c
+hammernfs: test/hammernfs.c test/hammernfs-libs/mount_clnt.c test/hammernfs-libs/nfs_clnt.c
 	cc -O -o hammernfs \
-			hammernfs.c 	\
-			hammernfs-libs/mount_xdr.c \
-			hammernfs-libs/mount_clnt.c \
-			hammernfs-libs/nfs_clnt.c \
-			hammernfs-libs/nfs_xdr.c \
-			hammernfs-libs/compat.c \
+			test/hammernfs.c 	\
+			test/hammernfs-libs/mount_xdr.c \
+			test/hammernfs-libs/mount_clnt.c \
+			test/hammernfs-libs/nfs_clnt.c \
+			test/hammernfs-libs/nfs_xdr.c \
+			test/hammernfs-libs/compat.c \
 			$(HAMMERNFS_LIBS)
 
 ###############################################################################

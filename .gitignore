@@ -12,7 +12,6 @@
 /gen-nfs-client.cl
 /gen-nfs-common.cl
 /gen-nfs-server.cl
-/hammernfs-libs
 /hammernfs
 /mount-client.cl
 /mount-common.cl
