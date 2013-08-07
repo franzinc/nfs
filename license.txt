@@ -1,4 +1,4 @@
-nfs -- CL-based NFS server for Windows XP or later.
+nfs -- CL-based NFS server for Windows
 
 Allegro NFS is licensed under the terms of the Lisp Lesser GNU
 Public License (http://opensource.franz.com/preamble.html), known as

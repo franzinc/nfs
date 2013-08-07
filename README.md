@@ -14,7 +14,6 @@ Table of contents
  * Configuration
  * Licence
  * Notes
- * Examples
  * Franz Inc. Open Source Info
 
 Description
@@ -22,8 +21,8 @@ Description
 
 Allegro NFS Server for Microsoft Windows in Common Lisp
 
-Author
-------
+Authors
+-------
 
 Ahmon Dancy, Franz Inc.
 Elliott Johnson, Franz Inc.
@@ -35,7 +34,7 @@ Author comments
 Allegro® NFS Server for Windows® was inspired by our dissatisfaction
 with current free and commercial NFS Servers available on the market
 and the incredible technical difficulties we faced in configuring them
-on Windows 2000.
+on Windows.
 
 Platforms
 ----------
@@ -45,16 +44,16 @@ Microsoft Windows XP and newer (including Windows 8).
 Dependencies
 ------------
 
-Gnu make via cygwin for the Makefile.  Allegro Common Lisp 9.0.
+Cygwin (GNU make).  Allegro Common Lisp 9.0 (32-bit, non-SMP).
 
 Installation
 ------------
 
-To build nfs:
+To build:
 
     make all
 
-To install it:
+To install:
 
     make install
 
@@ -63,7 +62,7 @@ also possible to build an installer via:
 
     make installer
 
-This will produce an nsi file that can be used to install nfs.
+This will produce an _nsi_ file that can be used to install.
 
 Configuration
 -------------
@@ -141,22 +140,7 @@ See the following files that are part of this project:
  * rfc1833.txt - Binding Protocols for ONC RPC Version 2
  * TODO.txt - old and new todo information.
 
-Examples and Information
-------------------------
-
-It is possible to stress test the nfs server by
-
-    make hammernfs
-
-and then executing the hammernfs.exe executable.
-
 Franz Open Source Info
 ----------------------
 
-This project's homepage is <http://opensource.franz.com>. There is an 
-informal community support and development mailing list 
-[opensource@franz.com](http://opensource.franz.com/mailinglist.html) 
-for these open source projects. We encourage you to take advantage by 
-subscribing to the list.  Once you're subscribed, email to 
-<opensource@franz.com> with your questions, comments, suggestions, 
-and patches.
+This project's homepage is <https://github.com/franzinc/nfs/>.

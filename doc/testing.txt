@@ -1,0 +1,42 @@
+
+testnfs Usage:
+
+Usage: ./testnfs [-skipread] [-skipwrite] nfshost host-temp-dir nfs-mounted-temp-dir
+
+testnfs uses 'on' to connect to the NFS server to do some verifcations
+of data transfer, so some of the command line parameters reflect that:
+
+'nfshost' is the host to 'on' into.
+
+'host-temp-dir' is the path to a temporary directory on
+'nfshost'.. as it would be specified in the shell in the host.  
+
+'nfs-mounted-temp-dir' is the unix path to the NFS-mounted temp dir
+that corresponds to the 'host-temp-dir'.
+
+Better explained by example:
+
+ond on candyman is configured to use the cygwin shell.
+
+/c/temp is a cygwin-acessible directory.
+
+Allegro NFS is configure to export C:\ as '/warez', read-only to every,
+read/write to dancy.
+
+on unix host:  mount candy2k.win:/warez /mnt
+
+So a command line like this might be used:
+
+./testnfs candy2k.win /c/temp /mnt/temp
+
+Use the -skipread and/or -skipwrite optional args can be used to skip
+the read or write tests.. which can take a while (depending on the
+size of the test file).
+
+testnfs has some expectations.  It expects acl62.bz2 to be in /tmp on
+the unix side.. and it expects the host temp dir to have acl62.bz2 as
+well.  For proper testing, you shoul use something other than Allegro
+NFS to get acl62.bz2 into the right locations on each machine.
+
+from the wiki:
+sa/NFSTestSuite (last edited 2009-05-01 16:25:41 by localhost)

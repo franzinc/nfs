@@ -1,3 +1,5 @@
+
+*******************************************************************************
 For the next major version, rethink the way file handles are
 implemented:
 
@@ -21,6 +23,12 @@ keep a list of known pathnames and if a filename is unlinked from a
 directory, update the list.  That's as good as any other methods being
 used.  
 
+*******************************************************************************
+misc:
+- sparse file support
+- execute permissions issue (spr37568)
+
+*******************************************************************************
 --- older stuff ----
 
 nsm: How long do we try sending state-change notifications?
