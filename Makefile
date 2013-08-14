@@ -121,17 +121,21 @@ demo-dist: dist-demo
 ###############################################################################
 # testing
 
-HAMMERNFS_LIBS = $(shell uname | grep -q CYGWIN && echo -lrpc)
+# Needs the tirpc Cygwin package on Windows
 
-hammernfs: test/hammernfs.c test/hammernfs-libs/mount_clnt.c test/hammernfs-libs/nfs_clnt.c
-	cc -O -o hammernfs \
-			test/hammernfs.c 	\
-			test/hammernfs-libs/mount_xdr.c \
-			test/hammernfs-libs/mount_clnt.c \
-			test/hammernfs-libs/nfs_clnt.c \
-			test/hammernfs-libs/nfs_xdr.c \
-			test/hammernfs-libs/compat.c \
-			$(HAMMERNFS_LIBS)
+exe := $(shell test -d c:/ && echo .exe)
+
+hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
+                 test/hammernfs-libs/nfs_clnt.c
+	cc -O -o hammernfs$(exe) \
+	  $(shell uname | grep -q CYGWIN && echo -I/usr/include/tirpc) \
+	  test/hammernfs.c \
+	  test/hammernfs-libs/mount_xdr.c \
+	  test/hammernfs-libs/mount_clnt.c \
+	  test/hammernfs-libs/nfs_clnt.c \
+	  test/hammernfs-libs/nfs_xdr.c \
+	  test/hammernfs-libs/compat.c \
+	  $(shell uname | grep -q CYGWIN && echo -ltirpc)
 
 testnfs: test/testnfs.c
 	cc -O -o testnfs test/testnfs.c
