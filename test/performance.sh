@@ -4,9 +4,15 @@
 
 set -eu
 
-make hammernfs
+if [ -d c:/ ]; then
+    exe=.exe
+else
+    exe=
+fi
 
-hammernfs="./hammernfs"
+make hammernfs$exe
+
+hammernfs="./hammernfs$exe"
 # The log file is lisp readable
 logfile="test/performance.log"
 nfstestpath="hobart256:/nfs.test/nfstestfile"
@@ -40,10 +46,12 @@ function hammertime {
 for ver in 2 3; do
     for bs in 512 2048 4096 8192; do
 	for transport in tcp udp; do
+	    logit '('
 	    for i in $(seq 1 $iterations); do
 		hammertime -i $i -v $ver -t $duration -b $bs \
 		    -p $transport $nfstestpath
 	    done
+	    logit ')'
 	done
     done
 done

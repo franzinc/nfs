@@ -75,6 +75,7 @@
 
 ;;;;;;;;;
 
+;; called from def-rpc-program-main macro via intern/funcall
 (defun NSM-init ()
   (mp:process-run-function "nsm callback retry loop" 
     #'sm-callback-retry-loop)
