@@ -1,32 +1,62 @@
 #!/bin/bash
+# stress test the server
+# usage: $0 [number-of-iterations]
+# one iteration takes about 1m5s on freon/hobart256 
 
-set -e
+set -eu
 
-# stress test the nfs server.
+nfsdir=/net/hobart256/nfs.test
+localdir=/home/tmp/layer/nfs.test
 
-remotedir=$1
-localdir=$2
+function makedata {
+# make 100mb of data in $1
+    local n
+    mkdir -p $1
+    for n in $(seq 1 10); do
+	# would be nice if dd had a -q flag
+	echo making $1/$n
+	dd if=/dev/urandom of=$1/file${n}.10m \
+	    bs=1M count=10 &> /dev/null
+	echo this is a small file > $1/file${n}.small
+    done
+}
 
-if [ ! -d "$localdir" ]
-then
-  mkdir $localdir
+localroot=$localdir/stress.test
+nfsroot=$nfsdir/stress.test
+
+function cleanup {
+    echo cleanup
+    rm -fr $nfsroot
+    rm -fr $localroot
+    mkdir $nfsroot
+    mkdir $localroot
+}
+
+function copy {
+    echo copy to $2
+    cp -rp $1 $2
+}
+
+for i in $(seq 1 ${1-1}); do
+    [ $i -eq 1 ] || echo ==================== iteration $i
+    cleanup
+    makedata $localroot/dir
+    copy $localroot/dir ${nfsroot}/dir
+    prev=
+    for j in $(seq 1 10); do
+	copy $localroot/dir${prev} ${nfsroot}/dir${j}
+	copy ${nfsroot}/dir${j} ${localroot}/dir${j}
+	prev=$j
+    done
+    copy ${nfsroot}/dir${j} ${localroot}/dir${j}
+done
+
+echo comparing results
+if diff $localroot $nfsroot > /dev/null; then
+    echo OK
 else
-  echo "Unable to create localdir, $localdir"
-  exit 1
+    echo $localroot and $nfsroot are different
+    exit 1
 fi
 
-trap "if [ -d $localdir ]; then rmdir $localdir; fi" EXIT
-
-echo "Mounting $remotedir on $localdir"
-su -c "mount $remotedir $localdir" -
-
-trap "if [ -d $localdir ]; then su -c \"umount $localdir\" -; rmdir $localdir; fi" EXIT
-
-tempfile="tempfile.$$"
-
-echo "creating a file over 4Gig's called $localdir/$tempfile"
-dd if=/dev/zero of=$localdir/$tempfile bs=1M count=5000
-
-trap "if [ -d $localdir ]; then rm $localdir/$tempfile; su -c \"umount $localdir\" -; rmdir $localdir; fi" EXIT
-
-exit 0
+cleanup

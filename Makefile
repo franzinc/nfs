@@ -133,6 +133,9 @@ hammernfs: test/hammernfs.c test/hammernfs-libs/mount_clnt.c test/hammernfs-libs
 			test/hammernfs-libs/compat.c \
 			$(HAMMERNFS_LIBS)
 
+testnfs: test/testnfs.c
+	cc -O -o testnfs test/testnfs.c
+
 ###############################################################################
 # misc
 

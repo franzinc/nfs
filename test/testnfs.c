@@ -240,7 +240,7 @@ void test_read(char *nfsdir) {
     /* Compare the file we saved to a known good sample */
   
     sprintf(buf, "diff %s %s/%s", outfilename, localtemp, testfile);
-    res=system(buf);
+    res=mysystem(buf);
   
     if (res != 0) {
 	printf("File read from nfs server differs from expected!\n");
@@ -591,6 +591,13 @@ void test_link(char *workdir) {
 
 }
 
+int mysystem(char *buf)
+{
+    printf("system: %s\n", buf);
+    return system(buf);
+}
+
+
 
 void test_write(char *workdir, char *nfshost, char *hosttemp, 
 		char *workdirbasename) {
@@ -654,7 +661,7 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
 	     hosttemp, testfile, 
 	     hosttemp, workdirbasename, testfile);
   
-    res=system(buffer);
+    res=mysystem(buffer);
   
     if (res) {
 	printf("Non-zero return code from remote diff.\n");

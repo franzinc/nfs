@@ -1,42 +1,78 @@
+Correctness and performance testing are detailed here.
 
-testnfs Usage:
+*******************************************************************************
+** Correctness
+*******************************************************************************
 
-Usage: ./testnfs [-skipread] [-skipwrite] nfshost host-temp-dir nfs-mounted-temp-dir
+The types of correctness testing we do:
+  * testnfs :: a C program that runs a set of tests against a server
+  * write/read script test :: a script that writes a bunch of stuff,
+    reads it back and compares it to the original
 
-testnfs uses 'on' to connect to the NFS server to do some verifcations
-of data transfer, so some of the command line parameters reflect that:
+Future: once NFS is SMP capable, the stress tests should include
+multiple clients
 
-'nfshost' is the host to 'on' into.
+*********************
+`testnfs' setup:
 
-'host-temp-dir' is the path to a temporary directory on
-'nfshost'.. as it would be specified in the shell in the host.  
+ * windows: hobart256:
+   - ond must be running
+   - make a directory e:/nfs.test and put a copy of some large
+     file there and call it `nfstestfile'
+   - NFS share e:/nfs.test as `nfs.test'
+ * linux: freon:
+   - on must be installed in /usr/fi/bin/
+   - make sure /home/tmp/layer/nfs.test exists and put a copy of the
+     same `nfstestfile' there (via some means other than NFS)
+   - make `testnfs'
 
-'nfs-mounted-temp-dir' is the unix path to the NFS-mounted temp dir
-that corresponds to the 'host-temp-dir'.
+Run the test:
 
-Better explained by example:
+    $ ./testnfs -l /home/tmp/layer/nfs.test -t /e/nfs.test hobart256 \
+      		/net/hobart256/nfs.test
 
-ond on candyman is configured to use the cygwin shell.
+The above causes the NFS share to be mounted, so take care when making
+changes on the Windows side.
 
-/c/temp is a cygwin-acessible directory.
+*********************
+`bigfile-test.sh' setup:
 
-Allegro NFS is configure to export C:\ as '/warez', read-only to every,
-read/write to dancy.
+ * make sure `nfsdir' and `localdir' definitions are correct -- they
+   should be on unbacked up partitions
 
-on unix host:  mount candy2k.win:/warez /mnt
+Run the test:
 
-So a command line like this might be used:
+    $ test/bigfile-test.sh
 
-./testnfs candy2k.win /c/temp /mnt/temp
+`ERROR' will be printed and the program will exit with a non-zero exit
+status in the case of failure.
 
-Use the -skipread and/or -skipwrite optional args can be used to skip
-the read or write tests.. which can take a while (depending on the
-size of the test file).
+*********************
+`stress-test.sh' setup:
 
-testnfs has some expectations.  It expects acl62.bz2 to be in /tmp on
-the unix side.. and it expects the host temp dir to have acl62.bz2 as
-well.  For proper testing, you shoul use something other than Allegro
-NFS to get acl62.bz2 into the right locations on each machine.
+ * make sure `nfsdir' and `localdir' definitions are correct -- they
+   should be on unbacked up partitions
 
-from the wiki:
-sa/NFSTestSuite (last edited 2009-05-01 16:25:41 by localhost)
+Run the test:
+
+    $ test/stress-test.sh number-of-iterations
+
+In the case of failure an error message should be printed.
+
+One interation takes about 1m.  Running for a few hours is a good
+idea, so something like 
+
+    $ test/stress-test.sh 240
+
+*******************************************************************************
+** Performance
+*******************************************************************************
+
+`hammernfs' is used to test NFS performance.  Using the `nfstestfile'
+from the previous test, you can do
+
+    $ ./hammernfs hobart256:/nfs.test/nfstestfile
+
+The script performance.sh runs hammernfs in many different
+combinations of block size, NFS protocol version (2, 3) and transport
+layer (tcp, udp).

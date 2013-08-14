@@ -1,36 +1,49 @@
 #!/bin/bash
+# Performance testing of the nfs server
+# As a side effect it does do some correctness testing.
 
-## Performance testing of the nfs server
-set -e
+set -eu
 
-DIR_LOG="/tmp"
+make hammernfs
 
-relative_path=`dirname $0`
-absolute_path=`cd $relative_path;pwd`
+hammernfs="./hammernfs"
+# The log file is lisp readable
+logfile="test/performance.log"
+nfstestpath="hobart256:/nfs.test/nfstestfile"
 
+iterations=${1-5}
+duration=${2-60}
 
-HAMMER="$absolute_path/../hammernfs"
-HAMMER_LOG=${3:-`mktemp --tmpdir=$DIR_LOG nfs-performance.XXXXXX`}
-HAMMER_PATH=${2:-"win2k8-64.win.franz.com:/c/hammer"}
-ITERATIONS=${1:-"5"}
+cat <<EOF
+Doing $iterations iterations, logging to: $logfile
 
-## TODO add some cli args and a help menu.
+EOF
 
-echo "Running $ITERATIONS iterations of nfs performance tests and logging to: $HAMMER_LOG"
-for i in `seq 1 $ITERATIONS`
-do
-  for ver in 2
-  do
-    for duration in 300
-    do
-      for blocksize in 8192
-      do
-        for proto in udp
-        do
-	  echo "$HAMMER -v $ver -5 $duration -b $blocksize -p $proto $HAMMER_PATH" >> $HAMMER_LOG
-	  $HAMMER -v $ver -t $duration -b $blocksize -p $proto $HAMMER_PATH >> $HAMMER_LOG
+host=$(hostname -s)
+
+function logit {
+    echo "$@" >> $logfile
+}
+
+cp /dev/null $logfile
+logit ';;;' starting performance tests on $host $(date)
+
+function hammertime {
+    logit ';;' $hammernfs "$@"
+    echo ';;' $hammernfs "$@"
+    $hammernfs "$@" >> $logfile
+}
+
+# The number of combinations is 5x2x4x2 = 80, and 1m per iteration is
+# 80 minutes to run through this script.
+
+for ver in 2 3; do
+    for bs in 512 2048 4096 8192; do
+	for transport in tcp udp; do
+	    for i in $(seq 1 $iterations); do
+		hammertime -i $i -v $ver -t $duration -b $bs \
+		    -p $transport $nfstestpath
+	    done
 	done
-      done
     done
-  done
 done

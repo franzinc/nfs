@@ -307,6 +307,7 @@ int main(int argc, char **argv) {
   /* Parameters */
   int vers=2;
   int duration=60;
+  int label=0;
   int uid=geteuid(), gid=getegid();
   int blocksize=4096;
   char *host=NULL;
@@ -316,7 +317,7 @@ int main(int argc, char **argv) {
   int quiet = 0;
   char *proto="udp";
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:qp:"))!=-1) {
+  while ((opt=getopt(argc, argv, "i:v:t:h:e:f:u:g:b:qp:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -334,6 +335,9 @@ int main(int argc, char **argv) {
       break;
     case 'q':
       quiet = 1;
+      break;
+    case 'i': 
+      label=atoi(optarg);
       break;
     case 'u': 
       uid=atoi(optarg);
@@ -387,8 +391,13 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  printf("export:   %s\n", exportname);
-  printf("testpath: %s\n", testpath);
+  printf("(\n");
+  printf(":export-name \"%s\"\n", exportname);
+  printf(":testpath \"%s\"\n", testpath);
+  printf(":iteration %d\n", label);
+  printf(":nfs-version %d\n", vers);
+  printf(":blocksize %d ;; in bytes\n", blocksize);
+  printf(":transport :%s\n", proto);
 
   gethostname(myhostname, sizeof(myhostname));
 
@@ -420,12 +429,12 @@ int main(int argc, char **argv) {
     total+=count;
   }
 
-  printf("Ran for %d seconds\n", now-starttime);
+  printf(":duration %d ;; seconds\n", now-starttime);
   
-  printf("Read %u bytes\n", total);
+  printf(":read-bytes %u\n", total);
   kbps=(double)total/(double)(now-starttime)/(double)1024;
-  printf("%f KB/second\n", kbps);
-  
+  printf(":rate %f ;; KB/second\n", kbps);
+  printf(")\n");
   clnt_destroy(clnt);
   
   return 0;
