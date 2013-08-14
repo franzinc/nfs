@@ -13,6 +13,7 @@
 /gen-nfs-common.cl
 /gen-nfs-server.cl
 /hammernfs
+/hammernfs.exe
 /mount-client.cl
 /mount-common.cl
 /mount-server.cl
