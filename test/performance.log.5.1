@@ -1,6 +1,6 @@
-;;; starting performance tests on freon Wed Aug 14 13:31:16 PDT 2013
+;;; starting performance tests on hobart256 Wed, Aug 14, 2013 4:35:06 PM
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -9,10 +9,10 @@
 :blocksize 512 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 75580928
-:rate 1230.158333 ;; KB/second
+:read-bytes 303704576
+:rate 4943.108333 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -21,10 +21,10 @@
 :blocksize 512 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 63092224
-:rate 1026.891667 ;; KB/second
+:read-bytes 306129408
+:rate 4982.575000 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -33,10 +33,10 @@
 :blocksize 512 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 63205888
-:rate 1028.741667 ;; KB/second
+:read-bytes 304122880
+:rate 4949.916667 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -45,10 +45,10 @@
 :blocksize 512 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 77340672
-:rate 1258.800000 ;; KB/second
+:read-bytes 305316864
+:rate 4969.350000 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -57,12 +57,12 @@
 :blocksize 512 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 62820352
-:rate 1022.466667 ;; KB/second
+:read-bytes 301344768
+:rate 4904.700000 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -71,10 +71,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 62925824
-:rate 1024.183333 ;; KB/second
+:read-bytes 274970112
+:rate 4475.425000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -83,10 +83,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 63586816
-:rate 1034.941667 ;; KB/second
+:read-bytes 277261312
+:rate 4512.716667 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -95,10 +95,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 71617536
-:rate 1165.650000 ;; KB/second
+:read-bytes 276909056
+:rate 4506.983333 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -107,10 +107,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 76672512
-:rate 1247.925000 ;; KB/second
+:read-bytes 274707968
+:rate 4471.158333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -119,12 +119,12 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 72634368
-:rate 1182.200000 ;; KB/second
+:read-bytes 275738112
+:rate 4487.925000 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -133,10 +133,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 224075776
-:rate 3647.066667 ;; KB/second
+:read-bytes 1070264320
+:rate 17419.666667 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -145,10 +145,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 211722240
-:rate 3446.000000 ;; KB/second
+:read-bytes 1105887232
+:rate 17999.466667 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -157,10 +157,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 231591936
-:rate 3769.400000 ;; KB/second
+:read-bytes 1133660160
+:rate 18451.500000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -169,10 +169,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 213796864
-:rate 3479.766667 ;; KB/second
+:read-bytes 1132836864
+:rate 18438.100000 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -181,12 +181,12 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 229464064
-:rate 3734.766667 ;; KB/second
+:read-bytes 1071880192
+:rate 17445.966667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -195,10 +195,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 210518016
-:rate 3426.400000 ;; KB/second
+:read-bytes 1130262528
+:rate 18396.200000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -207,10 +207,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 240265216
-:rate 3910.566667 ;; KB/second
+:read-bytes 1125787648
+:rate 18323.366667 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -219,10 +219,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 248797184
-:rate 4049.433333 ;; KB/second
+:read-bytes 1127290880
+:rate 18347.833333 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -231,10 +231,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 233125888
-:rate 3794.366667 ;; KB/second
+:read-bytes 1126004736
+:rate 18326.900000 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -243,12 +243,12 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 237285376
-:rate 3862.066667 ;; KB/second
+:read-bytes 1130997760
+:rate 18408.166667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -257,10 +257,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 488333312
-:rate 7948.133333 ;; KB/second
+:read-bytes 2322415616
+:rate 37799.733333 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -269,10 +269,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 474529792
-:rate 7723.466667 ;; KB/second
+:read-bytes 2275241984
+:rate 37031.933333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -281,10 +281,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 441462784
-:rate 7185.266667 ;; KB/second
+:read-bytes 2390999040
+:rate 38916.000000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -293,10 +293,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 436518912
-:rate 7104.800000 ;; KB/second
+:read-bytes 2415079424
+:rate 39307.933333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -305,12 +305,12 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 450379776
-:rate 7330.400000 ;; KB/second
+:read-bytes 2355052544
+:rate 38330.933333 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -319,10 +319,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 486969344
-:rate 7925.933333 ;; KB/second
+:read-bytes 2181386240
+:rate 35504.333333 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -331,10 +331,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 469037056
-:rate 7634.066667 ;; KB/second
+:read-bytes 2177949696
+:rate 35448.400000 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -343,10 +343,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 409747456
-:rate 6669.066667 ;; KB/second
+:read-bytes 2173218816
+:rate 35371.400000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -355,10 +355,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 405381120
-:rate 6598.000000 ;; KB/second
+:read-bytes 2182561792
+:rate 35523.466667 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -367,12 +367,12 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 405348352
-:rate 6597.466667 ;; KB/second
+:read-bytes 2184531968
+:rate 35555.533333 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -381,10 +381,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 792182784
-:rate 12893.600000 ;; KB/second
+:read-bytes 60571648
+:rate 70890.933333 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -393,10 +393,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 717299712
-:rate 11674.800000 ;; KB/second
+:read-bytes 60317696
+:rate 70886.800000 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -405,10 +405,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 754991104
-:rate 12288.266667 ;; KB/second
+:read-bytes 147390464
+:rate 72304.000000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -417,10 +417,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 761176064
-:rate 12388.933333 ;; KB/second
+:read-bytes 49176576
+:rate 70705.466667 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -429,12 +429,12 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 769859584
-:rate 12530.266667 ;; KB/second
+:read-bytes 140394496
+:rate 72190.133333 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -443,10 +443,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 827121664
-:rate 13462.266667 ;; KB/second
+:read-bytes 4249976832
+:rate 69172.800000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -455,10 +455,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 911728640
-:rate 14839.333333 ;; KB/second
+:read-bytes 4243308544
+:rate 69064.266667 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -467,10 +467,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 917602304
-:rate 14934.933333 ;; KB/second
+:read-bytes 4267909120
+:rate 69464.666667 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -479,10 +479,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 864329728
-:rate 14067.866667 ;; KB/second
+:read-bytes 4252614656
+:rate 69215.733333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 2 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -491,86 +491,86 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 819634176
-:rate 13340.400000 ;; KB/second
+:read-bytes 4259004416
+:rate 69319.733333 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
-(
-:export-name "/nfs.test"
-:testpath "nfstestfile"
-:iteration 1
-:nfs-version 3
-:blocksize 512 ;; in bytes
-:transport :tcp
-:duration 60 ;; seconds
-:read-bytes 71745536
-:rate 1167.733333 ;; KB/second
-)
-;; ./hammernfs -i 2 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
-(
-:export-name "/nfs.test"
-:testpath "nfstestfile"
-:iteration 2
-:nfs-version 3
-:blocksize 512 ;; in bytes
-:transport :tcp
-:duration 60 ;; seconds
-:read-bytes 64244224
-:rate 1045.641667 ;; KB/second
-)
-;; ./hammernfs -i 3 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
-(
-:export-name "/nfs.test"
-:testpath "nfstestfile"
-:iteration 3
-:nfs-version 3
-:blocksize 512 ;; in bytes
-:transport :tcp
-:duration 60 ;; seconds
-:read-bytes 72351232
-:rate 1177.591667 ;; KB/second
-)
-;; ./hammernfs -i 4 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
-(
-:export-name "/nfs.test"
-:testpath "nfstestfile"
-:iteration 4
-:nfs-version 3
-:blocksize 512 ;; in bytes
-:transport :tcp
-:duration 60 ;; seconds
-:read-bytes 67921408
-:rate 1105.491667 ;; KB/second
-)
-;; ./hammernfs -i 5 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
-(
-:export-name "/nfs.test"
-:testpath "nfstestfile"
-:iteration 5
-:nfs-version 3
-:blocksize 512 ;; in bytes
-:transport :tcp
-:duration 60 ;; seconds
-:read-bytes 70496256
-:rate 1147.400000 ;; KB/second
-)
-)
-(
-;; ./hammernfs -i 1 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
 :iteration 1
 :nfs-version 3
 :blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60 ;; seconds
+:read-bytes 242488320
+:rate 3946.750000 ;; KB/second
+)
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60 ;; seconds
+:read-bytes 240624128
+:rate 3916.408333 ;; KB/second
+)
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60 ;; seconds
+:read-bytes 236962304
+:rate 3856.808333 ;; KB/second
+)
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60 ;; seconds
+:read-bytes 243340800
+:rate 3960.625000 ;; KB/second
+)
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 512 -p tcp hobart256:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60 ;; seconds
+:read-bytes 244265984
+:rate 3975.683333 ;; KB/second
+)
+)
+(
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 65377280
-:rate 1064.083333 ;; KB/second
+:read-bytes 226637824
+:rate 3688.766667 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -579,10 +579,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 71566336
-:rate 1164.816667 ;; KB/second
+:read-bytes 225755648
+:rate 3674.408333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -591,10 +591,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 75106304
-:rate 1222.433333 ;; KB/second
+:read-bytes 226947072
+:rate 3693.800000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -603,10 +603,10 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 68466688
-:rate 1114.366667 ;; KB/second
+:read-bytes 228326912
+:rate 3716.258333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 512 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -615,12 +615,12 @@
 :blocksize 512 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 67148800
-:rate 1092.916667 ;; KB/second
+:read-bytes 225707520
+:rate 3673.625000 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -629,10 +629,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 207067136
-:rate 3370.233333 ;; KB/second
+:read-bytes 904632320
+:rate 14723.833333 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -641,10 +641,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 213604352
-:rate 3476.633333 ;; KB/second
+:read-bytes 886384640
+:rate 14426.833333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -653,10 +653,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 236060672
-:rate 3842.133333 ;; KB/second
+:read-bytes 901023744
+:rate 14665.100000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -665,10 +665,10 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 227792896
-:rate 3707.566667 ;; KB/second
+:read-bytes 889567232
+:rate 14478.633333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 2048 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -677,12 +677,12 @@
 :blocksize 2048 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 203831296
-:rate 3317.566667 ;; KB/second
+:read-bytes 923914240
+:rate 15037.666667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -691,10 +691,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 208218112
-:rate 3388.966667 ;; KB/second
+:read-bytes 927508480
+:rate 15096.166667 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -703,10 +703,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 241823744
-:rate 3935.933333 ;; KB/second
+:read-bytes 929251328
+:rate 15124.533333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -715,10 +715,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 239556608
-:rate 3899.033333 ;; KB/second
+:read-bytes 926040064
+:rate 15072.266667 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -727,10 +727,10 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 216795136
-:rate 3528.566667 ;; KB/second
+:read-bytes 927795200
+:rate 15100.833333 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 2048 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -739,12 +739,12 @@
 :blocksize 2048 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 208138240
-:rate 3387.666667 ;; KB/second
+:read-bytes 924895232
+:rate 15053.633333 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -753,10 +753,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 428322816
-:rate 6971.400000 ;; KB/second
+:read-bytes 1876586496
+:rate 30543.400000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -765,10 +765,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 426201088
-:rate 6936.866667 ;; KB/second
+:read-bytes 1864183808
+:rate 30341.533333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -777,10 +777,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 460263424
-:rate 7491.266667 ;; KB/second
+:read-bytes 1919725568
+:rate 31245.533333 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -789,10 +789,10 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 406777856
-:rate 6620.733333 ;; KB/second
+:read-bytes 1925541888
+:rate 31340.200000 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 4096 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -801,12 +801,12 @@
 :blocksize 4096 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 445181952
-:rate 7245.800000 ;; KB/second
+:read-bytes 1761341440
+:rate 28667.666667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -815,10 +815,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 416559104
-:rate 6779.933333 ;; KB/second
+:read-bytes 1472630784
+:rate 23968.600000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -827,10 +827,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 466595840
-:rate 7594.333333 ;; KB/second
+:read-bytes 1463300096
+:rate 23816.733333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -839,10 +839,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 461209600
-:rate 7506.666667 ;; KB/second
+:read-bytes 1505873920
+:rate 24509.666667 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -851,10 +851,10 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 446201856
-:rate 7262.400000 ;; KB/second
+:read-bytes 1502638080
+:rate 24457.000000 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 4096 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -863,12 +863,12 @@
 :blocksize 4096 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 401809408
-:rate 6539.866667 ;; KB/second
+:read-bytes 1554903040
+:rate 25307.666667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -877,10 +877,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 705470464
-:rate 11482.266667 ;; KB/second
+:read-bytes 2780176384
+:rate 45250.266667 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -889,10 +889,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 714924032
-:rate 11636.133333 ;; KB/second
+:read-bytes 3449053184
+:rate 56136.933333 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -901,10 +901,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 768909312
-:rate 12514.800000 ;; KB/second
+:read-bytes 3746463744
+:rate 60977.600000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -913,10 +913,10 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 765566976
-:rate 12460.400000 ;; KB/second
+:read-bytes 3394183168
+:rate 55243.866667 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 8192 -p tcp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -925,12 +925,12 @@
 :blocksize 8192 ;; in bytes
 :transport :tcp
 :duration 60 ;; seconds
-:read-bytes 677322752
-:rate 11024.133333 ;; KB/second
+:read-bytes 3456507904
+:rate 56258.266667 ;; KB/second
 )
 )
 (
-;; ./hammernfs -i 1 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 1 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -939,10 +939,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 944250880
-:rate 15368.666667 ;; KB/second
+:read-bytes 2594660352
+:rate 42230.800000 ;; KB/second
 )
-;; ./hammernfs -i 2 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 2 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -951,10 +951,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 965017600
-:rate 15706.666667 ;; KB/second
+:read-bytes 2817335296
+:rate 45855.066667 ;; KB/second
 )
-;; ./hammernfs -i 3 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 3 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -963,10 +963,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 936615936
-:rate 15244.400000 ;; KB/second
+:read-bytes 3089080320
+:rate 50278.000000 ;; KB/second
 )
-;; ./hammernfs -i 4 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 4 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -975,10 +975,10 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 920469504
-:rate 14981.600000 ;; KB/second
+:read-bytes 2729132032
+:rate 44419.466667 ;; KB/second
 )
-;; ./hammernfs -i 5 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
+;; ./hammernfs.exe -i 5 -v 3 -t 60 -b 8192 -p udp hobart256:/nfs.test/nfstestfile
 (
 :export-name "/nfs.test"
 :testpath "nfstestfile"
@@ -987,7 +987,7 @@
 :blocksize 8192 ;; in bytes
 :transport :udp
 :duration 60 ;; seconds
-:read-bytes 919224320
-:rate 14961.333333 ;; KB/second
+:read-bytes 3005628416
+:rate 48919.733333 ;; KB/second
 )
 )

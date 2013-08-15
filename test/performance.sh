@@ -1,47 +1,41 @@
-#!/bin/bash
+#! /bin/bash
 # Performance testing of the nfs server
 # As a side effect it does do some correctness testing.
 
 set -eu
 
-if [ -d c:/ ]; then
-    exe=.exe
-else
-    exe=
-fi
+if [ -d c:/ ]; then exe=.exe; else exe=; fi
 
 make hammernfs$exe
 
 hammernfs="./hammernfs$exe"
 # The log file is lisp readable
-logfile="test/performance.log"
-nfstestpath="hobart256:/nfs.test/nfstestfile"
+logfile="${1-test/performance.log}"
+# Use localhost here, to maximize consistency.  It seems to help
+# a little.
+nfstestpath="127.0.0.1:/nfs.test/nfstestfile"
 
-iterations=${1-5}
-duration=${2-60}
+# The number of combinations is 5x2x4x2 = 80, and at 60s per iteration that
+# is 80 minutes to run through this script.
+iterations=5
+duration=60
 
-cat <<EOF
-Doing $iterations iterations, logging to: $logfile
+echo Logging to: $logfile
 
-EOF
-
-host=$(hostname -s)
+host=$(hostname)
 
 function logit {
     echo "$@" >> $logfile
 }
 
 cp /dev/null $logfile
-logit ';;;' starting performance tests on $host $(date)
+logit ';;;' performance tests, $host - $(date)
 
 function hammertime {
     logit ';;' $hammernfs "$@"
-    echo ';;' $hammernfs "$@"
+    echo $hammernfs "$@"
     $hammernfs "$@" >> $logfile
 }
-
-# The number of combinations is 5x2x4x2 = 80, and 1m per iteration is
-# 80 minutes to run through this script.
 
 for ver in 2 3; do
     for bs in 512 2048 4096 8192; do
@@ -55,3 +49,6 @@ for ver in 2 3; do
 	done
     done
 done
+
+# So we can commit
+cvt -f -d $logfile

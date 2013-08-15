@@ -16,7 +16,7 @@
                  (make-instance 'module :name "../sunrpc")
                  (make-instance 'module :name "nfs-server-io")
                  (make-instance 'module :name "export")
-                 (make-instance 'module :name "ipaddr")
+                 (make-instance 'module :name "../ipaddr")
                  (make-instance 'form-module :name "configform" :finder-function
                                 'configform :has-pixmap-file nil)
                  (make-instance 'form-module :name "help-form" :finder-function

@@ -71,7 +71,7 @@ idea, so something like
 `hammernfs' is used to test NFS performance.  Using the `nfstestfile'
 from the previous test, you can do
 
-    $ ./hammernfs hobart256:/nfs.test/nfstestfile
+    $ ./hammernfs localhost:/nfs.test/nfstestfile
 
 The script performance.sh runs hammernfs in many different
 combinations of block size, NFS protocol version (2, 3) and transport

@@ -1,5 +1,12 @@
-# This makefile assumes that cygwin has been installed (ie, it assumes
-# GNU make).
+#
+# NFS makefile (requires Cygwin and GNU make)
+#
+# Rules of note:
+#  make all release_suffix=rc2
+#     builds release candidate 2 of current version
+#  make clean dist LISPDIR=/c/acl90
+#     builds a Windows-installable version for testing, using c:\acl90
+#     as the installed lisp.
 
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
@@ -7,15 +14,9 @@ ifeq ($(DO_MAKEFILE_LOCAL),yes)
 include Makefile.local
 endif
 
-ifndef LISPDIR
-LISPDIR = /c/acl90.patched
-endif
-
-LISPEXE=$(LISPDIR)/mlisp
-
-ifndef MAKENSIS
-MAKENSIS = "/c/Program Files (x86)/NSIS/makensis.exe"
-endif
+LISPDIR ?= /c/acl90.patched
+LISPEXE = $(LISPDIR)/mlisp
+MAKENSIS ?= "/c/Program Files (x86)/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
@@ -136,6 +137,9 @@ hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
 	  test/hammernfs-libs/nfs_xdr.c \
 	  test/hammernfs-libs/compat.c \
 	  $(shell uname | grep -q CYGWIN && echo -ltirpc)
+
+perftest: FORCE
+	test/performance.sh test/performance.log.$(version)
 
 testnfs: test/testnfs.c
 	cc -O -o testnfs test/testnfs.c

@@ -15,8 +15,12 @@
       (case cmd
 	(define-host-list
 	    (setf name (pop entry))
-	    (setf (gethash name host-lists)
-	      (mapcar #'parse-addr entry)))
+	    (let ((res '()) temp)
+	      (dolist (thing entry)
+		(if* (setq temp (ignore-errors (parse-addr thing)))
+		   then (push temp res)
+		   else (logit "Warning: could not resolve host ~s~%" thing)))
+	      (setf (gethash name host-lists) res)))
 	(define-user-list
 	    (setf name (pop entry))
 	    (setf (gethash name user-lists) entry))

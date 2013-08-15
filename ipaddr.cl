@@ -10,35 +10,70 @@
 (eval-when (compile)
   (declaim (optimize (speed 3))))
 
+(eval-when (compile load eval)
+  (require :acldns)
+  (require :regexp2)
+  (require :sock))
+
 (defstruct network-address
   network
   mask)
+
+(eval-when (compile eval load)
+  (defvar *ipaddr-re* "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"))
+
+(defun valid-ipaddr-p (thing &key full)
+  (if* full
+     then (match-re
+	   #.(concatenate 'simple-string
+	       "^" *ipaddr-re* "/"
+	       "(" *ipaddr-re* "|\\d+)"
+	       "$")
+	   thing)
+     else (match-re
+	   #.(concatenate 'simple-string
+	       "^" *ipaddr-re* "$")
+	   thing)))
+
+(defun my-dotted-to-ipaddr (addr)
+  (if* (not (valid-ipaddr-p addr))
+     then (error "Invalid address specification")
+     else (socket:dotted-to-ipaddr addr)))
 
 ;; Acceptable formats:
 ;; a.b.c.d
 ;; a.b.c.d/x
 ;; a.b.c.d/x.y.z.w
 ;; t  (shortcut for 0.0.0.0/0)
-(defun parse-addr (addr)
+
+(defun parse-addr (addr &aux (mask #xffffffff))
   ;; convenience
   (if (eq addr t)
       (setf addr "0.0.0.0/0"))
   (setf addr (string-trim '(#\space) addr))
-  (let* ((slashpos (position #\/ addr))
-	 (mask #xffffffff)
-	 (network (socket:dotted-to-ipaddr 
-		   (subseq addr 0 (or slashpos (length addr))))))
-    (if* slashpos
-       then
-	    (setf addr (subseq addr (1+ slashpos)))
-	    (setf mask 
-	      (if (position #\. addr)
-		  (socket:dotted-to-ipaddr addr)
-		(masklength-to-mask addr)))
-	    (setf network (logand network mask)))
-    (make-network-address
-     :network network
-     :mask mask)))
+  (if (string= addr "")
+      (error "blank string passed to parse-addr"))
+  (if* (valid-ipaddr-p addr :full t)
+     then (let* ((slashpos (position #\/ addr))
+		 (network (my-dotted-to-ipaddr 
+			   (subseq addr 0 (or slashpos (length addr))))))
+	    (if* slashpos
+	       then (setf addr (subseq addr (1+ slashpos)))
+		    (setf mask 
+		      (if (position #\. addr)
+			  (my-dotted-to-ipaddr addr)
+			(masklength-to-mask addr)))
+		    (setf network (logand network mask)))
+	    (make-network-address
+	     :network network
+	     :mask mask))
+     else ;; Assume it's a host name and try to resolve it
+	  (let ((ip (ignore-errors (socket:lookup-hostname addr))))
+	    (when (null ip)
+	      (error "Could not resolve host name ~s." addr))
+	    (make-network-address
+	     :network ip
+	     :mask mask))))
 
 (defun masklength-to-mask (value)
   (if (stringp value)

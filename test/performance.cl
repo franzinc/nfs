@@ -17,7 +17,7 @@
   (with-open-file (s data-file)
     (loop
       (setq form (read s nil s))
-      (when (eq form s) (return res))
+      (when (eq form s) (return (nreverse res)))
       (push (mapcar (lambda (x)
 		      (apply #'make-datum x))
 		    form)
@@ -76,5 +76,5 @@
 	      (%change ref-rate new-rate)))))
 
 (doit "test/performance.log.5.1"
-      "test/performance.log")
+      "test/performance.log.5.2.1")
 (exit 0 :quiet t)
