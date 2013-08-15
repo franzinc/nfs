@@ -333,7 +333,7 @@
       (ignore-errors (parse-integer digits :radix radix)))))
 
 (defun valid-network-address-p (string)
-  (ignore-errors (parse-addr string)))
+  (ignore-errors (cl-user::parse-addr string)))
 
 
   

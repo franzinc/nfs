@@ -1,0 +1,71 @@
+(fi:common-lisp
+ "*common-lisp*" "c:/cygwin/home/layer/nfs/"
+ "c:/acl82.patched/mlisp"
+ (quote ("+B" "+cn")) "localhost" nil)
+
+(fi:common-lisp
+ "*common-lisp*" "c:/cygwin/home/layer/nfs.acl90/"
+ "c:/acl90/mlisp"
+ (quote ("+B" "+cn")) "localhost" nil)
+
+when switching branches:
+
+git checkout ..
+make clean rpc
+
+(setq *load-source-file-info* nil)
+(setq *load-source-debug-info* nil)
+(setq *load-local-names-info* nil)
+(setq *load-xref-info* nil)
+
+:cd c:/cygwin/home/layer/nfs
+:ld loadem
+(setf *configfile* "c:/AllegroNFS/nfs.cfg")
+(read-nfs-cfg *configfile*)
+(startem)
+
+:cd c:/cygwin/home/layer/nfs.acl90
+:ld loadem
+(setf *configfile* "c:/AllegroNFS/nfs.cfg")
+(read-nfs-cfg *configfile*)
+(startem)
+
+(room)
+(setf *configfile* "c:/AllegroNFS/nfs.cfg")
+(read-nfs-cfg *configfile*)
+(startem)
+(room)
+
+(prof:start-profiler)
+(prof:start-profiler :type :space)
+
+;; ./hammernfs hobart256:/e/ACL82.iso
+(room)
+
+
+
+(prof:stop-profiler)
+(prof:show-flat-profile)
+(prof:show-call-graph)
+(room t)
+
+(disassemble 'excl::memcpy)
+(disassemble 'excl::memcpy-up)
+
+(trace excl::start-emacs-process-for-network-stream)
+(excl:new-start-emacs-lisp-interface :port 12000 :background-streams t)
+(setq p (mp:process-run-function "Run Bar Process(2)"
+           (lambda () (excl::run-status-process excl::*null-stream*))))
+(setf (mp::process-interruptible-p p) nil)
+
+(setq socket (socket:make-socket :remote-host "localhost" :remote-port 12000))
+
+(setq before (get-internal-run-time))
+
+
+(setq after (get-internal-run-time))
+(format t "run-time diff=~s~%" (- after before))
+;; fast: 13213 -- ~40% in task manager
+;; slow: 18704 -- 15-30% in task manager
+
+

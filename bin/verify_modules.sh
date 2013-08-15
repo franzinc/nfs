@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 switch_to_branch()
 {

@@ -56,7 +56,7 @@ struct file_handle *get_export_fh3(char *host, char *export, AUTH *auth) {
   memcpy(fh->data, mountres->mountres3_u.mountinfo.fhandle.fhandle3_val,
 	 fh->len);
   
-  if (clnt_freeres(clnt, xdr_mountres3, mountres) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t) xdr_mountres3, mountres) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -100,7 +100,7 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
   fh->len=FHSIZE;
   memcpy(fh->data, fhstatus->fhstatus_u.fhs_fhandle, FHSIZE);
   
-  if (clnt_freeres(clnt, xdr_fhstatus, fhstatus) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_fhstatus, fhstatus) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -149,7 +149,7 @@ struct file_handle *lookup2(CLIENT *clnt, struct file_handle *base,
   fh->len=NFS_FHSIZE;
   memcpy(fh->data, &res->diropres_u.diropres.file, NFS_FHSIZE);
 
-  if (clnt_freeres(clnt, xdr_diropres, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_diropres, res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -187,7 +187,7 @@ struct file_handle *lookup3(CLIENT *clnt, struct file_handle *base,
   fh->len=res->LOOKUP3res_u.resok.object.data.data_len;
   memcpy(fh->data, res->LOOKUP3res_u.resok.object.data.data_val, fh->len);
 
-  if (clnt_freeres(clnt, xdr_LOOKUP3res, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_LOOKUP3res, res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -245,7 +245,7 @@ int nfs_read2(CLIENT *clnt, struct file_handle *fh, int count) {
 
   count=res->readres_u.reply.data.data_len;
   
-  if (clnt_freeres(clnt, xdr_readres, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_readres, res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -274,7 +274,7 @@ int nfs_read3(CLIENT *clnt, struct file_handle *fh, int count) {
   
   count=res->READ3res_u.resok.count;
   
-  if (clnt_freeres(clnt, xdr_READ3res, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_READ3res, res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -307,6 +307,7 @@ int main(int argc, char **argv) {
   /* Parameters */
   int vers=2;
   int duration=60;
+  int label=0;
   int uid=geteuid(), gid=getegid();
   int blocksize=4096;
   char *host=NULL;
@@ -316,7 +317,7 @@ int main(int argc, char **argv) {
   int quiet = 0;
   char *proto="udp";
   
-  while ((opt=getopt(argc, argv, "v:t:h:e:f:u:g:b:qp:"))!=-1) {
+  while ((opt=getopt(argc, argv, "i:v:t:h:e:f:u:g:b:qp:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -334,6 +335,9 @@ int main(int argc, char **argv) {
       break;
     case 'q':
       quiet = 1;
+      break;
+    case 'i': 
+      label=atoi(optarg);
       break;
     case 'u': 
       uid=atoi(optarg);
@@ -387,8 +391,13 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  printf("export:   %s\n", exportname);
-  printf("testpath: %s\n", testpath);
+  printf("(\n");
+  printf(":export-name \"%s\"\n", exportname);
+  printf(":testpath \"%s\"\n", testpath);
+  printf(":iteration %d\n", label);
+  printf(":nfs-version %d\n", vers);
+  printf(":blocksize %d ;; in bytes\n", blocksize);
+  printf(":transport :%s\n", proto);
 
   gethostname(myhostname, sizeof(myhostname));
 
@@ -420,12 +429,12 @@ int main(int argc, char **argv) {
     total+=count;
   }
 
-  printf("Ran for %d seconds\n", now-starttime);
+  printf(":duration %d ;; seconds\n", now-starttime);
   
-  printf("Read %u bytes\n", total);
+  printf(":read-bytes %u\n", total);
   kbps=(double)total/(double)(now-starttime)/(double)1024;
-  printf("%f KB/second\n", kbps);
-  
+  printf(":rate %f ;; KB/second\n", kbps);
+  printf(")\n");
   clnt_destroy(clnt);
   
   return 0;

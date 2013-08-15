@@ -1,5 +1,12 @@
-# This makefile assumes that cygwin has been installed (ie, it assumes
-# GNU make).
+#
+# NFS makefile (requires Cygwin and GNU make)
+#
+# Rules of note:
+#  make all release_suffix=rc2
+#     builds release candidate 2 of current version
+#  make clean dist LISPDIR=/c/acl90
+#     builds a Windows-installable version for testing, using c:\acl90
+#     as the installed lisp.
 
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
@@ -7,15 +14,9 @@ ifeq ($(DO_MAKEFILE_LOCAL),yes)
 include Makefile.local
 endif
 
-ifndef LISPDIR
-LISPDIR = /c/acl90.patched
-endif
-
-LISPEXE=$(LISPDIR)/mlisp
-
-ifndef MAKENSIS
-MAKENSIS = "/c/Program Files (x86)/NSIS/makensis.exe"
-endif
+LISPDIR ?= /c/acl90.patched
+LISPEXE = $(LISPDIR)/mlisp
+MAKENSIS ?= "/c/Program Files (x86)/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 
@@ -28,7 +29,7 @@ all: clean dists
 MODULES = .:nfs52 date:acl90 demoware:master
 
 prereqs: FORCE
-	@sh verify_modules.sh $(MODULES)
+	@bin/verify_modules.sh $(MODULES)
 
 tag_name = nfs$(version)$(release_suffix)
 
@@ -121,17 +122,27 @@ demo-dist: dist-demo
 ###############################################################################
 # testing
 
-HAMMERNFS_LIBS = $(shell uname | grep -q CYGWIN && echo -lrpc)
+# Needs the tirpc Cygwin package on Windows
 
-hammernfs: hammernfs.c hammernfs-libs/mount_clnt.c hammernfs-libs/nfs_clnt.c
-	cc -O -o hammernfs \
-			hammernfs.c 	\
-			hammernfs-libs/mount_xdr.c \
-			hammernfs-libs/mount_clnt.c \
-			hammernfs-libs/nfs_clnt.c \
-			hammernfs-libs/nfs_xdr.c \
-			hammernfs-libs/compat.c \
-			$(HAMMERNFS_LIBS)
+exe := $(shell test -d c:/ && echo .exe)
+
+hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
+                 test/hammernfs-libs/nfs_clnt.c
+	cc -O -o hammernfs$(exe) \
+	  $(shell uname | grep -q CYGWIN && echo -I/usr/include/tirpc) \
+	  test/hammernfs.c \
+	  test/hammernfs-libs/mount_xdr.c \
+	  test/hammernfs-libs/mount_clnt.c \
+	  test/hammernfs-libs/nfs_clnt.c \
+	  test/hammernfs-libs/nfs_xdr.c \
+	  test/hammernfs-libs/compat.c \
+	  $(shell uname | grep -q CYGWIN && echo -ltirpc)
+
+perftest: FORCE
+	test/performance.sh test/performance.log.$(version)
+
+testnfs: test/testnfs.c
+	cc -O -o testnfs test/testnfs.c
 
 ###############################################################################
 # misc
