@@ -32,7 +32,13 @@ MODULES = .:nfs52 date:acl90 demoware:master
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
 
+
 tag_name = nfs$(major-version)$(release_suffix)
+
+commit-id.cl: FORCE
+	echo -n '(defvar *nfsd-commit-id* "' > commit-id.cl
+	echo -n `git log -n1 --pretty=format:%H HEAD` >> commit-id.cl
+	echo -n '")' >> commit-id.cl
 
 tag: FORCE
 ifndef release_suffix
@@ -54,7 +60,7 @@ check_cpp: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
-do_build: prereqs rpc FORCE
+do_build: prereqs rpc commit-id.cl FORCE
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp build.out
 	echo '(dribble "build.out")' >> b.tmp

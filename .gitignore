@@ -5,6 +5,7 @@
 /Makefile.local
 /autoloads.out
 /build.out
+/commit-id.cl
 /configure/module-report.txt
 /configure/configform.bak
 /date/
