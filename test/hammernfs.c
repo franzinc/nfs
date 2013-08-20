@@ -32,7 +32,7 @@ struct file_handle *get_export_fh3(char *host, char *export, AUTH *auth) {
 
   clnt=clnt_create(host, MOUNTPROG, 3, "udp");
   if (!clnt) {
-    printf("clnt_create failed[1]\n");
+    clnt_pcreateerror("clnt_create failed[1]");
     exit(1);
   }
   
@@ -56,7 +56,7 @@ struct file_handle *get_export_fh3(char *host, char *export, AUTH *auth) {
   memcpy(fh->data, mountres->mountres3_u.mountinfo.fhandle.fhandle3_val,
 	 fh->len);
   
-  if (clnt_freeres(clnt, (xdrproc_t) xdr_mountres3, mountres) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_mountres3, mountres) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -73,7 +73,7 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
 
   clnt=clnt_create(host, MOUNTPROG, 1, "udp");
   if (!clnt) {
-    printf("clnt_create failed[2]\n");
+    clnt_pcreateerror("clnt_create failed[2]");
     exit(1);
   }
   clnt->cl_auth=auth;
@@ -407,7 +407,7 @@ int main(int argc, char **argv) {
 
   clnt=clnt_create(host, NFS_PROGRAM, vers, proto);
   if (!clnt) {
-    printf("clnt_create failed[3]\n");
+    clnt_pcreateerror("clnt_create failed[3]");
     exit(1);
   }
 
