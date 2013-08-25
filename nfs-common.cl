@@ -13,8 +13,10 @@
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (defvar *nfsd-commit-id*
     (multiple-value-bind (commit-id stderr exit-status)
-	(excl.osi:command-output "git log -n1 --pretty=format:%H HEAD"
-				 :whole t)
+	(excl.osi:command-output
+	 "git log -n1 --pretty=format:%H HEAD"
+	 :whole t
+	 :directory (path-pathname *load-pathname*))
       (or (= 0 exit-status)
 	  (error "Getting commit id for HEAD failed with status: ~d~%~a"
 		 exit-status stderr))

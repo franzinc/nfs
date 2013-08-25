@@ -14,7 +14,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 626 84 1159 426)) (name :configform)
+     (interior (make-box 531 50 1064 392)) (name :configform)
      (title "NFS Server for Windows Configuration Utility") (border :frame) (child-p t)
      form-p)
   (let ((owner
@@ -363,9 +363,13 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        (list :tab-control :host-lists) :top 106 :value (list :one :two)
                        :width 185)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :height
-                       12 :left 26 :name :static-text-14 :tab-control
-                       (list :tab-control :host-lists) :top 139 :value "New address"
-                       :width 68)
+                       47 :left 24 :name :static-text-22 :tab-control
+                       (list :tab-control :host-lists) :top 187 :value
+                       "NOTE: host names resolved at configuration load time" :width 181)
+        (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :height
+                       28 :left 22 :name :static-text-24 :tab-control
+                       (list :tab-control :host-lists) :top 134 :value
+                       "New address or host name:" :width 160)
         (make-instance 'button :font (make-font-ex nil "Tahoma / ANSI" 11) :left 10 :name
                        :help-button :on-change 'configform-help-button-on-change :title
                        "~Help" :top 304)
@@ -464,7 +468,8 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                             '(:host-list-combo :new-host-list-button
                                               :host-list-remove-button :new-address
                                               :host-add-button :host-remove-button
-                                              :host-list-multi :static-text-14))
+                                              :host-list-multi :static-text-22
+                                              :static-text-24))
                              (make-instance 'tab-info :id :global :label "Global"
                                             :widgets
                                             '(:combo-box-port-mapper
@@ -501,7 +506,7 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :debug-nfs-rmdir :debug-nfs-create
                                               :debug-nfs-mknod :debug-nfs-mkdir
                                               :debug-nfs-access :group-box-2)))
-                       :top 9 :value :debug :width 514)
+                       :top 9 :value :exports :width 514)
         (make-instance 'cancel-button :font (make-font-ex nil "Tahoma / ANSI" 11) :left
                        444 :name :cancel-button-1 :on-change
                        'configform-cancel-button-on-change :top 304)))
