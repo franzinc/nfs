@@ -31,7 +31,7 @@
   ctime ;; stored as universal time
   )
 
-;; should always be larger than *openfilereaptime*.
+;; should always be larger than *openfilereaptime*.  FIXME: Why?
 (defparameter *attr-cache-reap-time* 5) 
 
 ;; keys are file handles
@@ -49,6 +49,7 @@
 
 (defun nfs-attr (fh)
   (declare (optimize (speed 3)))
+  ;;(logit "Collecting fresh attrs for ~a" (fh-pathname fh))
   (multiple-value-bind (mode nlink uid gid size atime mtime ctime)
       (unicode-stat (fh-pathname fh))
     (let ((type (stat-mode-to-type mode)))
@@ -79,7 +80,7 @@
   (mp:with-process-lock (*attr-cache-lock*)
     (let ((attr-cache (gethash fh *nfs-attr-cache*)))
       (if* attr-cache
-	 then ;; We have a cached entry.  Check it's expiration
+	 then ;; We have a cached entry.  Check its expiration
 	      (let ((now (excl::cl-internal-real-time)))
 		(if* (>= now (nfs-attr-cache-expiration attr-cache))
 		   then ;; It expired.  Refresh the attributes and return.
@@ -89,6 +90,7 @@
 			  ;; Good to go
 			  attr)
 		   else ;; Not expired.  Use the cached attributes
+			;;(logit "Using cached attrs")
 			(nfs-attr-cache-attr attr-cache)))
 	 else ;; No cached entry.  Make one.
 	      (let ((attr (nfs-attr fh)))
@@ -119,7 +121,7 @@
 
 (defun attr-cache-reaper ()
   (loop
-    (sleep *attr-cache-reap-time*)
+    (sleep (max *attr-cache-reap-time* 1))
     (reap-attr-cache)))
 
 ;;; XXX --  might want to make sure that directories

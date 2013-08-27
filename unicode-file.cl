@@ -237,7 +237,12 @@ struct __stat64 {
 		(setf mode #o0120777))
 	    (values mode (slot 'nlink) (slot 'uid) (slot 'gid) 
 		    (logior (slot 'size 'low) (ash (slot 'size 'high) 32))
-		    (timeslot 'atime) (timeslot 'mtime) (timeslot 'ctime))))))))
+		    (timeslot 'atime)
+		    (timeslot 'mtime)
+		    ;; bug21964: use the mtime as the ctime since the ctime
+		    ;; isn't what we thought was it (create time instead of
+		    ;; inode change time as it's supposed to be).
+		    (timeslot 'mtime))))))))
 
 (ff:def-foreign-call (GetFileAttributes "GetFileAttributesW")
     ((lpFileName (* :void)))
