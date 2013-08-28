@@ -8,7 +8,7 @@
 ;;;
 ;;;;;;NOTE: when `test' release is removed, remove telnet server in
 ;;;;;;           loadem.cl
-(defvar *nfsd-version* "5.2.3")
+(defvar *nfsd-version* "5.2.4")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (defvar *nfsd-commit-id*

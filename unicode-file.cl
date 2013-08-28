@@ -26,6 +26,7 @@
 
 (eval-when (compile load eval)
   (require :winapi)
+  (require :winapi-dev)
   (require :ef-fat-le))
 
 ;; Functions to allow unicode filenames.  Needed until Allegro CL
@@ -221,7 +222,7 @@ struct __stat64 {
 
 ;; Returns values used by Allegro NFS:
 :: mode nlink uid gid size atime mtime ctime
-(defun unicode-stat (filename) 
+(defun old-unicode-stat (filename) 
   (declare (optimize speed))
   (ff:with-static-fobject (sb 'stat64 :allocation :foreign-static-gc)
     (multiple-value-bind (status errno)
@@ -388,3 +389,191 @@ struct __stat64 {
     (if* (zerop res)
        then t
        else (perror errno "wrmdir"))))
+
+(ff:def-foreign-type by-handle-file-information 
+    (:struct
+     (dwFileAttributes win:dword)
+     (ftCreationTime win:filetime)
+     (ftLastAccessTime win:filetime)
+     (ftLastWriteTime win:filetime)
+     (dwVolumeSerialNumber win:dword)
+     (nFileSizeHigh win:dword)
+     (nFileSizeLow win:dword)
+     (nNumberOfLinks win:dword)
+     (nFileIndexHigh win:dword)
+     (nFileIndexLow win:dword)))
+
+(ff:def-foreign-call GetFileInformationByHandle
+    ((hFile (* :void))
+     (lpFileInformation (* by-handle-file-information)))
+  :returning :int
+  :error-value :os-specific)
+
+(ff:def-foreign-call CreateFileW 
+    ((lpfileName (* :void))
+     (dwDesiredAccess win:dword)
+     (dwShareMode win:dword)
+     (lpSecurityAttributes (* :void))
+     (dwCreationDisposition win:dword)
+     (dwFlagsAndAttributes win:dword)
+     (hTemplateFile (* :void)))
+  :returning :foreign-address
+  :error-value :os-specific
+  :strings-convert nil)
+
+(defconstant FILE_FLAG_BACKUP_SEMANTICS #x02000000)
+
+;; Second value is nanoseconds
+(defun filetime-to-unix-time (filetime-ptr)
+  (declare (optimize speed))
+  (let* ((hundred-ns-per-sec 10000000)
+	 (secs-from-windows-epoch-to-unix-epoch 11644473600)
+	 (raw (logior (ash (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwHighDateTime) 32)
+		      (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwLowDateTime))))
+    (multiple-value-bind (secs-since-1601 remaining-hundres-ns)
+	(truncate raw hundred-ns-per-sec)
+      (values (- secs-since-1601 secs-from-windows-epoch-to-unix-epoch) (* remaining-hundres-ns 100)))))
+
+(defmacro filetime-to-universal-time (filetime-ptr)
+  `(unix-to-universal-time (filetime-to-unix-time ,filetime-ptr)))
+
+;; FIXME: Make this configurable  (rfe8202)
+(defconstant *executable-types* '("exe" "com" "bat"))
+
+(defun unix-mode-from-file-information (filename info)
+  (declare (optimize speed))
+  (let* ((attrs (ff:fslot-value-typed 'by-handle-file-information :foreign info 'dwFileAttributes))
+	 (perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
+	 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
+	 (type (if* is-dir
+		  then *s-ifdir*
+		  else *s-ifreg*)))
+    (when (or is-dir (member (pathname-type filename) *executable-types* :test #'equalp))
+      (setf perms (logior perms #o111)))
+
+    (logior type perms)))
+
+;; Returns values used by Allegro NFS:
+:: mode nlink uid gid size atime mtime ctime
+(defun abandoned-unicode-stat (filename) 
+  (declare (optimize speed))
+  (multiple-value-bind (handle err)
+      (CreateFileW filename 
+		   win:GENERIC_READ ;; dwDesiredAccess
+		   win:FILE_SHARE_READ ;; dwShareMode
+		   0 ;; lpSecurityAttributes
+		   win:OPEN_EXISTING ;; dwCreationDisposition
+		   FILE_FLAG_BACKUP_SEMANTICS  ;; dwFlagsAndAttributes
+		   0)  ;; hTemplateFile
+    (if (= handle *invalid-handle*)
+	(excl.osi:perror (excl.osi::win_err_to_errno err) "CreateFileW"))
+    
+    ;; Good to go
+    (ff:with-stack-fobject (info 'by-handle-file-information)
+      (GetFileInformationByHandle handle info)
+      
+      (macrolet ((access-slot (&rest names)
+		   `(ff:fslot-value-typed 'by-handle-file-information :foreign info ,@names)))
+	(multiple-value-prog1 
+	    (values
+	     (unix-mode-from-file-information filename info)
+	     (access-slot 'nNumberOfLinks)
+	     0 ;; uid
+	     0 ;; gid
+	     (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
+	     (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
+	     (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
+	     ;; Return same info as mtime for ctime
+	     (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
+	     )
+	  (win:CloseHandle handle))))))
+
+(ff:def-foreign-call GetFileAttributesExW
+    ((lpFileName (* :void))
+     (fInfoLevelId :int)
+     (lpFileInformation (* :void)))
+  :returning :boolean
+  :error-value :os-specific
+  :strings-convert nil)
+
+(defun unix-mode-from-file-attributes (filename attrs)
+  (declare (optimize speed))
+  (let* ((perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
+	 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
+	 (type (if* is-dir
+		  then *s-ifdir*
+		  else *s-ifreg*)))
+    (when (or is-dir (member (pathname-type filename) *executable-types* :test #'equalp))
+      (setf perms (logior perms #o111)))
+
+    (logior type perms)))
+
+(defun stat-via-find-first-file (filename)
+  (ff:with-stack-fobject (data 'win32-find-data-w)
+    (multiple-value-bind (handle err)
+	(FindFirstFileW filename data)
+      (if (= handle *invalid-handle*)
+	  (excl.osi:perror (excl.osi::win_err_to_errno err) "FindFirstFile"))
+      (win:FindClose handle)
+      
+      (macrolet ((access-slot (&rest names)
+		   `(ff:fslot-value-typed 'win32-find-data-w :foreign data ,@names)))
+	(values
+	 (unix-mode-from-file-attributes filename (access-slot 'dwFileAttributes))
+	 1 ;; nlinks
+	 0 ;; uid
+	 0 ;; gid
+	 (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
+	 (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
+	 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
+	 ;; Return same info as mtime for ctime
+	 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
+	 )))))
+
+(defconstant ERROR_SHARING_VIOLATION 32)
+
+;; Returns values used by Allegro NFS:
+:: mode nlink uid gid size atime mtime ctime
+(defun unicode-stat (filename) 
+  (declare (optimize speed))
+  (ff:with-stack-fobject (info 'win:win32_file_attribute_data)
+    (multiple-value-bind (success err)
+	(GetFileAttributesExW filename win:GetFileExInfoStandard info)
+      (if* success
+	 then (macrolet ((access-slot (&rest names)
+			   `(ff:fslot-value-typed 'win:win32_file_attribute_data :foreign info ,@names)))
+		(values
+		 (unix-mode-from-file-attributes filename (access-slot 'win::dwFileAttributes))
+		 1 ;; nlinks
+		 0 ;; uid
+		 0 ;; gid
+		 (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
+		 (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
+		 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
+		 ;; Return same info as mtime for ctime
+		 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
+		 ))
+       elseif (= err  ERROR_SHARING_VIOLATION)
+	 then ;; Try alternate approach
+	      (stat-via-find-first-file filename)
+	 else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFileAttributesExW")))))
+
+
+
+#+ignore
+(defun test ()
+  (labels ((test-old (path)
+	     (let ((values (multiple-value-list (old-unicode-stat path))))
+	       (format t "Old ~a: ~a~%" path values)))
+	   (test-new (path)
+	     (let ((values (multiple-value-list (unicode-stat path))))
+	       (format t "New ~a: ~a~%" path values))))
+    (test-old "c:/")
+    (test-new "c:/")
+    (test-old "c:/System Volume Information")
+    (test-new "c:/System Volume Information")
+    (test-old "c:/pagefile.sys")
+    (test-new "c:/pagefile.sys")
+    (test-old "c:/temp/victim")
+    (test-new "c:/temp/victim")
+    ))

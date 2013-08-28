@@ -1414,7 +1414,7 @@ struct entry {
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
 	   (fh (lookup-fh-in-dir dirfh filename :create t))
 	   (path (fh-pathname fh)))
-      ;; rmdir system cal doesn't return a decent error if the object
+      ;; rmdir system call doesn't return a decent error if the object
       ;; is not a directory (it returns "invalid argument", so check
       ;; here first.
       (if* (zerop (logand (unicode-stat path) excl::*s-ifdir*))
