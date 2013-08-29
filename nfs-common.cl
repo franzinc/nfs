@@ -5,9 +5,8 @@
   (use-package :excl.osi)
   (use-package :gen-nfs))
 
-;;;
-;;;;;;NOTE: when `test' release is removed, remove telnet server in
-;;;;;;           loadem.cl
+;; NOTE: the form of the version *must* be a.b.c.  If you're starting
+;;       a new release, say 6.0, then use 6.0.0.
 (defvar *nfsd-version* "5.2.4")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
@@ -21,7 +20,6 @@
 	  (error "Getting commit id for HEAD failed with status: ~d~%~a"
 		 exit-status stderr))
       commit-id))
-;;; 
 
 ;; Filesystem allocation unit size.  Only used by statfs procedure.
 ;;   See discussion in spr39245 for why this was changed from 8192.

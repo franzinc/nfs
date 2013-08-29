@@ -19,6 +19,7 @@ LISPEXE = $(LISPDIR)/mlisp
 MAKENSIS ?= "/c/Program Files (x86)/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
+major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
 
 default: build
 
@@ -31,7 +32,7 @@ MODULES = .:nfs52 date:acl90 demoware:master
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
 
-tag_name = nfs$(version)$(release_suffix)
+tag_name = nfs$(major-version)$(release_suffix)
 
 tag: FORCE
 ifndef release_suffix
@@ -109,6 +110,10 @@ dists: clean
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
+	@if grep -q '^(pushnew :nfs-' loadem.cl; then \
+	    echo ERROR: debugging features enabled for production build; \
+	    exit 1; \
+	fi
 	$(MAKE) $(MFLAGS) dist
 	$(MAKE) $(MFLAGS) dist-demo
 	$(MAKE) $(MFLAGS) tag
