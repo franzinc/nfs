@@ -147,6 +147,9 @@ testnfs: test/testnfs.c
 ###############################################################################
 # misc
 
+echo_version: FORCE
+	@echo $(version)
+
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 	rm -f gen-nfs-*.cl mount-*.cl sunrpc-common.cl nlm-*.cl nsm-*.cl 

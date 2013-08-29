@@ -2,6 +2,9 @@
 
 (in-package :user)
 
+(eval-when (compile eval load)
+  (require :osi))
+
 (defstruct datum
   export-name
   testpath
@@ -76,5 +79,9 @@
 	      (%change ref-rate new-rate)))))
 
 (doit "test/performance.log.5.1"
-      "test/performance.log.5.2.1")
+      (format nil "test/performance.log.~a"
+	      (string-trim
+	       '(#\newline)
+	       (excl.osi:command-output "make --silent echo_version"
+					:whole t))))
 (exit 0 :quiet t)
