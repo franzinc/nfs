@@ -1,4 +1,3 @@
-#! /fi/cl/9.0/bin/mlisp -#!
 
 (in-package :user)
 

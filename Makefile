@@ -151,6 +151,7 @@ hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
 
 perftest: FORCE
 	test/performance.sh test/performance.log.$(version)
+	$(LISPEXE) -L test/performance.cl
 
 testnfs: test/testnfs.c
 	cc -O -o testnfs test/testnfs.c
