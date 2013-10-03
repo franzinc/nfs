@@ -77,10 +77,17 @@
 	      new-rate
 	      (%change ref-rate new-rate)))))
 
-(doit "test/performance.log.5.1"
+(doit
+ ;; this doesn't change and is committed into the repo
+ "test/performance.log.5.1.baseline"
+ ;; this changes each time performance.sh is run (via command line arg)
+ "test/performance.log.5.1")
+
+#+ignore
+(doit "test/performance.log.5.1.baseline"
       (format nil "test/performance.log.~a"
 	      (string-trim
 	       '(#\newline)
 	       (excl.osi:command-output "make --silent echo_version"
 					:whole t))))
-(exit 0 :quiet t)
+#+ignore (exit 0 :quiet t)
