@@ -109,7 +109,7 @@
 			       :test #'equalp)
 		      fh
 		 else (if *mountd-debug* (user::logit "==> Not found.~%"))
-		      nil)))))
+		      gen-nfs:*nfserr-noent*)))))
 
 (defun mountproc-mnt (dirpath vers peer cbody)
   (declare (ignore cbody))

@@ -104,13 +104,20 @@
 ;; Used by mountd
 ;; 'tail' is guaranteed to have no leading or trailing slash
 (defun get-fhandle-for-path (tail exp)
+  (logit "get-fhandle-for-path: tail: ~s, exp ~s~%"
+	  tail (nfs-export-name exp))
   (let ((dirfh (get-export-fhandle exp)))
+    (logit "Initial dirfh: ~a~%" dirfh)
     (when (string/= tail "")
       (dolist (comp (delimited-string-to-list tail #\/))
-	(let ((fh (ignore-errors (nfs-probe-file dirfh comp))))
+	(logit "Considering component: ~s in dirfh ~a~%" comp dirfh)
+	(multiple-value-bind (fh err)
+	    (ignore-errors (nfs-probe-file dirfh comp))
 	  (if* (null fh)
-	     then (return-from get-fhandle-for-path nil))
+	     then (logit "Failed to probe: ~a~%" err)
+		  (return-from get-fhandle-for-path nil))
 	  (setf dirfh fh))))
+    (logit "get-fhandle-for-path successful~%")
     dirfh))
 	    
 (defun get-export-fhandle (exp)
