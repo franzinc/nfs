@@ -84,6 +84,18 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (when *nfsd-process* (ignore-errors (mp:process-kill *nfsd-process*)))
   (when *mountd-process* (ignore-errors (mp:process-kill *mountd-process*)))
   (when *pmap-process* (ignore-errors (mp:process-kill *pmap-process*)))
+  
+  (flet ((kill-by-name (name)
+	   (let ((proc (find name sys:*all-processes* :key #'mp:process-name :test #'string=)))
+	     (when proc
+	       (ignore-errors (mp:process-kill proc))))))
+    (kill-by-name "open file reaper")
+    (kill-by-name "attr cache reaper")
+    (kill-by-name "nsm callback retry loop")
+    (kill-by-name "nlm retry loop")
+    (kill-by-name "nlm notify loop")
+    )
+	     
   (mp:open-gate *shutting-down*)
   ;; Allow `mainloop' process to see the open gate.
   (sleep 1))
