@@ -33,6 +33,7 @@
 (defparameter *filelist*
     '("bswap"
       "utf8"
+      "utils"
       "xdr" 
       "unicode-file"
       "sunrpc-common"

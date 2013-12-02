@@ -255,12 +255,11 @@ struct __stat64 {
 (defconstant FILE_ATTRIBUTE_DIRECTORY 16)
 
 (defconstant *symlink-header* 
-    #.(make-array 8 :element-type '(unsigned-byte 8)
-		  :initial-contents '(#x49 #x6e #x74 #x78 #x4c #x4e #x4b #x01)))
+    #.(make-ausb8 8 :initial-contents '(#x49 #x6e #x74 #x78 #x4c #x4e #x4b #x01)))
 
 (defun symlink-header-p (buf)
   (declare (optimize speed (safety 0) (debug 0))
-	   ((simple-array (unsigned-byte 8) (*)) buf))
+	   (ausb8 buf))
   (dotimes (n 8 t)
     (if (not (eq (aref buf n)
 		 (aref *symlink-header* n)))
@@ -273,7 +272,7 @@ struct __stat64 {
 	       (not (zerop (logand res FILE_ATTRIBUTE_SYSTEM)))
 	       (zerop (logand res FILE_ATTRIBUTE_DIRECTORY))
 	       (evenp (file-length filename)))
-      (let ((buf (make-array 8 :element-type '(unsigned-byte 8))))
+      (let ((buf (make-ausb8 8)))
 	(declare (optimize (safety 0))
 		 (dynamic-extent buf))
 	(with-open-file (f filename)
@@ -283,7 +282,7 @@ struct __stat64 {
 
 (defun unicode-readlink (filename)
   (declare (optimize speed))
-  (let ((buf (make-array 8 :element-type '(unsigned-byte 8))))
+  (let ((buf (make-ausb8 8)))
     (declare (optimize (safety 0))
 	     (dynamic-extent buf))
     (with-open-file (f filename :external-format :fat-le)
@@ -608,7 +607,7 @@ struct __stat64 {
   (declare (optimize speed (safety 0))
 	   (simple-string string)
 	   (fixnum pos)
-	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (ausb8 vec)
 	   (fixnum offset))
   (let ((len (length string)))
     (declare (fixnum pos))
@@ -630,8 +629,8 @@ struct __stat64 {
       (macrolet ((grab-digit ()
 		   `(the (mod 16) (grab-digit-1)))
 		 (grab-byte ()
-		   `(the (unsigned-byte 8)
-		      (+ (the (unsigned-byte 8) (ash (grab-digit) 4)) (grab-digit))))
+		   `(the usb8
+		      (+ (the usb8 (ash (grab-digit) 4)) (grab-digit))))
 		 (put-byte (value)
 		   `(progn
 		      (setf (aref vec offset) ,value)
@@ -653,7 +652,7 @@ struct __stat64 {
 (defun guid-vec-to-string (vec offset &optional (string (make-string *max-guid-string-length*)))
   (declare (optimize speed (safety 0))
 	   (simple-string string)
-	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (ausb8 vec)
 	   (fixnum offset))
   (let ((pos 0))
     (declare (fixnum pos))
@@ -781,7 +780,7 @@ struct __stat64 {
 ;; FIXME: Optimize
 (defun get-uint64-from-vec (vec offset)
   (declare (optimize speed (safety 0))
-	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (ausb8 vec)
 	   (fixnum offset))
   (let ((res 0))
     (declare ((unsigned-byte 64) res))
@@ -889,7 +888,7 @@ struct __stat64 {
 (defun put-uint64-into-vec (value vec offset)
   (declare (optimize speed (safety 0))
 	   ((unsigned-byte 64) value)
-	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (ausb8 vec)
 	   (fixnum offset))
   (let ((shift -64))
     (declare ((integer -64 0) shift))
@@ -901,13 +900,15 @@ struct __stat64 {
 ;; File handle interface
 (defun put-file-id-into-vec (filename vec offset)
   (declare (optimize speed (safety 0))
-	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (ausb8 vec)
 	   (fixnum offset))
   (let ((id (get-file-id filename)))
     (get-volume-guid-from-path filename vec offset)
     (incf offset *sizeof-guid*)
     (put-uint64-into-vec id vec offset)
     vec))
+
+(defconstant *sizeof-fileid* 8)
 
 (defconstant FILE_READ_ATTRIBUTES #x80)
 
