@@ -406,7 +406,7 @@ struct __stat64 {
 (ff:def-foreign-call GetFileInformationByHandle
     ((hFile (* :void))
      (lpFileInformation (* by-handle-file-information)))
-  :returning :int
+  :returning (:int boolean)
   :error-value :os-specific)
 
 (ff:def-foreign-call CreateFileW 
@@ -453,41 +453,6 @@ struct __stat64 {
 
     (logior type perms)))
 
-;; Returns values used by Allegro NFS:
-:: mode nlink uid gid size atime mtime ctime
-(defun abandoned-unicode-stat (filename) 
-  (declare (optimize speed))
-  (multiple-value-bind (handle err)
-      (CreateFileW filename 
-		   win:GENERIC_READ ;; dwDesiredAccess
-		   win:FILE_SHARE_READ ;; dwShareMode
-		   0 ;; lpSecurityAttributes
-		   win:OPEN_EXISTING ;; dwCreationDisposition
-		   FILE_FLAG_BACKUP_SEMANTICS  ;; dwFlagsAndAttributes
-		   0)  ;; hTemplateFile
-    (if (= handle *invalid-handle*)
-	(excl.osi:perror (excl.osi::win_err_to_errno err) "CreateFileW"))
-    
-    ;; Good to go
-    (ff:with-stack-fobject (info 'by-handle-file-information)
-      (GetFileInformationByHandle handle info)
-      
-      (macrolet ((access-slot (&rest names)
-		   `(ff:fslot-value-typed 'by-handle-file-information :foreign info ,@names)))
-	(multiple-value-prog1 
-	    (values
-	     (unix-mode-from-file-information filename info)
-	     (access-slot 'nNumberOfLinks)
-	     0 ;; uid
-	     0 ;; gid
-	     (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
-	     (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
-	     (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
-	     ;; Return same info as mtime for ctime
-	     (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
-	     )
-	  (win:CloseHandle handle))))))
-
 (ff:def-foreign-call GetFileAttributesExW
     ((lpFileName (* :void))
      (fInfoLevelId :int)
@@ -533,7 +498,7 @@ struct __stat64 {
 (defconstant ERROR_SHARING_VIOLATION 32)
 
 ;; Returns values used by Allegro NFS:
-:: mode nlink uid gid size atime mtime ctime
+;; mode nlink uid gid size atime mtime ctime
 (defun unicode-stat (filename) 
   (declare (optimize speed))
   (ff:with-stack-fobject (info 'win:win32_file_attribute_data)
@@ -559,7 +524,6 @@ struct __stat64 {
 	 else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFileAttributesExW")))))
 
 
-
 #+ignore
 (defun test ()
   (labels ((test-old (path)
@@ -577,3 +541,396 @@ struct __stat64 {
     (test-old "c:/temp/victim")
     (test-new "c:/temp/victim")
     ))
+
+
+(ff:def-foreign-call GetVolumePathNameW
+    ((filename (* :void)) ;; in
+     (volume-path (* :void)) ;; out
+     (volume-path-chars win:dword)) ;; in
+  :returning (:int boolean)
+  :strings-convert nil
+  :error-value :os-specific)
+
+;; Actual max is 32767 plus null terminator, but 
+;; http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+;; says "the maximum path of 32,767 characters is approximate, because
+;; the "\\?\" prefix may be expanded to a longer string by the system
+;; at run time, and this expansion applies to the total length".
+;; Annoying.  Anyway, we'll choose a value that's more than enough.
+(defconstant *windows-max-path* 40000) ;; characters
+
+(defconstant *max-path* 260)
+
+(defmacro with-aclmalloc ((var size) &body body)
+  `(let ((,var (aclmalloc ,size)))
+     (assert (not (zerop ,var)))
+     (unwind-protect (progn ,@body)
+       (aclfree ,var))))
+
+(defun get-volume-path-name (filename)
+  "Returns the mount point for the filesystem that contains FILENAME"
+  (declare (optimize speed (safety 0)))
+  (with-aclmalloc (volume-path-buf (* *windows-max-path* 2))
+    (multiple-value-bind (ok err)
+	(GetVolumePathNameW filename volume-path-buf (1- *windows-max-path*))
+      (if* ok
+	 then (native-to-string volume-path-buf :external-format :fat-le)
+	 else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetVolumePathNameW")))))
+
+(ff:def-foreign-call GetVolumeNameForVolumeMountPointW 
+    ((lpszVolumeMountPoint (* :void)) ;; in
+     (lpszVolumeName (* :void)) ;; out
+     (cchBufferLength win:dword)) ;; in, characters
+  :returning (:int boolean)
+  :error-value :os-specific
+  :strings-convert nil
+  )
+
+;; Ref: http://msdn.microsoft.com/en-us/library/windows/desktop/aa364994(v=vs.85).aspx
+;; 49 actual characters.  50 if counting the null terminator
+(defconstant *max-guid-path-length* 49) ;; characters.
+
+(defun get-volume-guid-path-for-volume-mount-point (mount-point &optional (string (make-string *max-guid-path-length*)))
+  (declare (optimize speed (safety 0)))
+  (let* ((buf-size-in-chars (1+ *max-guid-path-length*))
+	 ;; The compiler isn't smart enough to recognize the constant result if I use
+	 ;; (* buf-size-in-chars 2).  Disappointing.
+	 (buf-size-in-bytes (* (1+ *max-guid-path-length*) 2)))
+    (with-aclmalloc (buf buf-size-in-bytes)
+      (multiple-value-bind (ok err)
+	  (GetVolumeNameForVolumeMountPointW mount-point buf buf-size-in-chars)
+	(if* ok
+	   then (native-to-string buf :string string :external-format :fat-le)
+	   else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetVolumeNameForVolumeMountPointW"))))))
+
+(defun guid-string-to-vec (string pos vec offset)
+  "Returns VEC"
+  (declare (optimize speed (safety 0))
+	   (simple-string string)
+	   (fixnum pos)
+	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (fixnum offset))
+  (let ((len (length string)))
+    (declare (fixnum pos))
+    (flet ((grab-digit-1 ()
+	     (assert (< pos len))
+	     (let* ((char (schar string pos))
+		    (code (char-code char)))
+	       (incf pos)
+	       (if* (<= (char-code #\0) code (char-code #\9))
+		  then (- code (char-code #\0))
+		elseif (<= (char-code #\a) code (char-code #\f))
+		  then (- code (- (char-code #\a) 10))
+		  else (error "bogus char: ~s" char))))
+	   (assert-dash ()
+	     (assert (< pos len))
+	     (let ((char (schar string pos)))
+	       (assert (char= char #\-))
+	       (incf pos))))
+      (macrolet ((grab-digit ()
+		   `(the (mod 16) (grab-digit-1)))
+		 (grab-byte ()
+		   `(the (unsigned-byte 8)
+		      (+ (the (unsigned-byte 8) (ash (grab-digit) 4)) (grab-digit))))
+		 (put-byte (value)
+		   `(progn
+		      (setf (aref vec offset) ,value)
+		      (incf offset))))
+	(dotimes (n 4)
+	  (put-byte (grab-byte)))
+	(assert-dash)
+	(dotimes (i 3)
+	  (dotimes (n 2)
+	    (put-byte (grab-byte)))
+	  (assert-dash))
+	(dotimes (n 6)
+	  (put-byte (grab-byte)))
+	
+	vec))))
+
+(defconstant *max-guid-string-length* 36)
+
+(defun guid-vec-to-string (vec offset &optional (string (make-string *max-guid-string-length*)))
+  (declare (optimize speed (safety 0))
+	   (simple-string string)
+	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (fixnum offset))
+  (let ((pos 0))
+    (declare (fixnum pos))
+    
+    (macrolet ((get-byte ()
+		 `(prog1 (aref vec offset)
+		    (incf offset)))
+	       (byte-to-char (byte)
+		 `(schar "0123456789abcdef" ,byte))
+	       (byte-to-chars (byte)
+		 `(let* ((b ,byte)
+			 (high (ash b -4))
+			 (low (logand b #xf)))
+		    (values (byte-to-char high) (byte-to-char low))))
+	       (put-char (char)
+		 `(progn
+		    (setf (schar string pos) ,char)
+		    (incf pos)))
+	       (put-chars (first second)
+		 `(progn
+		    (put-char first)
+		    (put-char second)))
+	       (do-byte ()
+		 `(multiple-value-bind (first second)
+		      (byte-to-chars (get-byte))
+		    (put-chars first second)))
+	       (put-dash ()
+		 `(put-char #\-)))
+	       
+      
+      (dotimes (n 4)
+	(do-byte))
+      (put-dash)
+      (dotimes (i 3)
+	(dotimes (n 2)
+	  (do-byte))
+	(put-dash))
+      (dotimes (n 6)
+	(do-byte))
+      
+      string)))
+
+(defun extract-guid-from-volume-guid-path (path vec offset)
+  "Places the guid into vec, which must be a usb8 array. Returns VEC"
+  (declare (optimize speed (safety 0)))
+  (let* ((prefix "\\\\?\\Volume{")
+	 (prefix-len (length prefix)))
+    (assert (prefixp prefix path))
+    (guid-string-to-vec path prefix-len vec offset)))
+
+(defun get-volume-guid-from-path (path vec offset)
+  "Places the guid into vec, which must be a usb8 array. Returns VEC"
+  (declare (optimize speed (safety 0)))
+  (let* ((mount-point (get-volume-path-name path))
+	 (guid-path (make-string *max-guid-path-length*)))
+    (declare (dynamic-extent guid-path))
+    
+    (get-volume-guid-path-for-volume-mount-point mount-point guid-path)
+
+    (extract-guid-from-volume-guid-path guid-path vec offset)))
+  
+
+;; FIXME: Add a cached mapping from volume serial number (which is returned
+;; by GetFileInformationByHandle) to volume guids.
+
+;; FIXME: Add a check to ensure that all volumes on the system have a different
+;; serial number.
+
+;; If successful, returns:
+;;    fileid (which may be 0 if the file is on a filesystem that doesn't support fileids)
+
+;; If not successful, returns:
+;;    nil
+;;    errno (converted from Windows error code)
+(defun get-file-id (filename)
+  (declare (optimize speed))
+  (multiple-value-bind (handle err)
+      (CreateFileW filename 
+		   win:GENERIC_READ ;; dwDesiredAccess
+		   win:FILE_SHARE_READ ;; dwShareMode
+		   0 ;; lpSecurityAttributes
+		   win:OPEN_EXISTING ;; dwCreationDisposition
+		   FILE_FLAG_BACKUP_SEMANTICS  ;; dwFlagsAndAttributes
+		   0)  ;; hTemplateFile
+    (when (= handle *invalid-handle*)
+      (return-from get-file-id
+	(values nil (excl.osi::win_err_to_errno err))))
+    
+    ;; Good to go
+    (ff:with-stack-fobject (info 'by-handle-file-information)
+      (multiple-value-bind (res err)
+	  (GetFileInformationByHandle handle info)
+	(when (not res)
+	  (win:CloseHandle handle)
+	  (return-from get-file-id
+	    (values nil (excl.osi::win_err_to_errno err))))
+      
+	(macrolet ((access-slot (&rest names)
+		     `(ff:fslot-value-typed 'by-handle-file-information :foreign info ,@names)))
+	  (prog1 (logior (ash (access-slot 'nFileIndexHigh) 32) (access-slot 'nFileIndexLow))
+	    (win:CloseHandle handle)))))))
+
+
+(defun open-volume-by-guid-string (guid-string)
+  "guid-string must NOT have the curly braces"
+  (let ((volume-guid-path (format nil "\\\\?\\Volume{~a}\\" guid-string)))
+    (multiple-value-bind (handle err)
+	(CreateFileW volume-guid-path win:GENERIC_READ win:FILE_SHARE_READ 0 win:OPEN_EXISTING
+		     FILE_FLAG_BACKUP_SEMANTICS 0)
+      (if* (= handle *invalid-handle*)
+	 then (excl.osi:perror (excl.osi::win_err_to_errno err) "CreateFileW")
+	 else handle))))
+
+(defun open-volume-by-guid-vec (vec offset)
+  (declare (optimize speed (safety 0)))
+  (let ((guid-string (make-string *max-guid-string-length*)))
+    (declare (dynamic-extent guid-string))
+    (open-volume-by-guid-string (guid-vec-to-string vec offset guid-string))))
+
+(defmacro with-open-volume-by-guid-vec ((handle vec offset) &body body)
+  `(let ((,handle (open-volume-by-guid-vec ,vec ,offset)))
+     (unwind-protect (progn ,@body)
+       (windows:CloseHandle ,handle))))
+
+;; FIXME: Optimize
+(defun get-uint64-from-vec (vec offset)
+  (declare (optimize speed (safety 0))
+	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (fixnum offset))
+  (let ((res 0))
+    (declare ((unsigned-byte 64) res))
+    
+    (dotimes (n 8)
+      (setf res (logior (ash res 8) (aref vec offset)))
+      (incf offset))
+    
+    res))
+
+(ff:def-foreign-type large-integer
+    (:struct
+     (LowPart win:dword) ;; unsigned long
+     (HighPart :long)))
+
+(ff:def-foreign-type guid
+    (:struct
+     (Data1 :unsigned-long)
+     (Data2 :unsigned-short)
+     (Data3 :unsigned-short)
+     (Data4 (:array :unsigned-char 8))))
+
+(defconstant *sizeof-guid* (ff:sizeof-fobject 'guid))
+
+(defconstant FileIdType 0)
+(defconstant ObjectIdType 1)
+(defconstant ExtendedFileIdType 2)
+(defconstant MaximumFileIdType 3)
+
+(ff:def-foreign-type file-id-descriptor 
+    (:struct
+     (dwSize win:dword)
+     (type :int)
+     (u
+      (:union
+       (FileId large-integer)
+       (ObjectId guid)))
+     ))
+
+(assert (= (ff:sizeof-fobject 'file-id-descriptor) 24))
+
+(ff:def-foreign-call OpenFileById
+    ((hVolumeHint (* :void))
+     (lpFileId (* file-id-descriptor))
+     (dwDesiredAccess win:dword)
+     (dwShareMode win:dword)
+     (lpSecurityAttributes (* :void))
+     (dwFlagsAndAttributes win:dword))
+  :returning ((* :void))
+  :error-value :os-specific)
+
+(defun open-file-by-id (volume-handle id dwDesiredAccess dwShareMode dwFlagsAndAttributes)
+  (declare (optimize speed (safety 0)))
+  (ff:with-stack-fobject (file-id-descriptor 'file-id-descriptor)
+    (macrolet ((slot (&rest args)
+		 `(ff:fslot-value-typed 'file-id-descriptor :foreign file-id-descriptor ,@args)))
+      (setf (slot 'dwSize) #.(ff:sizeof-fobject 'file-id-descriptor))
+      (setf (slot 'type) FileIdType)
+      (setf (slot 'u 'FileId 'LowPart) (logand id #xffffffff))
+      (setf (slot 'u 'FileId 'HighPart) (ash id -32))
+      
+      (multiple-value-bind (handle err)
+	  (OpenFileById volume-handle file-id-descriptor 
+			dwDesiredAccess 
+			dwShareMode 
+			0
+			dwFlagsAndAttributes)
+	(when (= handle *invalid-handle*)
+	  (excl.osi:perror (excl.osi::win_err_to_errno err) "OpenFilebyId"))
+	
+	handle))))
+
+(defmacro with-open-file-by-id ((handle volume-handle id dwDesiredAccess dwShareMode dwFlagsAndAttributes) &body body)
+  `(let ((,handle (open-file-by-id ,volume-handle ,id ,dwDesiredAccess ,dwShareMode ,dwFlagsAndAttributes)))
+     (unwind-protect (progn ,@body)
+       (win:CloseHandle ,handle))))
+
+(ff:def-foreign-call GetFinalPathNameByHandleW
+    ((hFile (* :void))
+     (lpszFilePath (* :void))
+     (cchFilePath win:dword)
+     (dwFlags win:dword))
+  :returning win:dword
+  :strings-convert nil
+  :error-value :os-specific)
+
+(defconstant FILE_NAME_NORMALIZED 0)
+(defconstant FILE_NAME_OPENED     8)
+(defconstant VOLUME_NAME_DOS      0)
+(defconstant VOLUME_NAME_GUID     1)
+(defconstant VOLUME_NAME_NONE     4)
+(defconstant VOLUME_NAME_NT       2)
+
+(defun get-final-path-name-by-handle (handle &optional (style FILE_NAME_NORMALIZED))
+  (with-aclmalloc (buf (* *windows-max-path* 2))
+    (multiple-value-bind (len err)
+	(GetFinalPathNameByHandleW handle buf *windows-max-path* style)
+      ;; The documentation for GetFinalPathNameByHandle is unclear but experimentation
+      ;; indicates taht len == 0 for real errors.
+      (if* (zerop len)
+	 then (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFinalPathNameByHandleW")
+	 else (native-to-string buf :external-format :fat-le)))))
+
+;; FIXME: Optimize
+(defun put-uint64-into-vec (value vec offset)
+  (declare (optimize speed (safety 0))
+	   ((unsigned-byte 64) value)
+	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (fixnum offset))
+  (let ((shift -64))
+    (declare ((integer -64 0) shift))
+    (dotimes (n 8)
+      (incf shift 8)
+      (setf (aref vec offset) (ash value shift))
+      (incf offset))))
+
+;; File handle interface
+(defun put-file-id-into-vec (filename vec offset)
+  (declare (optimize speed (safety 0))
+	   ((simple-array (unsigned-byte 8) (*)) vec)
+	   (fixnum offset))
+  (let ((id (get-file-id filename)))
+    (get-volume-guid-from-path filename vec offset)
+    (incf offset *sizeof-guid*)
+    (put-uint64-into-vec id vec offset)
+    vec))
+
+(defconstant FILE_READ_ATTRIBUTES #x80)
+
+;; File handle interface
+
+;; Notes: If a file is renamed on the Windows side, it will retain its
+;; file id.  This is in line w/ Unixy behavior so it can be considered
+;; desirable.  If a file is deleted such that it ends up in the
+;; recycle bin, this function might return something like
+;; "C:\\$Recycle.Bin\\S-1-5-21-2517939709-4264412073-2524334547-1000\\$RYNHO31.txt".
+;; If the file is subsequently deleted from the recycle bin, OpenFileById will
+;; error w/ (translated) errno *einval*.  Higher level count will need to catch this
+;; and translate that to a stale file handle error.
+(defun file-id-vec-to-path (vec offset)
+  (declare (optimize speed (safety 0))
+	   (fixnum offset))
+  (with-open-volume-by-guid-vec (volume-handle vec offset)
+    (incf offset *sizeof-guid*)
+    (let ((id (get-uint64-from-vec vec offset)))
+      (with-open-file-by-id (handle volume-handle id FILE_READ_ATTRIBUTES win:FILE_SHARE_READ 
+				    (logior win:FILE_ATTRIBUTE_NORMAL FILE_FLAG_BACKUP_SEMANTICS))
+	(let ((prefix "\\\\?\\")
+	      (path (get-final-path-name-by-handle handle)))
+	  (if* (prefixp prefix path)
+	     then (subseq path (length prefix))
+	     else path))))))
