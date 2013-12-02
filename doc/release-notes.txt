@@ -1,3 +1,46 @@
+*******************************************************************************
+Version 5.2 (unreleased, git log ^nfs5.1rc6 HEAD)
+   done through commit 76c9b0fd4ede4726e3fbd341505c39831dcb8b98
+
+ * Fix mounting a subdirectory of an export.
+
+ * File and directory changes on the server weren't see by some
+   clients.
+
+ * Configuration for "Host lists" allows host names in the "New
+   address" field.  When loading the configuration and resolving the
+   host names, users will be warned if the conversion of saved host
+   names fails, and the host name will be ignored.
+
+ * Some previously invisible files are now seen by clients, such as
+   in the roots of filesystems, "System Volume Information" and
+   "pagefile.sys".
+
+ * File attributes are cached for a max of 5 seconds. Prior to this
+   change, the expiration for cached file attributes would be extended
+   each time they were accessed.  This could be a problem in the
+   following scenario:
+    
+   * an NFS client is repeatedly calling stat() on a file to see if its
+     attributes had changed, and
+    
+   * the attributes of the file were altered outside of Allegro NFS's
+     knowledge.
+    
+   In this case the new file attributes would never be returned... at
+   least not until the client stopped probing for a sufficiently long
+   time.
+
+ * Use higher precision timestamps in log messages, enabled via an
+   option on the debug tab.
+
+ * Change default statfs blocksize from 8192 to 512.  This improves
+   compatibility with some broken NFS clients which do not work
+   properly if the blocksize is not 512.
+
+ * Minor change to showmount output.
+
+*******************************************************************************
 Version 5.1, 1 Aug, 2011:
  * performance improvements
  * minor license changes
