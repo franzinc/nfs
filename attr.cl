@@ -47,7 +47,7 @@
      (#o0120000
       *NFLNK*)))
 
-(defun nfs-attr (fh)
+(defun nfs-stat (fh)
   (declare (optimize (speed 3)))
   ;;(logit "Collecting fresh attrs for ~a" (fh-pathname fh))
   (multiple-value-bind (mode nlink uid gid size atime mtime ctime)
@@ -84,7 +84,7 @@
 	      (let ((now (excl::cl-internal-real-time)))
 		(if* (>= now (nfs-attr-cache-expiration attr-cache))
 		   then ;; It expired.  Refresh the attributes and return.
-			(let ((attr (nfs-attr fh)))
+			(let ((attr (nfs-stat fh)))
 			  (setf (nfs-attr-cache-attr attr-cache) attr)
 			  (setf (nfs-attr-cache-expiration attr-cache) (+ now *attr-cache-reap-time*))
 			  ;; Good to go
@@ -93,7 +93,7 @@
 			;;(logit "Using cached attrs")
 			(nfs-attr-cache-attr attr-cache)))
 	 else ;; No cached entry.  Make one.
-	      (let ((attr (nfs-attr fh)))
+	      (let ((attr (nfs-stat fh)))
 		(setf (gethash fh *nfs-attr-cache*) 
 		  (make-nfs-attr-cache 
 		   :attr attr
