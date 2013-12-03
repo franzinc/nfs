@@ -389,8 +389,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 (defstruct opaque
   vec
-  offset
-  len)
+  (offset 0 :type fixnum)
+  (len 0 :type fixnum))
 
 (defun opaque-data (o)
   (subseq (opaque-vec o) (opaque-offset o) (+ (opaque-offset o)
@@ -488,20 +488,19 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (declare
    (type xdr xdr)
    (type function typefunc))
-  (let ((direction (xdr-direction xdr))
-        res)
-    (cond
-     ((eq direction :extract)
-      (unless len
-        (error "xdr-array-fixed: 'len' parameter is required"))
-      (dotimes (i len)
-        (push (funcall typefunc xdr) res))
-      (nreverse res))
-     ((eq direction :build)
-      (if (not (listp things))
-        (error "xdr-array-fixed: 'things' parameter must be a list"))
-      (dolist (thing things)
-        (funcall typefunc xdr thing))))))
+  (let (res)
+    (ecase (xdr-direction xdr)
+      (:extract
+       (unless len
+	 (error "xdr-array-fixed: 'len' parameter is required"))
+       (dotimes (i len)
+	 (push (funcall typefunc xdr) res))
+       (nreverse res))
+      (:build
+       (if (not (listp things))
+	   (error "xdr-array-fixed: 'things' parameter must be a list"))
+       (dolist (thing things)
+	 (funcall typefunc xdr thing))))))
 
 (defun xdr-array-variable (xdr typefunc &optional things)
   (declare 
@@ -825,4 +824,4 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 (defun xdr-opaque (foo)
   (declare (ignore foo))
-  (error "xdr-opaque caleld."))
+  (error "xdr-opaque called."))

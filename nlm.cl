@@ -141,6 +141,7 @@
 (defmacro nlm-vers-to-nfs-vers (vers)
   `(if-nlm-v4 ,vers 3 2))
 
+
 (defstruct (nlm-lock-internal
 	    (:print-object nlm-lock-internal-printer))
   peer-addr ;; For retry locks (To send GRANTED message)
@@ -149,7 +150,7 @@
   exclusive
   caller-name
   fh
-  oh 
+  oh ;; opaque lock owner handle
   svid ;; aka pid
   offset
   len)
@@ -195,7 +196,7 @@
 (defvar *nlm-notify-list* nil)
 
 (defun nlm-lock-match-p (lock1 lock2)
-  (and (eq (nlm-lock-internal-fh lock1) (nlm-lock-internal-fh lock2))
+  (and (equalp (nlm-lock-internal-fh lock1) (nlm-lock-internal-fh lock2))
        (equalp (nlm-lock-internal-oh lock1) (nlm-lock-internal-oh lock2))
        (= (nlm-lock-internal-svid lock1) (nlm-lock-internal-svid lock2))
        (= (nlm-lock-internal-offset lock1) (nlm-lock-internal-offset lock2))

@@ -590,6 +590,9 @@ struct __stat64 {
 (defconstant *max-guid-path-length* 49) ;; characters.
 
 (defun get-volume-guid-path-for-volume-mount-point (mount-point &optional (string (make-string *max-guid-path-length*)))
+  "If successful, returns the string.  If we get ERROR_INVALID_PARAMETER, we assume that
+   a network path was passed in and we just return nil.  Any other problem throws
+   an error"
   (declare (optimize speed (safety 0)))
   (let* ((buf-size-in-chars (1+ *max-guid-path-length*))
 	 ;; The compiler isn't smart enough to recognize the constant result if I use
@@ -600,7 +603,10 @@ struct __stat64 {
 	  (GetVolumeNameForVolumeMountPointW mount-point buf buf-size-in-chars)
 	(if* ok
 	   then (native-to-string buf :string string :external-format :fat-le)
-	   else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetVolumeNameForVolumeMountPointW"))))))
+	 elseif (= err windows:ERROR_INVALID_PARAMETER)
+	   then nil
+	   else ;;(format t "err: ~a~%" err)
+		(excl.osi:perror (excl.osi::win_err_to_errno err) "GetVolumeNameForVolumeMountPointW"))))))
 
 (defun guid-string-to-vec (string pos vec offset)
   "Returns VEC"
@@ -704,15 +710,16 @@ struct __stat64 {
     (guid-string-to-vec path prefix-len vec offset)))
 
 (defun get-volume-guid-from-path (path vec offset)
-  "Places the guid into vec, which must be a usb8 array. Returns VEC"
+  "If successful, places the guid into vec (which must be a usb8 array) and returns VEC.
+   If we could not get a volume guid (probably due to being passed a network path), return
+   NIL"
   (declare (optimize speed (safety 0)))
   (let* ((mount-point (get-volume-path-name path))
 	 (guid-path (make-string *max-guid-path-length*)))
     (declare (dynamic-extent guid-path))
     
-    (get-volume-guid-path-for-volume-mount-point mount-point guid-path)
-
-    (extract-guid-from-volume-guid-path guid-path vec offset)))
+    (when (get-volume-guid-path-for-volume-mount-point mount-point guid-path)
+      (extract-guid-from-volume-guid-path guid-path vec offset))))
   
 
 ;; FIXME: Add a cached mapping from volume serial number (which is returned
@@ -776,20 +783,6 @@ struct __stat64 {
   `(let ((,handle (open-volume-by-guid-vec ,vec ,offset)))
      (unwind-protect (progn ,@body)
        (windows:CloseHandle ,handle))))
-
-;; FIXME: Optimize
-(defun get-uint64-from-vec (vec offset)
-  (declare (optimize speed (safety 0))
-	   (ausb8 vec)
-	   (fixnum offset))
-  (let ((res 0))
-    (declare ((unsigned-byte 64) res))
-    
-    (dotimes (n 8)
-      (setf res (logior (ash res 8) (aref vec offset)))
-      (incf offset))
-    
-    res))
 
 (ff:def-foreign-type large-integer
     (:struct
@@ -884,29 +877,22 @@ struct __stat64 {
 	 then (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFinalPathNameByHandleW")
 	 else (native-to-string buf :external-format :fat-le)))))
 
-;; FIXME: Optimize
-(defun put-uint64-into-vec (value vec offset)
-  (declare (optimize speed (safety 0))
-	   ((unsigned-byte 64) value)
-	   (ausb8 vec)
-	   (fixnum offset))
-  (let ((shift -64))
-    (declare ((integer -64 0) shift))
-    (dotimes (n 8)
-      (incf shift 8)
-      (setf (aref vec offset) (ash value shift))
-      (incf offset))))
-
 ;; File handle interface
 (defun put-file-id-into-vec (filename vec offset)
+  "If successful, returns the file id.  If we couldn't get the volume guid,
+   just return nil (on the assumption that we were passed a network path).
+   Any other problem throws an error (file not found, etc)"
   (declare (optimize speed (safety 0))
 	   (ausb8 vec)
 	   (fixnum offset))
-  (let ((id (get-file-id filename)))
-    (get-volume-guid-from-path filename vec offset)
-    (incf offset *sizeof-guid*)
-    (put-uint64-into-vec id vec offset)
-    vec))
+  (multiple-value-bind (id errno)
+      (get-file-id filename)
+    (if* id
+       then (when (get-volume-guid-from-path filename vec offset)
+	      (incf offset *sizeof-guid*)
+	      (put-uint64-into-vec id vec offset)
+	      id)
+       else (excl.osi:perror errno "getting file id"))))
 
 (defconstant *sizeof-fileid* 8)
 

@@ -290,7 +290,16 @@ void test_create(char *workdir) {
 	       filename, strerror(errno));
 	exit(1);
     }
-  
+    close(fd);
+
+    printf("testing create (O_EXCL)\n");
+    sprintf(filename, "%s/file1excl", workdir);
+    fd=open(filename, O_WRONLY|O_CREAT|O_EXCL, 0666); 
+    if (fd < 0) {
+	printf("open(%s, O_WRONLY|O_CREAT|O_EXCL, 0666) failed: %s\n",
+	       filename, strerror(errno));
+	exit(1);
+    }
     close(fd);
 }
 
@@ -317,6 +326,13 @@ void test_remove(char *workdir) {
     if (errno != ENOENT) {
 	printf("Got '%s' when doing repeat unlink(%s).\nexpected: %s\n",
 	       strerror(errno), workdir, strerror(ENOENT));
+	exit(1);
+    }
+
+    /* test remove again*/
+    sprintf(filename, "%s/file1excl", workdir);
+    if (unlink(filename)) {
+	printf("unlink(%s) failed: %s\n", filename, strerror(errno));
 	exit(1);
     }
 }
@@ -591,6 +607,25 @@ void test_link(char *workdir) {
 
 }
 
+void test_symlink(char *workdir) {
+    char path[1024];
+    
+    printf("Testing symlink\n");
+    sprintf(path, "%s/symlink", workdir);
+    if (symlink("This is a test", path) != 0) {
+	printf("symlink(\"This is a test\", %s): %s\n",
+	       path, strerror(errno));
+	exit(1);
+    }
+
+    if (unlink(path) != 0) {
+	printf("unlink(%s): %s\n", path, strerror(errno));
+	exit(1);
+    }
+	
+    
+}
+
 int mysystem(char *buf)
 {
     printf("system: %s\n", buf);
@@ -756,6 +791,7 @@ int main(int argc, char **argv) {
     test_setattr(workdir);
 
     test_link(workdir);
+    test_symlink(workdir);
 
     if (!skipread) 
 	test_read(nfsdir);

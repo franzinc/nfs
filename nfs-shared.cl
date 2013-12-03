@@ -37,7 +37,7 @@
   ;; n:\src\ => n:\src
   ;; \\foo\bar => \\foo\bar\
   
-  ;; convert forward slashes to back slashes
+  ;; convert forward slashes to backslashes
   (setq dir (namestring (pathname dir)))
   
   (if* (=~ "^[A-Za-z]:$" dir)
@@ -70,7 +70,7 @@
   "A regexp to match canonical names.  The rules of which are the following:
 
   1) must begin with a #\/
-  2) may or maynot have more path.
+  2) may or may not have more path.
   3) must not end with a #\/.")
 
 (defun canonical-name-p (name)

@@ -66,7 +66,7 @@
        :used size
        :blocks (howmany size 512)
        :fsid (nfs-export-id (fh-export fh))
-       :fileid (fh-id fh)
+       :fileid (fh-file-id fh)
        :atime atime
        :mtime mtime
        :ctime ctime))))

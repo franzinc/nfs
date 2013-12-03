@@ -89,7 +89,7 @@
 
 (defun mountproc-mnt-common (dirpath vers peer)
   (multiple-value-bind (exp tail) 
-      (user::locate-nearest-export dirpath)
+      (user::locate-nearest-export-by-nfs-path dirpath)
     (if *mountd-debug* 
 	(user::logit-stamp "MNT~d: ~a: MOUNT ~a "
 			   vers (sunrpc:peer-dotted peer) dirpath))
