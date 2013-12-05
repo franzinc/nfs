@@ -162,7 +162,7 @@
 		  :filename filename
 		  :input-handle handle
 		  :output-handle handle))
-	 else (excl.osi:perror err "_wopen")))))
+	 else (excl.osi:perror err "_wopen(~a)" filename)))))
 
 (defmacro with-unicode-open ((var &rest rest) &body body)
   (let ((abort (gensym)))
@@ -483,7 +483,10 @@ struct __stat64 {
       (macrolet ((access-slot (&rest names)
 		   `(ff:fslot-value-typed 'win32-find-data-w :foreign data ,@names)))
 	(values
-	 (unix-mode-from-file-attributes filename (access-slot 'dwFileAttributes))
+	 ;; If we had to resort to using stat-via-find-first-file, then the file wasn't 
+	 ;; accessible using normal mechanisms, which means that attempts to read/write it
+	 ;; in the future definitely won't work, so we reflect that in the mode bits.
+	 (logandc2 (unix-mode-from-file-attributes filename (access-slot 'dwFileAttributes)) #o777)
 	 1 ;; nlinks
 	 0 ;; uid
 	 0 ;; gid
@@ -879,9 +882,10 @@ struct __stat64 {
 
 ;; File handle interface
 (defun put-file-id-into-vec (filename vec offset)
-  "If successful, returns the file id.  If we couldn't get the volume guid,
-   just return nil (on the assumption that we were passed a network path).
-   Any other problem throws an error (file not found, etc)"
+  "If successful, returns the file id.  
+   If we couldn't collect the file id due to permissions, return nil.
+   If we couldn't determine the volume guid, return nil.
+   All other problems (such as file not found) throw an error"
   (declare (optimize speed (safety 0))
 	   (ausb8 vec)
 	   (fixnum offset))
@@ -892,7 +896,11 @@ struct __stat64 {
 	      (incf offset *sizeof-guid*)
 	      (put-uint64-into-vec id vec offset)
 	      id)
-       else (excl.osi:perror errno "getting file id"))))
+     elseif (eq errno *eacces*)
+       then ;; Permission denied.  Highly likely when encountering
+	    ;; pagefile.sys or System Volume Information.
+	    nil
+       else (excl.osi:perror errno "getting file id for ~s" filename))))
 
 (defconstant *sizeof-fileid* 8)
 

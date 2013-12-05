@@ -976,7 +976,9 @@ struct entry {
       (check *access3-extend*)
       (check *access3-delete*)
       (check *access3-execute*))
-    (list-to-delimited-string (nreverse res) #\|)))
+    (if* res
+       then (list-to-delimited-string (nreverse res) #\|)
+       else "NONE")))
 
 (define-nfs-proc access ((fh fhandle) (access access-mask))
   (xdr-int *nfsdxdr* #.*nfs-ok*)
@@ -1500,27 +1502,44 @@ struct entry {
 
 (defun nfs-okay-to-write (fh cred)
   (declare (optimize speed (safety 0) (debug 0)))
-  (let ((exp (fh-export fh)))
-    (case (sunrpc:opaque-auth-flavor cred)
-      (#.sunrpc:*auth-unix* 
-       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-	 (export-user-write-access-allowed-p 
-	  exp
-	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
-      (#.sunrpc:*auth-null*
-       (export-user-write-access-allowed-p exp nil)))))
+  (and 
+   ;; Check export permissions
+   (let ((exp (fh-export fh)))
+     (case (sunrpc:opaque-auth-flavor cred)
+       (#.sunrpc:*auth-unix* 
+	(xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	  (export-user-write-access-allowed-p 
+	   exp
+	   (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+       (#.sunrpc:*auth-null*
+	(export-user-write-access-allowed-p exp nil))))
+   ;; Check mode bits.  Note that we're not considering
+   ;; nfs-export-umask and nfs-export-set-mode-bits here.  Those are hacks
+   ;; to provide a virtual reality to NFS clients.  We must consider actual reality here.
+   (let* ((attr (lookup-attr fh))
+	  (mode (nfs-attr-mode attr)))
+     (logtest mode #o0200))))
+
   
 (defun nfs-okay-to-read (fh cred)
   (declare (optimize speed (safety 0) (debug 0)))
-  (let ((exp (fh-export fh)))
-    (case (sunrpc:opaque-auth-flavor cred)
-      (#.sunrpc:*auth-unix* 
-       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-	 (export-user-read-access-allowed-p 
-	  exp
-	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
-      (#.sunrpc:*auth-null*
-       (export-user-read-access-allowed-p exp nil)))))
+  (and
+   ;; Check export permissions
+   (let ((exp (fh-export fh)))
+     (case (sunrpc:opaque-auth-flavor cred)
+       (#.sunrpc:*auth-unix* 
+	(xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	  (export-user-read-access-allowed-p 
+	   exp
+	   (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+       (#.sunrpc:*auth-null*
+	(export-user-read-access-allowed-p exp nil))))
+   ;; Check mode bits.  Note that we're not considering
+   ;; nfs-export-umask and nfs-export-set-mode-bits here.  Those are hacks
+   ;; to provide a virtual reality to NFS clients.  We must consider actual reality here.
+   (let* ((attr (lookup-attr fh))
+	  (mode (nfs-attr-mode attr)))
+     (logtest mode #o0400))))
 
 ;;; configuration program interface
 
