@@ -67,7 +67,8 @@
 
 /* NFS client caching will likely interfere with some tests 
    (e.g., the repeat-create or repeat-remove tests.. they
-   don't really result in repeated NFS calls) */
+   don't really result in repeated NFS calls).  For best results, 
+   mount with -o noac */
 
 #define DEFAULT_TESTFILE "nfstestfile"
 #define DEFAULT_HOSTTEMP "/tmp"
@@ -608,13 +609,28 @@ void test_link(char *workdir) {
 }
 
 void test_symlink(char *workdir) {
-    char path[1024];
+    char path[1024], buf[1024];
     
     printf("Testing symlink\n");
     sprintf(path, "%s/symlink", workdir);
     if (symlink("This is a test", path) != 0) {
 	printf("symlink(\"This is a test\", %s): %s\n",
 	       path, strerror(errno));
+	exit(1);
+    }
+
+    /* Unfortunately the Linux NFS client doesn't actually make a
+       readlink NFS call here, even when mounting with -o noac */
+    printf("Testing readlink\n");
+    int got=readlink(path, buf, sizeof(buf));
+    if (got == -1) {
+	printf("readlink(%s): %s\n", path, strerror(errno));
+	exit(1);
+    }
+    buf[got]=0;
+    if (strcmp(buf, "This is a test")!=0) {
+	printf("readlink: Got '%s' but expected '%s'\n",
+	       buf, "This is a test");
 	exit(1);
     }
 

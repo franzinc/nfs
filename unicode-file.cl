@@ -462,15 +462,17 @@ struct __stat64 {
 
 (defun unix-mode-from-file-attributes (filename attrs)
   (declare (optimize speed))
-  (let* ((perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
-	 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
-	 (type (if* is-dir
-		  then *s-ifdir*
-		  else *s-ifreg*)))
-    (when (or is-dir (member (pathname-type filename) *executable-types* :test #'equalp))
-      (setf perms (logior perms #o111)))
-
-    (logior type perms)))
+  (if* (symlink-p filename)
+     then #o0120777
+     else (let* ((perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
+		 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
+		 (type (if* is-dir
+			  then *s-ifdir*
+			  else *s-ifreg*)))
+	    (when (or is-dir (member (pathname-type filename) *executable-types* :test #'equalp))
+	      (setf perms (logior perms #o111)))
+	    
+	    (logior type perms))))
 
 (defun stat-via-find-first-file (filename)
   (ff:with-stack-fobject (data 'win32-find-data-w)
