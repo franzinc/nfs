@@ -275,10 +275,17 @@ struct __stat64 {
       (let ((buf (make-ausb8 8)))
 	(declare (optimize (safety 0))
 		 (dynamic-extent buf))
-	(with-open-file (f filename)
-	  (if (and (eq 8 (read-vector buf f))
-		   (symlink-header-p buf))
-	      t))))))
+	;; We may be able to read the file attributes but not open the
+	;; file, so permission denied errors are caught here.
+	(handler-bind 
+	    ((syscall-error
+	      (lambda (e)
+		(when (eq (syscall-error-errno e) *eacces*)
+		  (return-from symlink-p nil)))))
+	  (with-open-file (f filename)
+	    (if (and (eq 8 (read-vector buf f))
+		     (symlink-header-p buf))
+		t)))))))
 
 (defun unicode-readlink (filename)
   (declare (optimize speed))
@@ -464,8 +471,14 @@ struct __stat64 {
   (declare (optimize speed))
   (if* (symlink-p filename)
      then #o0120777
-     else (let* ((perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
-		 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
+     else ;; Windows documentation claims:
+	  ;; Setting a folder to read-only makes all the files in the
+	  ;; folder read-only. It does not affect the folder itself.
+	  ;; To work around this nonsense, treat directories as always writeable.
+	  (let* ((is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
+		 (perms (if* (or is-dir (not (logtest attrs win:FILE_ATTRIBUTE_READONLY)))
+			   then #o666
+			   else #o444))
 		 (type (if* is-dir
 			  then *s-ifdir*
 			  else *s-ifreg*)))
