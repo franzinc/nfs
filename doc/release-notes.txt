@@ -1,6 +1,15 @@
 *******************************************************************************
-Version 5.2 (unreleased, git log ^nfs5.1rc6 HEAD)
-   done through commit 76c9b0fd4ede4726e3fbd341505c39831dcb8b98
+Version 5.3.0 (unreleased)
+
+Added support for persistent file handles for files on NTFS volumes.
+Non-NTFS files (or inaccessible files on NTFS volumes) still use
+non-persistent file handles.
+
+Also fixed a symlink handling bug that was introduced in v5.2.4
+
+*******************************************************************************
+Version 5.2 (unreleased, git log ^nfs5.1rc6 HEAD) done through commit
+76c9b0fd4ede4726e3fbd341505c39831dcb8b98
 
  * Fix mounting a subdirectory of an export.
 
