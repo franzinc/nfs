@@ -265,9 +265,9 @@ struct __stat64 {
 		 (aref *symlink-header* n)))
 	(return))))
 
-(defun symlink-p (filename)
+(defun symlink-p (filename &optional attrs)
   (declare (optimize speed))
-  (let ((res (GetFileAttributes filename)))
+  (let ((res (or attrs (GetFileAttributes filename))))
     (when (and (not (eq res INVALID_FILE_ATTRIBUTES))
 	       (not (zerop (logand res FILE_ATTRIBUTE_SYSTEM)))
 	       (zerop (logand res FILE_ATTRIBUTE_DIRECTORY))
@@ -446,19 +446,6 @@ struct __stat64 {
 ;; FIXME: Make this configurable  (rfe8202)
 (defconstant *executable-types* '("exe" "com" "bat"))
 
-(defun unix-mode-from-file-information (filename info)
-  (declare (optimize speed))
-  (let* ((attrs (ff:fslot-value-typed 'by-handle-file-information :foreign info 'dwFileAttributes))
-	 (perms (if (logtest attrs win:FILE_ATTRIBUTE_READONLY) #o444 #o666))
-	 (is-dir (logtest attrs win:FILE_ATTRIBUTE_DIRECTORY))
-	 (type (if* is-dir
-		  then *s-ifdir*
-		  else *s-ifreg*)))
-    (when (or is-dir (member (pathname-type filename) *executable-types* :test #'equalp))
-      (setf perms (logior perms #o111)))
-
-    (logior type perms)))
-
 (ff:def-foreign-call GetFileAttributesExW
     ((lpFileName (* :void))
      (fInfoLevelId :int)
@@ -469,7 +456,7 @@ struct __stat64 {
 
 (defun unix-mode-from-file-attributes (filename attrs)
   (declare (optimize speed))
-  (if* (symlink-p filename)
+  (if* (symlink-p filename attrs)
      then #o0120777
      else ;; Windows documentation claims:
 	  ;; Setting a folder to read-only makes all the files in the
@@ -486,6 +473,11 @@ struct __stat64 {
 	      (setf perms (logior perms #o111)))
 	    
 	    (logior type perms))))
+
+(defun unix-mode-from-file-information (filename info)
+  (declare (optimize speed))
+  (unix-mode-from-file-attributes filename 
+				  (ff:fslot-value-typed 'by-handle-file-information :foreign info 'dwFileAttributes)))
 
 (defun stat-via-find-first-file (filename)
   (ff:with-stack-fobject (data 'win32-find-data-w)
