@@ -27,7 +27,7 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-MODULES = .:nfs52 date:acl90 demoware:master
+MODULES = .:devel date:acl90 demoware:master
 
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
