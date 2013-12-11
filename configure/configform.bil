@@ -14,7 +14,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 531 50 1064 392)) (name :configform)
+     (interior (make-box 707 181 1240 523)) (name :configform)
      (title "NFS Server for Windows Configuration Utility") (border :frame) (child-p t)
      form-p)
   (let ((owner
@@ -417,13 +417,24 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        :left 154 :name :dircache-update-interval :on-change
                        'on-dircache-update-interval-change :tab-control
                        (list :tab-control :global) :top 232 :value "2" :width 23)
+        (make-instance 'editable-text :font (make-font-ex nil "Tahoma / Default" 11)
+                       :left 154 :name :attr-cache-reap-time :on-change
+                       'on-attr-cache-reap-time-change :tab-control
+                       (list :tab-control :global) :top 256 :value "2" :width 23)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
                        26 :name :static-text-20 :tab-control (list :tab-control :global)
-                       :tooltip "How often the directoy cache is updated." :top 234
-                       :value "Directory Caching Interval:" :width 135)
+                       :tooltip "How long directories are cached" :top 234 :value
+                       "Directory caching time:" :width 135)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
                        177 :name :static-text-21 :tab-control (list :tab-control :global)
                        :top 234 :value "seconds" :width 48)
+        (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       177 :name :static-text-25 :tab-control (list :tab-control :global)
+                       :top 259 :value "seconds" :width 48)
+        (make-instance 'static-text :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       26 :name :static-text-26 :tab-control (list :tab-control :global)
+                       :tooltip "How long file attributes are cached" :top 259 :value
+                       "File attribute caching time:" :width 135)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :static-text-log-rotation :tab-control
                        (list :tab-control :log) :top 43 :value
@@ -481,8 +492,10 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :static-text-18 :static-text-19
                                               :group-box-3
                                               :set-showmount-disable-checkbox
-                                              :dircache-update-interval :static-text-20
-                                              :static-text-21))
+                                              :dircache-update-interval
+                                              :attr-cache-reap-time :static-text-20
+                                              :static-text-21 :static-text-25
+                                              :static-text-26))
                              (make-instance 'tab-info :id :log :label "Logging" :widgets
                                             '(:log-rotation-file-count
                                               :log-rotation-file-size

@@ -32,6 +32,8 @@
     *megabyte*)
 ;; defined in dir.cl
 (defvar *nfs-dircache-update-interval* 2)
+;; defined in attr.cl
+(defparameter *attr-cache-reap-time* 5) 
 
 (in-package :portmap)
 (defparameter *portmap-debug* nil)
@@ -158,6 +160,9 @@
     (push `(user::*nfs-dircache-update-interval* 
 	   ,user::*nfs-dircache-update-interval*) 
 	  config)
+    (push `(user::*attr-cache-reap-time* 
+	   ,user::*attr-cache-reap-time*) 
+	  config)
     (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
     (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
@@ -210,6 +215,8 @@
     (format nil "~D" user::*log-rotation-file-count*))
   (setf (value (my-find-component :dircache-update-interval form))
     (format nil "~D" user::*nfs-dircache-update-interval*))
+  (setf (value (my-find-component :attr-cache-reap-time form))
+    (format nil "~D" user::*attr-cache-reap-time*))
   (setf (value (my-find-component :nsm-debug-checkbox form))
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
@@ -1100,6 +1107,31 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 				     "OK")
 	       nil)))
 
+
+(defun on-attr-cache-reap-time-change (widget new-value old-value)
+  (declare (ignore old-value))
+  (setf new-value (string-trim '(#\space) new-value))
+
+  (if* (string= new-value "")
+     then (setf (value widget) new-value)
+          (refresh-apply-button (parent widget))
+          (return-from on-attr-cache-reap-time-change t))
+
+  (let ((count (extract-number new-value)))
+    (if* (and count (>= count 0))
+	 then (setf (value widget) (format nil "~D" count)
+		    user::*attr-cache-reap-time* count)
+	      (refresh-apply-button (parent widget))
+              t
+         else (pop-up-message-dialog (parent widget)
+				     "Invalid input!"
+				     "Must be a number of seconds 0 or greater."
+				     error-icon
+				     "OK")
+	       nil)))
+  
+
+
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
@@ -1215,3 +1247,4 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (setf *nfs-set-mtime-on-write* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
+

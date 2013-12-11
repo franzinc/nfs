@@ -7,6 +7,9 @@ non-persistent file handles.
 
 Also fixed a symlink handling bug that was introduced in v5.2.4
 
+Allow control over how long file attribute are cached through the
+configuration GUI.
+
 *******************************************************************************
 Version 5.2 (unreleased, git log ^nfs5.1rc6 HEAD) done through commit
 76c9b0fd4ede4726e3fbd341505c39831dcb8b98
