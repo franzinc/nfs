@@ -6,6 +6,9 @@
 
 (in-package :common-graphics-user)
 
+(eval-when (compile load eval)
+  (require :regexp2))
+
 (defparameter *nfs-debug* nil)
 (defparameter *nfs-debug-filter* #x0fffffff)
 (defparameter *nfs-set-mtime-on-write* nil)
@@ -224,18 +227,17 @@
   (setf (value (my-find-component :set-mtime-on-write-checkbox form))
     *nfs-set-mtime-on-write*)
   
-(setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude
-				  form))
-	(cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
-	       :Kb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*megabyte*)
-	       :Mb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*gigabyte*)
-	       :Gb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*terabyte*)
-	       :Tb)
-	      (t :Mb)))
-
+  (setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude form))
+    (cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
+           :Kb)
+          ((= user::*log-rotation-file-size-magnitude* user::*megabyte*)
+           :Mb)
+          ((= user::*log-rotation-file-size-magnitude* user::*gigabyte*)
+           :Gb)
+          ((= user::*log-rotation-file-size-magnitude* user::*terabyte*)
+           :Tb)
+          (t :Mb)))
+  
   (setf (value (my-find-component :combo-box-port-mapper form))
     (if* (null portmap:*use-system-portmapper*)
        then :no
@@ -334,7 +336,7 @@
   
 (defun extract-number (string &key (radix 10))
   (multiple-value-bind (matched whole digits)
-      (match-regexp "^\\b*\\([0-9]+\\)\\b*$" string)
+      (match-re "^\\s*([0-9]+)\\s*$" string)
     (declare (ignore whole))
     (when matched
       (ignore-errors (parse-integer digits :radix radix)))))
@@ -1038,100 +1040,72 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (refresh-apply-button (parent widget))
   t) 
 
+(defun collect-integer-common (widget string 
+                                      &key (complaint-title "Invalid input!")
+                                      (minimum 0) maximum
+                                      allow-blank)
+  "If successful, returns the value as a number (or just t if allow-blank is true
+   and the string was blank)"
+  (let ((blank (match-re "^\\s*$" string))
+        (value (extract-number string)))
+    (if* (or (and allow-blank blank)
+             (and value
+                  (or (null minimum) (>= value minimum))
+                  (or (null maximum) (<= value maximum))))
+       then ;; Constraints satisfied.
+            (if* blank
+               then (setf (value widget) "")
+                    t
+               else (setf (value widget) (format nil "~d" value))
+                    value)
+       else (pop-up-message-dialog (parent widget)
+                                   complaint-title
+                                   (if* (and minimum maximum)
+                                      then (format nil "Must be an integer between ~a and ~a (inclusive)"
+                                             minimum maximum)
+                                    elseif minimum
+                                      then (format nil "Must be an integer >= ~a" minimum)
+                                    elseif maximum
+                                      then (format nil "Must be an integer <= ~a" maximum)
+                                      else (error "This should never happen"))
+				   error-icon
+				   "OK")
+	    nil)))
+
 (defun on-log-rotation-file-size-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-log-rotation-file-size-change t))
-
-  (let ((size (extract-number new-value)))
-    (if* (and size (>= size 0))
-	 then (setf (value widget) (format nil "~D" size)
-		    user::*log-rotation-file-size* size)
-              (refresh-apply-button (parent widget))
-	      t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file size!"
-				     "Must be a number greater than 0."
-				     error-icon
-				     "OK")
-	       nil)))
-
-
+  (let ((size (collect-integer-common widget new-value :complaint-title "Invalid file size!")))
+    (when size
+      (setf user::*log-rotation-file-size* size)
+      (refresh-apply-button (parent widget))
+      t)))
 
 (defun on-log-rotation-file-count-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-log-rotation-file-count-change t))
-
-  (let ((count (extract-number new-value)))
-    (if* (and count (>= count 1))
-	 then (setf (value widget) (format nil "~D" count)
-		    user::*log-rotation-file-count* count)
-	      (refresh-apply-button (parent widget))
-              t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file count!"
-				     "Must be a number greater than 0."
-				     error-icon
-				     "OK")
-	       nil)))
-
+  (let ((count (collect-integer-common widget new-value :complaint-title "Invalid file count!" 
+                                       :minimum 1)))
+    (when count
+      (setf user::*log-rotation-file-count* count)
+      (refresh-apply-button (parent widget))
+      t)))
 
 (defun on-dircache-update-interval-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-dircache-update-interval-change t))
-
-  (let ((count (extract-number new-value)))
-    (if* (and count (>= count 0))
-	 then (setf (value widget) (format nil "~D" count)
-		    user::*nfs-dircache-update-interval* count)
-	      (refresh-apply-button (parent widget))
-              t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file count!"
-				     "Must be a number of seconds 0 or greater."
-				     error-icon
-				     "OK")
-	       nil)))
+  (let ((value (collect-integer-common widget new-value)))
+    (when value
+      (setf user::*nfs-dircache-update-interval* value)
+      (refresh-apply-button (parent widget))
+      t)))
 
 
 (defun on-attr-cache-reap-time-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-attr-cache-reap-time-change t))
-
-  (let ((count (extract-number new-value)))
-    (if* (and count (>= count 0))
-	 then (setf (value widget) (format nil "~D" count)
-		    user::*attr-cache-reap-time* count)
-	      (refresh-apply-button (parent widget))
-              t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid input!"
-				     "Must be a number of seconds 0 or greater."
-				     error-icon
-				     "OK")
-	       nil)))
+  (let ((time (collect-integer-common widget new-value)))
+    (when time
+      (setf user::*attr-cache-reap-time* time)
+      (refresh-apply-button (parent widget))
+      t)))
   
-
-
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (setf *nfs-gc-debug* new-value)
@@ -1189,22 +1163,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   
 (defun on-port-number-change-common (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-  
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (return-from on-port-number-change-common t))
-  
-  (let ((port (extract-number new-value)))
-    (if* (and port (> port 0) (< port 65536))
-       then (setf (value widget) (format nil "~d" port))
-            t ;; accept
-       else (pop-up-message-dialog (parent widget)
-                                   "Invalid port number" 
-                                   "The number number must be an integer between 1 and 65535" error-icon "OK")
-            nil ;; don't accept
-            )))
-    
+  (collect-integer-common widget new-value 
+                          :complaint-title "Invalid port number!"
+                          :minimum 1
+                          :maximum 65535
+                          :allow-blank t))                          
+                          
 (defun configform-portmap-debug-checkbox-on-change (widget
                                                     new-value
                                                     old-value)
