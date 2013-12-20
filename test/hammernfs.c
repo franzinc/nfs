@@ -337,12 +337,48 @@ int nfs_read(CLIENT *clnt, struct file_handle *fh, int count) {
   }
 }
 
+double timeval_to_seconds(struct timeval *tv) {
+  return tv->tv_sec + tv->tv_usec / (double)1000000;
+}
+
+/* Ref: http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html */
+/* result=x-y */
+/* Subtract the `struct timeval' values X and Y,
+   storing the result in RESULT.
+   Return 1 if the difference is negative, otherwise 0. */
+
+int
+timeval_subtract (result, x, y)
+     struct timeval *result, *x, *y;
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+  
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+  
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
 int main(int argc, char **argv) {
   struct file_handle *rootfh, *fh;
   CLIENT *clnt;
   AUTH *auth;
   unsigned long long total=0;
-  time_t starttime, now;
+  int reads=0;
+  struct timeval starttime, now, elapsed;
   double kbps;
   char opt;
   char myhostname[255];
@@ -458,24 +494,28 @@ int main(int argc, char **argv) {
 
   fh=lookup_path(clnt, rootfh, testpath);
 
-  time(&starttime);
+  gettimeofday(&starttime, NULL);
   
   while (1) {
     int count;
 
-    time(&now);
+    gettimeofday(&now, NULL);
     
-    if (now-starttime >= duration) 
+    timeval_subtract(&elapsed, &now, &starttime);
+    
+    if (elapsed.tv_sec >= duration)
       break;
 
     count=nfs_read(clnt, fh, blocksize);
     total+=count;
+    reads++;
   }
 
-  printf(":duration %ld ;; seconds\n", now-starttime);
-  
+  printf(":duration %ld.%06ld ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+
+  printf(":reads %d\n", reads);
   printf(":read-bytes %llu\n", total);
-  kbps=(double)total/(double)(now-starttime)/(double)1024;
+  kbps=(double)total/timeval_to_seconds(&elapsed)/(double)1024;
   printf(":rate %f ;; KB/second\n", kbps);
   printf(")\n");
   clnt_destroy(clnt);
