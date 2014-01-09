@@ -25,7 +25,7 @@ void print_fh(struct file_handle *fh) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] [ -p udp|tcp ] host:/export/path/to/file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] [ -p udp|tcp ] [ -i label ] host:/export/path/to/file_to_read\n", prg);
   exit(1);
 }
 
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
   int quiet = 0;
   char *proto="udp";
   
-  while ((opt=getopt(argc, argv, "i:v:t:h:e:f:u:g:b:qp:"))!=-1) {
+  while ((opt=getopt(argc, argv, "i:v:t:u:g:b:qp:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
