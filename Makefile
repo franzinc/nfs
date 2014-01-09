@@ -15,7 +15,7 @@ endif
 
 LISPDIR ?= /c/acl90.patched
 LISPEXE = $(LISPDIR)/mlisp
-MAKENSIS ?= "/c/Program Files (x86)/NSIS/makensis.exe"
+MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
