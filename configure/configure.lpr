@@ -3,7 +3,8 @@
 (in-package :cg-user)
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "../xdr")
+  :modules (list (make-instance 'module :name "../config-defs")
+  	   	 (make-instance 'module :name "../xdr")
                  (make-instance 'module :name "../sunrpc-common")
                  (make-instance 'module :name "../portmap-common")
                  (make-instance 'module :name "../mount-common")

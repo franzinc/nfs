@@ -19,13 +19,13 @@ make clean rpc
 (setq *load-xref-info* nil)
 
 :cd c:/cygwin/home/layer/nfs
-:ld loadem
+:ld load
 (setf *configfile* "c:/AllegroNFS/nfs.cfg")
 (read-nfs-cfg *configfile*)
 (startem)
 
 :cd c:/cygwin/home/layer/nfs.acl90
-:ld loadem
+:ld load
 (setf *configfile* "c:/AllegroNFS/nfs.cfg")
 (read-nfs-cfg *configfile*)
 (startem)

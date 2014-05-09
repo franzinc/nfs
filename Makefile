@@ -2,11 +2,10 @@
 # NFS makefile (requires Cygwin and GNU make)
 #
 # Rules of note:
-#  make all release_suffix=rc2
-#     builds release candidate 2 of current version
-#  make clean dist LISPDIR=/c/acl90
-#     builds a Windows-installable version for testing, using c:\acl90
-#     as the installed lisp.
+# - make release candidate 2:
+#   $ make all release_suffix=rc2
+# - make demo and non-demo versions:
+#   $ make clean dist dist-demo LISPDIR=/c/acl90.patched
 
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
@@ -68,7 +67,7 @@ do_build: prereqs rpc commit-id.cl FORCE
 ifdef DEMOWARE
 	echo '(push :nfs-demo *features*)' >> b.tmp
 endif
-	echo '(load "loadem.cl")' >> b.tmp
+	echo '(load "load.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
@@ -116,7 +115,7 @@ dists: clean
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
-	@if grep -q '^(pushnew :nfs-' loadem.cl; then \
+	@if grep -q '^(pushnew :nfs-' load.cl; then \
 	    echo ERROR: debugging features enabled for production build; \
 	    exit 1; \
 	fi

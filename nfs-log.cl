@@ -32,19 +32,9 @@
 (defvar *program-mode* nil) ;; nil or :service
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
-(defvar *log-rotation-file-size* 0)
-(defvar *log-rotation-file-count* 1)
 (defvar *log-rotation-current-count* 0)
 (defvar *log-file* "sys:nfsdebug-~D.txt")
 (defvar *nfs-debug-stream* nil)
-
-(defvar *kilobyte* 1024)
-(defvar *megabyte* (* *kilobyte* *kilobyte*))
-(defvar *gigabyte* (* *megabyte* *kilobyte*))
-(defvar *terabyte* (* *gigabyte* *kilobyte*))
-
-(defvar *log-rotation-file-size-magnitude*
-  *megabyte*)
 
 (defun log-rotateable (string)
   "Returns true if the *log-stream* will need rotation to write

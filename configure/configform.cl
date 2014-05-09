@@ -9,62 +9,12 @@
 (eval-when (compile load eval)
   (require :regexp2))
 
-(defparameter *nfs-debug* nil)
-(defparameter *nfs-debug-filter* #x0fffffff)
-(defparameter *nfs-set-mtime-on-write* nil)
-
 (eval-when (compile)
   (defparameter *nfs-debug-types* 
     '(read write lookup access setattr getattr link symlink
            mkdir rmdir remove rename create mknod commit null
            statfs fsstat fsinfo pathconf readdir readlink)))
   
-
-(defparameter *nfs-gc-debug* nil)
-(defparameter *nfs-debug-timings* nil)
-
-(in-package :user)
-(defvar *log-rotation-file-size* 0)
-(defvar *log-rotation-file-count* 1)
-(defvar *kilobyte* 1024)
-(defvar *megabyte* (* *kilobyte* *kilobyte*))
-(defvar *gigabyte* (* *megabyte* *kilobyte*))
-(defvar *terabyte* (* *gigabyte* *kilobyte*))
-
-(defvar *log-rotation-file-size-magnitude*
-    *megabyte*)
-;; defined in dir.cl
-(defvar *nfs-dircache-update-interval* 2)
-;; defined in attr.cl
-(defparameter *attr-cache-reap-time* 5) 
-
-(in-package :portmap)
-(defparameter *portmap-debug* nil)
-(defparameter *use-system-portmapper* :auto)
-(eval-when (compile load eval)
-  (export '(*portmap-debug* *use-system-portmapper*)))
-
-(in-package :mount)
-(defparameter *mountd-debug* nil)
-(defparameter *mountd-port-number* nil)
-(defvar *showmount-disabled* nil)
-(eval-when (compile load eval)
-  (export '(*mountd-debug* 
-            *mountd-port-number*
-	    *showmount-disabled*)))
-
-(in-package :nsm)
-(defparameter *nsm-debug* nil)
-(defparameter *nsm-port* nil)
-(eval-when (compile load eval)
-  (export '(*nsm-debug* *nsm-port*)))
-
-(in-package :nlm)
-(defparameter *nlm-debug* nil)
-(defparameter *nlm-port* nil)
-(eval-when (compile load eval)
-  (export '(*nlm-debug* *nlm-port*)))
-
 (in-package :common-graphics-user)
 
 (defparameter *host-lists* nil)
@@ -145,8 +95,10 @@
                   (append (list 'define-user-list key) value)
                   config))
              *user-lists*)
-    
+
+;;;;NOTE: these are defined in ../config-defs.cl
     ;; parameters
+    (push `(user::*executable-types* ,user::*executable-types*) config)
     (push `(portmap:*portmap-debug* ,portmap:*portmap-debug*) config)
     (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)

@@ -24,13 +24,6 @@
 
 (in-package :mount)
 
-(defparameter *mountd-debug* nil)
-(defparameter *mountd-port-number* nil)
-(defvar *showmount-disabled* ())
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (export '(*showmount-disabled*)))
-
 (sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
     (
      (1 ;; version

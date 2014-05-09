@@ -1,5 +1,5 @@
 :cd c:/cygwin/home/layer/src/nfs
-:ld loadem
+:ld load
 (setf *configfile* "c:/AllegroNFS/nfs.cfg")
 (read-nfs-cfg *configfile*)
 (startem)

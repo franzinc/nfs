@@ -31,8 +31,6 @@
   ctime ;; stored as universal time
   )
 
-;; should always be larger than *openfilereaptime*.  FIXME: Why?
-(defparameter *attr-cache-reap-time* 5) 
 
 ;; keys are file handles
 (defparameter *nfs-attr-cache* (make-hash-table :test #'eq))

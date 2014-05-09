@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -25,6 +25,9 @@
 ;; portmapper daemon and support functions
 
 (in-package :portmap)
+
+(eval-when (compile load eval)
+  (export '(*pmap-gate* portmapper ping-portmapper)))
 
 (sunrpc:def-rpc-program (PMAP 100000 :port *pmap-port*)
   (
@@ -67,9 +70,6 @@
      (12 rpcbproc-getstat void rpcb-stat-byvers)
    )
   ))
-
-(defparameter *use-system-portmapper* :auto)
-(defparameter *portmap-debug* nil)
 
 (defparameter *pmap-gate* (mp:make-gate nil))
 (defparameter *mappings* nil)
@@ -459,9 +459,3 @@
 	:rmtinfo nil)
        res))
     res))
-
-;;;;;;;;;;;
-
-(eval-when (compile load eval)
-  (export '(*portmap-debug* *pmap-gate* *use-system-portmapper*
-	    portmapper ping-portmapper)))

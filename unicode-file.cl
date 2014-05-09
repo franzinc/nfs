@@ -443,9 +443,6 @@ struct __stat64 {
 (defmacro filetime-to-universal-time (filetime-ptr)
   `(unix-to-universal-time (filetime-to-unix-time ,filetime-ptr)))
 
-;; FIXME: Make this configurable  (rfe8202)
-(defconstant *executable-types* '("exe" "com" "bat"))
-
 (ff:def-foreign-call GetFileAttributesExW
     ((lpFileName (* :void))
      (fInfoLevelId :int)

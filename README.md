@@ -81,7 +81,7 @@ Debugging
 
 Interactive debugging of server:
 
-   :ld loadem
+   :ld load.cl
 
 Then, for debugging:
 
@@ -96,7 +96,7 @@ Or, without debugging:
 *******************************************************************************
 
    :cd d:/src/nfs50/
-   (load "loadem")
+   (load "load.cl")
    (setf *configfile* "nfs.cfg")
    (read-nfs-cfg *configfile*)
    (startem)

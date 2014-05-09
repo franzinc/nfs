@@ -1,6 +1,9 @@
 *******************************************************************************
 Version unreleased:
 
+ * user::*executable-types* now in config file, allows FAQ to be
+   written for experienced users to modify it
+
  * Added support for persistent file handles for files on NTFS
    volumes. Non-NTFS files (or inaccessible files on NTFS volumes)
    still use non-persistent file handles.

@@ -9,8 +9,6 @@
 (defparameter *nfs-dircache* (make-hash-table :test #'eq))
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
-(defvar *nfs-dircache-update-interval* 2)
-
 (defparameter *dir-id* 0)
 
 (defstruct dircache 

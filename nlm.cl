@@ -31,8 +31,6 @@
 (eval-when (compile load eval)
   (use-package :nsm))
 
-(defparameter *nlm-port* nil)
-
 (sunrpc:def-rpc-program (NLM 100021 :port *nlm-port*)
   (
    #+ignore
@@ -98,7 +96,6 @@
 ;;;;;;
 
 (defparameter *nlm-gate* (mp:make-gate nil))
-(defparameter *nlm-debug* nil)
 (defparameter *nlm-retry-interval* 2) ;; seconds
 (defparameter *nlm-grant-notify-interval* 30) ;; seconds
 
@@ -895,4 +892,4 @@ NLM: Unexpected error while calling NSM UNMON: ~a~%" c)))
 		      :test #'socket:ipaddr-equalp))))))))
 
 (eval-when (compile load eval)
-  (export '(*nlm-gate* *nlm-debug* *nlm-port* NLM)))
+  (export '(*nlm-gate* NLM)))

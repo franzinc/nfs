@@ -28,8 +28,6 @@
 
 (in-package :nsm)
 
-(defparameter *nsm-port* nil)
-
 (sunrpc:def-rpc-program (NSM 100024 :port *nsm-port*)
   (
    (1 ;; version
@@ -67,7 +65,6 @@
 (defvar *nsm-our-name* nil)
 
 (defparameter *nsm-state-file* "sys:nsm-state")
-(defparameter *nsm-debug* nil)
 (defparameter *nsm-callback-retry-interval* 10) ;; seconds
 (defparameter *nsm-notify-retry-interval* 10) ;; seconds
 (defparameter *nsm-gate* (mp:make-gate nil))
@@ -404,4 +401,4 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
     (sleep *nsm-notify-retry-interval*)))
 
 (eval-when (compile load eval)
-  (export '(*nsm-gate* *nsm-debug* *nsm-port* NSM)))
+  (export '(*nsm-gate* NSM)))
