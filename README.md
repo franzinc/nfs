@@ -1,47 +1,43 @@
 
-# nfs: Allegro NFS Server for Microsoft Windows in Common Lisp
+## Allegro NFS Server for Windows
 
-# Table of contents
+## Table of contents
 
- * Description
- * Author
- * Author comments
- * Documentation
- * Platforms
- * Dependencies
- * Installation
+ * [Introduction](#introduction)
+ * [Installation](#installation)
  * [Configuration](#configuration)
- * Licence
- * Notes
- * Franz Inc. Open Source Info
- * Release Notes
+ * [Release Notes](#release-notes)
+ * [Implementation Notes](#implementation-notes)
 
-# Description
+## Introduction
 
-Allegro NFS Server for Microsoft Windows in Common Lisp
-
-# Authors
-
-Ahmon Dancy, Franz Inc.
-Elliott Johnson, Franz Inc.
-Kevin Layer, Franz Inc.
-
-# Author comments
+Allegro NFS Server for Microsoft Windows, written in Allegro Common Lisp.
+The author is Ahmon Dancy, with help from Elliott Johnson, Kevin
+Layer, and Jeremiah Rothschild.
 
 Allegro® NFS Server for Windows® was inspired by our dissatisfaction
 with current free and commercial NFS Servers available on the market
 and the incredible technical difficulties we faced in configuring them
 on Windows.
 
-# Platforms
+It runs on Microsoft Windows XP and later (including Windows 8 and
+Server 2003, 2008 and 2012).
 
-Microsoft Windows XP and newer (including Windows 8).
+This source code is licensed under the terms of the [Lisp Lesser GNU
+Public License](http://opensource.franz.com/preamble.html), known as
+the LLGPL. The LLGPL consists of a preamble and the LGPL. Where these
+conflict, the preamble takes precedence.  This project is referenced
+in the preamble as the LIBRARY.
 
-# Dependencies
+## Installation
 
-Cygwin (GNU make).  Allegro Common Lisp 9.0 (32-bit, non-SMP).
+This software is open source, however some of the tools needed to
+build it are not.  You can purchase a supported binary copy of this
+software or download an evaluation version from
+[nfsforwindows.com](http://nfsforwindows.com).
 
-# Installation
+To build this software, you need Cygwin (for GNU make) and Allegro
+Common Lisp 9.0 (32-bit, non-SMP).
 
 To build:
 
@@ -58,84 +54,20 @@ also possible to build an installer via:
 
 This will produce an _nsi_ file that can be used to install.
 
-# Configuration
+## Configuration
 
-See the [nfs documentation](http://www.nfsforwindows.com/home) for
-more information on how to configure nfs.
+See the [documentation](http://nfsforwindows.com/support-documentation)
+for more information on how to configure nfs.
 
-# Documentation
+Also see `doc/configuration.txt`.
 
 Once your exports are configured it's possible to mount them.  Please
-consult your platforms documentation on how to mount remote nfs partitions.
+consult your client platform's documentation on how to mount the
+exported NFS shares.
 
-# Debugging
+## Release Notes
 
-Interactive debugging of server:
-
-    :ld load.cl
-
-Then, for debugging:
-
-    (debugmain) ;; main.cl
-
-Or, without debugging:
-
-    (setf *configfile* "nfs.cfg")
-    (read-nfs-cfg *configfile*)
-    (startem)
-
-*******************************************************************************
-
-    :cd d:/src/nfs50/
-    (load "load.cl")
-    (setf *configfile* "nfs.cfg")
-    (read-nfs-cfg *configfile*)
-    (startem)
-
-    (prof:start-profiler)
-
-    (prof:stop-profiler)
-    (defun doit (file)
-       (with-open-file (*standard-output* file :direction :output
-			:if-exists :supersede)
-	 (prof:show-flat-profile)
-	 (prof:show-call-graph)
-	 #+ignore (prof:disassemble-profile 'excl::g-read-vector-2)))
-    (doit "y:/nfs.82brc5")
-    (doit "y:/nfs.81")
-
-    (prof:show-flat-profile)
-    (prof:show-call-graph)
-
-# License
-
-The nfs source code is licensed under the terms of the 
-[Lisp Lesser GNU Public License](http://opensource.franz.com/preamble.html), 
-known as the LLGPL. The LLGPL consists of a preamble and the LGPL. Where these 
-conflict, the preamble takes precedence.  This project is referenced in the 
-preamble as the LIBRARY.
-
-# Notes
-
-See the following files that are part of this project:
-
- * access-control.txt - info on controlling access to the nfs server
- * notes.txt - implementation notes
- * release-notes.txt - info about past and present nfs releases.
- * rfc1014.txt - XDR: External Data Representation Standard.
- * rfc1050.txt - rpc: Remote Procedure Call.
- * rfc1094.txt - NFS: Network File System Protocol Specification
- * rfc1813.txt - nfs version 3 protocol standard.
- * rfc1833.txt - Binding Protocols for ONC RPC Version 2
- * TODO.txt - old and new todo information.
-
-# Franz Open Source Info
-
-This project's homepage is <https://github.com/franzinc/nfs/>.
-
-# Release Notes by version
-
-## UNRELEASED CHANGES
+### UNRELEASED CHANGES
 
 Note, the changes in this section will appear in the upcoming version
 6.0 release schedule for summer 2014.
@@ -190,7 +122,7 @@ Note, the changes in this section will appear in the upcoming version
 
 * Minor change to showmount output.
 
-## Version 5.1, 1 Aug, 2011
+### Version 5.1, 1 Aug, 2011
 
 * performance improvements
 * minor license changes
@@ -203,7 +135,7 @@ Note, the changes in this section will appear in the upcoming version
 * fix: proper locking around exports and logging operations.
 * small modifications to icons.
 
-## Version 5.0, 22 Feb, 2010
+### Version 5.0, 22 Feb, 2010
 
 * performance improvements
 * better support Windows Vista/7
@@ -227,20 +159,20 @@ Note, the changes in this section will appear in the upcoming version
 * improved interoperatibility with several UNIX clients
 * many other small improvements and fixes
 
-## Version 4.5, 20 June, 2007
+### Version 4.5, 20 June, 2007
 
 * Windows Vista Support
 * Many interoperability fixes and bug fixes
 * Improved locking support
 * NLM and NSM port numbers can now be set manually
 
-## Version 4.4, 29 Aug, 2006
+### Version 4.4, 29 Aug, 2006
 
 * NFS lock support
 * Bug fixes
 * Enhanced debugging
 
-## Version 4.3, 27 Oct, 2005
+### Version 4.3, 27 Oct, 2005
 
 * Installs on systems with Windows Data Execution Prevention (DEP) turned on
 * allow specification of mountd port number for dealing with firewall issues
@@ -250,40 +182,54 @@ Note, the changes in this section will appear in the upcoming version
 * better performance
 * bug fixes 
 
-## Version 4.0, 10 Aug, 2005
+### Version 4.0, 10 Aug, 2005
 
 * NFS protocol V3 support
 * large file support
 * better performance 
 * Hard link creation support
 
-## Version 3.0, 22 Apr, 2004
+### Version 3.0, 22 Apr, 2004
 
 * handle UNC pathnames
 * added "use system portmapper" option 
 * improved performance
 
-## Version 2.0, 24 Feb, 2004
+### Version 2.0, 24 Feb, 2004
 
 * new configuration utility 
 
-## Version 1.1.4, 3 Jul, 2003
+### Version 1.1.4, 3 Jul, 2003
 
 * improved interoperability with some clients
 * configuration option for altering mode bits 
 
-## Version 1.1.3, 21 Mar, 2003
+### Version 1.1.3, 21 Mar, 2003
 
 * bug fixes 
 
-## Version 1.1.1, 23 Jan, 2003
+### Version 1.1.1, 23 Jan, 2003
 
 * Improvements of handling the NFS services 
 
-## Version 1.0.36, 23 Sep, 2002
+### Version 1.0.36, 23 Sep, 2002
 
 * bug fixes 
 
-## Version 1.0.33, 27 Feb, 2002
+### Version 1.0.33, 27 Feb, 2002
 
 * initial release 
+
+# Implementation Notes
+
+The following files in the `doc` subdirectory have various information
+related to understanding how to debug and understand the product:
+
+ * access-control.txt - info on controlling access to the nfs server
+ * configuration.txt - info on configuration
+ * debugging.txt - notes on debugging
+ * notes.txt - implementation notes
+ * profiling.txt - how to profile the server
+ * rfc*.txt - various RFC's pertaining to the implementation
+ * testing.txt - information on testing
+ * todo.txt - old and new todo information.
