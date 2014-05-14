@@ -1,4 +1,4 @@
-;; This software is Copyright (c) Franz Inc., 2001-2010.
+;; This software is Copyright (c) Franz Inc., 2001-2014.
 ;; Franz Inc. grants you the rights to distribute
 ;; and use this software as governed by the terms
 ;; of the Lisp Lesser GNU Public License

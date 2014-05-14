@@ -33,7 +33,7 @@
 (defvar *nfs-set-mtime-on-write* nil)
 (defvar *nfs-debug-filter* #x0fffffff)
 
-;; FIXME: Make this configurable  (rfe8202)
+;; Needs UI [rfe8202]
 (defvar *executable-types* '("exe" "com" "bat"))
 
 (defvar *log-rotation-file-size* 0)
