@@ -10,7 +10,7 @@
  * Platforms
  * Dependencies
  * Installation
- * Configuration
+ * [Configuration](#configuration)
  * Licence
  * Notes
  * Franz Inc. Open Source Info
@@ -72,40 +72,40 @@ consult your platforms documentation on how to mount remote nfs partitions.
 
 Interactive debugging of server:
 
-   :ld load.cl
+    :ld load.cl
 
 Then, for debugging:
 
-   (debugmain) ;; main.cl
+    (debugmain) ;; main.cl
 
 Or, without debugging:
 
-   (setf *configfile* "nfs.cfg")
-   (read-nfs-cfg *configfile*)
-   (startem)
+    (setf *configfile* "nfs.cfg")
+    (read-nfs-cfg *configfile*)
+    (startem)
 
 *******************************************************************************
 
-   :cd d:/src/nfs50/
-   (load "load.cl")
-   (setf *configfile* "nfs.cfg")
-   (read-nfs-cfg *configfile*)
-   (startem)
+    :cd d:/src/nfs50/
+    (load "load.cl")
+    (setf *configfile* "nfs.cfg")
+    (read-nfs-cfg *configfile*)
+    (startem)
 
-   (prof:start-profiler)
+    (prof:start-profiler)
 
-   (prof:stop-profiler)
-   (defun doit (file)
-      (with-open-file (*standard-output* file :direction :output
-		       :if-exists :supersede)
-        (prof:show-flat-profile)
-        (prof:show-call-graph)
-        #+ignore (prof:disassemble-profile 'excl::g-read-vector-2)))
-   (doit "y:/nfs.82brc5")
-   (doit "y:/nfs.81")
+    (prof:stop-profiler)
+    (defun doit (file)
+       (with-open-file (*standard-output* file :direction :output
+			:if-exists :supersede)
+	 (prof:show-flat-profile)
+	 (prof:show-call-graph)
+	 #+ignore (prof:disassemble-profile 'excl::g-read-vector-2)))
+    (doit "y:/nfs.82brc5")
+    (doit "y:/nfs.81")
 
-   (prof:show-flat-profile)
-   (prof:show-call-graph)
+    (prof:show-flat-profile)
+    (prof:show-call-graph)
 
 # License
 
@@ -140,7 +140,7 @@ This project's homepage is <https://github.com/franzinc/nfs/>.
 Note, the changes in this section will appear in the upcoming version
 6.0 release schedule for summer 2014.
 
-* user::*executable-types* now in config file, allows FAQ to be
+* `user::*executable-types*` now in config file, allows FAQ to be
   written for experienced users to modify it
 
 * Added support for persistent file handles for files on NTFS
@@ -213,7 +213,7 @@ Note, the changes in this section will appear in the upcoming version
 * new console separate from service, that is shows log info
 * added NLM and NSM debug options
 * add date to timestamp logging
-* New option *nfs-set-mtime-on-write* allows users to work around
+* New option `*nfs-set-mtime-on-write*` allows users to work around
   Windows' funny behavior with respect to file modification times.
   Normally Windows does not update the mtime on a file until the file
   is closed.  Since Allegro NFS keeps a file open while it is
