@@ -11,14 +11,14 @@
 
 ## Introduction
 
-Allegro NFS Server for Microsoft Windows, written in Allegro Common Lisp.
-The author is Ahmon Dancy, with help from Elliott Johnson, Kevin
-Layer, and Jeremiah Rothschild.
+The repo contains the source code for Allegro® NFS Server for Microsoft
+Windows®, written in Allegro Common Lisp.  The author is Ahmon Dancy,
+with help from Elliott Johnson, Kevin Layer, and Jeremiah Rothschild.
 
-Allegro® NFS Server for Windows® was inspired by our dissatisfaction
-with current free and commercial NFS Servers available on the market
-and the incredible technical difficulties we faced in configuring them
-on Windows.
+It was inspired by our dissatisfaction with current free and
+commercial NFS Servers for Windows available on the market, and the
+incredible technical difficulties we faced in configuring them on
+Windows.
 
 It runs on Microsoft Windows XP and later (including Windows 8 and
 Server 2003, 2008 and 2012).
@@ -37,7 +37,8 @@ software or download an evaluation version from
 [nfsforwindows.com](http://nfsforwindows.com).
 
 To build this software, you need Cygwin (for GNU make) and Allegro
-Common Lisp 9.0 (32-bit, non-SMP).
+Common Lisp 9.0 (32-bit, non-SMP).  The installer is written in
+[NSIS](http://nsis.sourceforge.net/Main_Page).
 
 To build:
 
@@ -47,12 +48,12 @@ To install:
 
     make install
 
-The install step expects that cygwin has C:\ mounted as /c.  It is
+The install step expects that cygwin has `C:\` mounted as `/c`.  It is
 also possible to build an installer via:
 
     make installer
 
-This will produce an _nsi_ file that can be used to install.
+This will produce an _exe_ file that can be used to install.
 
 ## Configuration
 
@@ -225,11 +226,10 @@ Note, the changes in this section will appear in the upcoming version
 The following files in the `doc` subdirectory have various information
 related to understanding how to debug and understand the product:
 
- * access-control.txt - info on controlling access to the nfs server
- * configuration.txt - info on configuration
- * debugging.txt - notes on debugging
- * notes.txt - implementation notes
- * profiling.txt - how to profile the server
- * rfc*.txt - various RFC's pertaining to the implementation
- * testing.txt - information on testing
- * todo.txt - old and new todo information.
+ * `access-control.txt` - info on controlling access to the nfs server
+ * `configuration.txt` - info on configuration
+ * `debugging.txt` - notes on debugging
+ * `notes.txt` - implementation notes
+ * `profiling.txt` - how to profile the server
+ * `testing.txt` - information on testing
+ * `todo.txt` - old and new todo information.
