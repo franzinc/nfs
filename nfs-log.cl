@@ -73,8 +73,10 @@ a given string."
 		   (when (open-stream-p stream)
 		     (finish-output stream)
 		     (close stream :abort nil))))
+	    ;; bug22497:
 	    ;; Close *log-stream* first, in case we're in non-service
-	    ;; mode.  Reported by John Peterson.
+	    ;; mode, because otherwise an error results.
+	    ;; Reported by John Peterson.
 	    ;; https://github.com/franzinc/nfs/pull/7
 	    (close-stream *log-stream*)
 	    (close-stream *nfs-debug-stream*))
