@@ -951,6 +951,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (with-open-file (f tmpname :direction :output
 		     :if-does-not-exist :create
 		     :if-exists :supersede)
+      (format t ";; written by NFS version ~a.~%~%"
+	      user::*nfsd-version*)
       (let ((*print-right-margin* 55)
 	    (*print-pretty* nil))
 	(pprint (generate-config-expression) f)))
