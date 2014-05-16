@@ -73,8 +73,11 @@ a given string."
 		   (when (open-stream-p stream)
 		     (finish-output stream)
 		     (close stream :abort nil))))
-	    (close-stream *nfs-debug-stream*)
-	    (close-stream *log-stream*))
+	    ;; Close *log-stream* first, in case we're in non-service
+	    ;; mode.  Reported by John Peterson.
+	    ;; https://github.com/franzinc/nfs/pull/7
+	    (close-stream *log-stream*)
+	    (close-stream *nfs-debug-stream*))
 	  ;; If we are running as a service then use the new file in both places.
 	  (if* (eq *program-mode* :service)
 	     then (setf *log-stream* new-log
