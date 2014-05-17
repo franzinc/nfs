@@ -277,6 +277,26 @@ void test_mkdir(char *workdir) {
   
 }  
 
+void test_lookup_illegal(char *workdir) {
+    char filename[1024];
+    struct stat sb;
+
+    printf("testing lookup of illegal filename\n");
+
+    sprintf(filename, "%s/1:2", workdir);
+
+    if (stat(filename, &sb) != -1) {
+	printf("stat(illegal filename) succeeded.  WTF?\n");
+	exit(1);
+    }
+    
+    if (errno != ENOENT) {
+	printf("stat(illegal filename) got error %d (%s) but we wanted %d (ENOENT)\n",
+	       errno, strerror(errno));
+	exit(1);
+    }
+}
+
 void test_create(char *workdir) {
     int fd;
     char filename[1024];
@@ -302,6 +322,22 @@ void test_create(char *workdir) {
 	exit(1);
     }
     close(fd);
+
+
+    /* Test attempt to create a file with a name that is illegal
+       on Windows */
+    printf("testing illegal filename\n");
+    sprintf(filename, "%s/1:2", workdir);
+    int res=open(filename, O_WRONLY|O_CREAT, 0666); 
+    if (res >= 0) {
+	printf("Creating a file w/ a colon in its name succeeded. WTF?\n");
+	exit(1);
+    }
+    if (errno != EACCES) {
+	printf("Got error %d (%s) but expected EACCES (%d)\n",
+	       errno, strerror(errno), EACCES);
+	exit(1);
+    }
 }
 
 
@@ -801,6 +837,8 @@ int main(int argc, char **argv) {
     printf("workdir is %s\n", workdir);
 
     test_mkdir(workdir);
+
+    test_lookup_illegal(workdir);
 
     test_create(workdir);
 
