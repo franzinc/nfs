@@ -178,10 +178,14 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	 (handler-bind 
 	     ((illegal-filename-error 
 	       (lambda (,c)
-		 (declare (ignore ,c))
 		 (setf (xdr:xdr-pos ,xdr) ,savepossym)
 		 (when debug-this-procedure (logit "Illegal filename~%"))
-		 (xdr-int ,xdr #.*nfserr-acces*) ;; rfc1813 says to use this
+		 (ecase (mode ,c)
+		   (:lookup 
+		    ;; Filename is illegal so it will definitely not exist
+		    (xdr-int ,xdr #.*nfserr-noent*))
+		   (:create
+		    (xdr-int ,xdr #.*nfserr-acces*))) ;; rfc1813 says to use this
 		 (if (= ,vers 3)
 		     (nfs-xdr-wcc-data ,xdr nil nil))
 		 (go ,out)))
@@ -1049,7 +1053,7 @@ struct entry {
 
 (define-nfs-proc create ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
-    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename)))
+    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
       ;; Create the file if necessary 
       (close (unicode-open newpath :direction :output :if-exists :overwrite))
       (update-atime-and-mtime dirfh)
@@ -1067,7 +1071,7 @@ struct entry {
 			  (how createhow3))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
-	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename))
+	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create))
 	   ;; attributes only supplied for unchecked or guarded mode.
 	   (sattr (if (sattr-p (second how)) (second how)))
 	   fh
@@ -1138,9 +1142,8 @@ struct entry {
       (with-non-dir-fh (fh :op :link)
 	(with-dirfh (destdirfh :op :link)
 	  (with-same-dir-fh ((fh-parent fh) destdirfh)
-	    (sanity-check-filename destfilename)
 	    (let* ((newpath 
-		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
+		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename :create))
 		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
 	      (unicode-link (fh-pathname fh) newpath)
 	      (update-alternate-pathnames fh :add destfilename)
@@ -1165,7 +1168,7 @@ struct entry {
   ;; lookup-fh-in-dir will throw an error if file doesn't exist
   (let ((pre-op-attrs (get-pre-op-attrs dirfh))
 	(fh (lookup-fh-in-dir dirfh filename)) 
-	(path (add-filename-to-dirname (fh-pathname dirfh) filename)))
+	(path (add-filename-to-dirname (fh-pathname dirfh) filename :lookup)))
     (with-permission (dirfh :write)
       (if* (eq (close-open-file fh :check-refcount t) :still-open)
 	 then ;; Unfortunately there is no NFS error code that indicates
@@ -1356,12 +1359,12 @@ struct entry {
 		 (fromfh (lookup-fh-in-dir fromdirfh fromfilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (from (add-filename-to-dirname (fh-pathname fromdirfh)
-						fromfilename))
+						fromfilename :lookup))
 		 ;; See if the destination already exists.
 		 (tofh (nfs-probe-file todirfh tofilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (to (add-filename-to-dirname (fh-pathname todirfh)
-					      tofilename)))
+					      tofilename :create)))
 	    (if* (or 
 		  (eq (close-open-file fromfh :check-refcount t) :still-open)
 		  (and tofh (eq (close-open-file tofh :check-refcount t) :still-open)))
@@ -1398,7 +1401,7 @@ struct entry {
 (define-nfs-proc mkdir ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
     (let ((pre-op-attrs (get-pre-op-attrs dirfh))
-	  (newpath (add-filename-to-dirname (fh-pathname dirfh) filename))
+	  (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create))
 	  fh)
       (unicode-mkdir newpath)
       (setf fh (lookup-fh-in-dir dirfh filename))
@@ -1466,7 +1469,7 @@ struct entry {
 			  (symlink filename)
 			  (sattr sattr))
   (with-permission (dirfh :write)
-    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename)))
+    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
       (unicode-symlink symlink newpath)
       (update-atime-and-mtime dirfh)
       (nfs-add-file-to-dir filename dirfh)
@@ -1480,7 +1483,7 @@ struct entry {
 			   (symlink filename))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
-	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename)))
+	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
       (unicode-symlink symlink newpath)
       (update-atime-and-mtime dirfh)
       (nfs-add-file-to-dir filename dirfh)

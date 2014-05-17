@@ -83,26 +83,43 @@
 			res))
 	    "")))
 
-(define-condition illegal-filename-error (file-error) ())
+(define-condition illegal-filename-error (file-error) 
+  (
+   (mode :initarg :mode :accessor mode) ;; :lookup or :create
+   ))
 
-(defun sanity-check-filename (filename &key allow-dotnames)
+;; Ref: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#naming_conventions
+(excl::defsubst illegal-character-in-filename-p (filename)
+  (declare (simple-string filename))
+  (dotimes (n (length filename))
+    (let* ((char (schar filename n))
+	   (code (char-code char)))
+      (when (or (< code 32)
+		(case char
+		  ((#\< #\> #\: #\" #\/ #\\ #\| #\? #\*)
+		   t)))
+	(return t)))))
+  
+(define-compiler-macro sanity-check-filename (filename mode &key allow-dotnames)
+  `(sanity-check-filename-1 ,filename ,mode ,allow-dotnames))
+
+(defun sanity-check-filename-1 (filename mode allow-dotnames)
   (if (or 
        ;; check 1
-       (or (position #\\ filename)
-	   (position #\/ filename)
-	   (position #\: filename))
+       (illegal-character-in-filename-p filename)
        ;; check 2
        (and (or (string= filename ".") (string= filename ".."))
 	    (not allow-dotnames)) )
       (error 'illegal-filename-error 
+	     :mode mode
 	     :format-control "Illegal filename: ~S" 
 	     :format-arguments (list filename))))
 
-(defun add-filename-to-dirname (dir filename &key allow-dotnames)
+(defun add-filename-to-dirname (dir filename mode &key allow-dotnames)
   (declare (optimize speed (safety 0))
 	   (simple-string dir filename))
 
-  (sanity-check-filename filename :allow-dotnames allow-dotnames)
+  (sanity-check-filename filename mode :allow-dotnames allow-dotnames)
   
   (if (char= (schar dir (1- (length dir))) #\\)
       (concatenate 'string dir filename)
@@ -146,7 +163,7 @@
       (setf (fh-vec-type vec) *fhandle-type-persistent*)
       (setf (fh-file-id fh) id))))
 
-(defun make-fhandle (dirfh filename &key root-export)
+(defun make-fhandle (dirfh filename mode &key root-export)
   "FILENAME is a basename"
   (let* ((fh 
 	  ;; special case for root of exports
@@ -155,9 +172,10 @@
 		  (make-fh :pathname filename
 			   :export root-export)
 	     else
-		  (make-fh :pathname (add-filename-to-dirname (fh-pathname dirfh) filename)
+		  (make-fh :pathname (add-filename-to-dirname (fh-pathname dirfh) filename mode)
 			   :export (fh-export dirfh)
 			   :parent dirfh))))
+    
     (or (populate-persistent-fhandle fh)
 	(populate-non-persistent-fhandle fh))
     
@@ -182,7 +200,7 @@
     (if* fh
        then fh
        else ;; first use.
-	    (setf fh (make-fhandle nil path :root-export exp))
+	    (setf fh (make-fhandle nil path :lookup :root-export exp))
 	    (setf (gethash (fh-vec fh) *fhandles*) fh)
 	    (setf (gethash path *export-roots*) fh))))
 
@@ -202,12 +220,15 @@
     (if (not (fh-children parent))
 	(setf (fh-children parent) (make-hash-table :test #'equalp)))
     (link-fh-in-dir fh parent filename)))
-      
-(defun lookup-fh-in-dir (dirfh filename &key allow-dotnames)
+
+(define-compiler-macro lookup-fh-in-dir (dirfh filename &key allow-dotnames)
+  `(lookup-fh-in-dir-1 ,dirfh ,filename ,allow-dotnames))
+
+(defun lookup-fh-in-dir-1 (dirfh filename allow-dotnames)
   (block nil
     (with-fhandles-lock () 
       ;; will error out if filename is not acceptable.
-      (sanity-check-filename filename :allow-dotnames allow-dotnames)
+      (sanity-check-filename filename :lookup :allow-dotnames allow-dotnames)
       ;; special cases:
       ;;  . is the same as dirfh 
       ;;  .. is the parent of dirfh
@@ -235,7 +256,7 @@
       (format t "lookup-fh-in-dir(~a,~a) making new fh.~%"
 	      dirfh filename)
       
-      (insert-fhandle (make-fhandle dirfh filename) filename))))
+      (insert-fhandle (make-fhandle dirfh filename :lookup) filename))))
 
 ;; Called by:
 ;; remove-fhandle, rename-fhandle, nfsd-link
@@ -244,12 +265,12 @@
     (:add 
      (push altname (fh-alternate-pathnames fh)))
     (:remove
-     (if* (equalp (fh-pathname fh) (add-filename-to-dirname (fh-pathname (fh-parent fh)) altname))
+     (if* (equalp (fh-pathname fh) (add-filename-to-dirname (fh-pathname (fh-parent fh)) altname :lookup))
 	then (let ((nextup (pop (fh-alternate-pathnames fh))))
 	       (when nextup
 		 (setf (fh-pathname fh) 
 		   (add-filename-to-dirname (fh-pathname (fh-parent fh))
-					    nextup))))
+					    nextup :lookup))))
 	else (setf (fh-alternate-pathnames fh)
 	       (delete altname (fh-alternate-pathnames fh) :test #'equalp))
 	     t))))
@@ -280,7 +301,7 @@
 ;; parentname is the updated directory name.
 ;; yourname is the new basename
 (defun update-fhandle-pathname (fh parentname yourname oldpath oldbasename)
-  (let ((newname (add-filename-to-dirname parentname yourname)))
+  (let ((newname (add-filename-to-dirname parentname yourname :create)))
     (if* (equalp (fh-pathname fh) oldpath)
        then ;; We're changing the primary name.
 	    (setf (fh-pathname fh) newname)
@@ -294,7 +315,7 @@
 	 #'(lambda (childname childfh)
 	     (update-fhandle-pathname 
 	      childfh newname childname
-	      (add-filename-to-dirname oldpath childname)
+	      (add-filename-to-dirname oldpath childname :lookup)
 	      childname))
 	 (fh-children fh)))))
 
@@ -314,7 +335,7 @@
 	  (error "rename-fhandle: ~S has no parent" fh))
       
       (setf oldpath 
-	(add-filename-to-dirname (fh-pathname oldparent) fromfilename))
+	(add-filename-to-dirname (fh-pathname oldparent) fromfilename :lookup))
       
       ;; Remove from current parent
       (remhash fromfilename (fh-children oldparent))
