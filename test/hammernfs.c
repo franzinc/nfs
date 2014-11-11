@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
 #include "hammernfs-libs/mount.h"
@@ -511,7 +512,11 @@ int main(int argc, char **argv) {
     reads++;
   }
 
-  printf(":duration %ld.%06ld ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+#ifdef __APPLE__
+  printf(":duration %ld.%06d  ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+#else
+  printf(":duration %ld.%06ld  ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+#endif
 
   printf(":reads %d\n", reads);
   printf(":read-bytes %llu\n", total);
