@@ -174,8 +174,8 @@ struct file_handle *lookup2(CLIENT *clnt, struct file_handle *base,
   res=nfsproc_lookup_2(&arg, clnt);
   
   if (res->status != NFS_OK) {
-    printf("lookup of name %s failed with status: %d\n",
-	   name, res->status);
+    printf("%s: lookup of name %s failed with status: %d (%s)\n",
+	   __func__, name, res->status, strerror(res->status));
     exit(1);
   }
   
@@ -210,8 +210,8 @@ struct file_handle *lookup3(CLIENT *clnt, struct file_handle *base,
   res=nfsproc3_lookup_3(&arg, clnt);
   
   if (res->status != NFS_OK) {
-    printf("lookup of name %s failed with status: %d\n",
-	   name, res->status);
+    printf("%s: lookup of name %s failed with status: %d (%s)\n",
+	   __func__, name, res->status, strerror(errno));
     exit(1);
   }
   

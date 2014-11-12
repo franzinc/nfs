@@ -4,6 +4,7 @@
  */
 
 #include "nfs.h"
+#include "compat.h"
 
 bool_t
 xdr_uint32 (XDR *xdrs, uint32 *objp)
