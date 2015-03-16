@@ -1,6 +1,8 @@
 
 (in-package :cl-user)
 
+(setq excl::*break-on-warnings* t)
+
 #+(version>= 9 0)
 (eval-when (compile eval load) (require :ide))
 

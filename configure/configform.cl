@@ -122,11 +122,12 @@
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
     (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
     (push `(nlm:*nlm-port* ,nlm:*nlm-port*) config)
-    (push `(*nfs-debug* ,*nfs-debug*) config)
-    (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
-    (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
-    (push `(*nfs-debug-timings* ,*nfs-debug-timings*) config)
-    (push `(*nfs-set-mtime-on-write* ,*nfs-set-mtime-on-write*) config)
+    (push `(user::*nfs-debug* ,user::*nfs-debug*) config)
+    (push `(user::*nfs-debug-filter* ,user::*nfs-debug-filter*) config)
+    (push `(user::*nfs-gc-debug* ,user::*nfs-gc-debug*) config)
+    (push `(user::*nfs-debug-timings* ,user::*nfs-debug-timings*) config)
+    (push `(user::*nfs-set-mtime-on-write* ,user::*nfs-set-mtime-on-write*)
+	  config)
     
     config))
 
@@ -155,11 +156,11 @@
   (setf (value (my-find-component :portmap-debug-checkbox form))
     portmap:*portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
-    *nfs-debug*)
+    user::*nfs-debug*)
   (setf (value (my-find-component :gc-debug-checkbox form))
-    *nfs-gc-debug*)
+    user::*nfs-gc-debug*)
   (setf (value (my-find-component :log-timestamps-checkbox form))
-    *nfs-debug-timings*)
+    user::*nfs-debug-timings*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
   (setf (value (my-find-component :set-showmount-disable-checkbox form))
@@ -177,7 +178,7 @@
   (setf (value (my-find-component :nlm-debug-checkbox form))
     nlm:*nlm-debug*)
   (setf (value (my-find-component :set-mtime-on-write-checkbox form))
-    *nfs-set-mtime-on-write*)
+    user::*nfs-set-mtime-on-write*)
   
   (setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude form))
     (cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
@@ -204,9 +205,9 @@
                                           (filter-constant (intern (format nil "*nfs-debug-~a*" type) :user)))
                                       (push `(let ((wij (my-find-component ,component-name form)))
                                                (setf (value wij)
-                                                 (if (/= 0 (logand *nfs-debug-filter* ,filter-constant)) 
+                                                 (if (/= 0 (logand user::*nfs-debug-filter* ,filter-constant)) 
                                                      t))
-                                               (setf (available wij) *nfs-debug*))
+                                               (setf (available wij) user::*nfs-debug*))
                                             res)))
                                       
                                   (setf res (nreverse res))
@@ -964,14 +965,16 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let ((form (parent widget)))
-    (setf *nfs-debug* new-value)
+    (setf user::*nfs-debug* new-value)
     
     (macrolet ((set-filters-availability (types)
                                          (let (res)
                                            (dolist (type types)
                                              (let ((component-name (intern (format nil "debug-nfs-~a" type) :keyword)))
                                                (push `(let ((wij (my-find-component ,component-name form)))
-                                                        (setf (available wij) *nfs-debug*))
+                                                        (setf (available
+							       wij)
+							  user::*nfs-debug*))
                                                      res)))
                                            
                                            (setf res (nreverse res))
@@ -1062,13 +1065,13 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-gc-debug* new-value)
+  (setf user::*nfs-gc-debug* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
 (defun configform-log-timestamps-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-debug-timings* new-value)
+  (setf user::*nfs-debug-timings* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -1137,8 +1140,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (declare (ignore-if-unused widget new-value old-value))
   (let ((code (symbol-value (intern (format nil "*nfs-debug-~a*" (string-downcase (title widget))) :user))))
     (if* new-value
-       then (setf *nfs-debug-filter* (logior *nfs-debug-filter* code))
-       else (setf *nfs-debug-filter* (logand *nfs-debug-filter* (lognot code)))))
+       then (setf user::*nfs-debug-filter* (logior user::*nfs-debug-filter* code))
+       else (setf user::*nfs-debug-filter* (logand user::*nfs-debug-filter* (lognot code)))))
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -1162,7 +1165,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                          new-value
                                                          old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-set-mtime-on-write* new-value)
+  (setf user::*nfs-set-mtime-on-write* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 

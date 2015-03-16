@@ -25,7 +25,7 @@
   :projects nil
   :libraries nil
   :editable-files nil
-  :distributed-files (list "configuration.txt")
+  :distributed-files (list "../doc/configuration.txt")
   :internally-loaded-files nil
   :project-package-name :common-graphics-user
   :main-form 'configform

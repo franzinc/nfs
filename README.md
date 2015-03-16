@@ -70,8 +70,8 @@ exported NFS shares.
 
 ### UNRELEASED CHANGES
 
-Note, the changes in this section will appear in the upcoming version
-6.0 release schedule for summer 2014.
+The changes in this section will appear in the release of Allegro
+NFS
 
 * `user::*executable-types*` now in config file, allows FAQ to be
   written for experienced users to modify it
