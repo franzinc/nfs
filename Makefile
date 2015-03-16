@@ -26,7 +26,7 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-MODULES = .:devel date:acl90 demoware:master
+MODULES = .:v6.0 date:acl90 demoware:master
 
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
