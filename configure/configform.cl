@@ -888,6 +888,9 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
 
 (defun init-func ()
   (let ((window (default-init-function)))
+    ;; rfe13687/rfe13690: Hide the window until the configuration
+    ;; has been located and loaded.
+    (setf (state window) :shrunk)
     (move-window window (box-top-left
                          (center-box-on-screen (width window)(height window))))
     
@@ -903,6 +906,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
        else
             (setf *server-running* t))
     (process-config *configfile* window)
+    (setf (state window) :normal)
     window))
 
 ;; returns nil if cancelled.

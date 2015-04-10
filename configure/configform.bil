@@ -34,7 +34,8 @@
            :pop-up nil
            :resizable t
            :scrollbars nil
-           :state :normal
+	   ;; rfe13687/rfe13690
+	   :state :icon
            :system-menu t
            :title title
            :title-bar t
