@@ -44,7 +44,7 @@
                          :cg.text-or-combo :cg.text-widget :cg.timer :cg.toggling-widget
                          :cg.tooltip :cg.utility-dialog)
   :splash-file-module (make-instance 'build-module :name "")
-  :icon-file-module (make-instance 'build-module :name "")
+  :icon-file-module (make-instance 'build-module :name "../nfs.ico")
   :include-flags (list :local-name-info)
   :build-flags (list :purify)
   :autoload-warning t
