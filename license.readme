@@ -1,8 +1,0 @@
-
-Before you publish a new version, do:
-
-1. Fill columns to 60 after doing:
-   (setq fill-column 60)
-
-2. Replace tabs with spaces:
-   (untabify (point-min) (point-max))
