@@ -3,6 +3,11 @@
 #include <getopt.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
 #include "hammernfs-libs/mount.h"
 #include "hammernfs-libs/nfs.h"
 
@@ -21,18 +26,48 @@ void print_fh(struct file_handle *fh) {
 }
 
 void usage(char *prg) {
-  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] [ -p udp|tcp ] host:/export/path/to/file_to_read\n", prg);
+  fprintf(stderr, "Usage: %s [ -q ] [ -v nfsvers ] [ -t test_duration ] [ -u uid ] [ -g gid ] [ -b blocksize ] [ -p udp|tcp ] [ -i label ] host:/export/path/to/file_to_read\n", prg);
   exit(1);
 }
+
+/* Attempts to work around Windows + RDP disconnect strangeness */
+CLIENT *clnt_create_with_retry(char *host, unsigned long program, 
+			    unsigned long version, char *proto) {
+  CLIENT *clnt;
+  int tries;
+
+  for (tries=0;tries<10;tries++) {
+    clnt=clnt_create(host, program, version, proto);
+    if (clnt) {
+      if (tries) 
+	printf("%s: Try #%d: clnt_create succeeded.\n", __func__, tries+1);	
+      
+      return clnt;
+    }
+    
+    if (rpc_createerr.cf_stat == RPC_SYSTEMERROR && rpc_createerr.cf_error.re_errno == EADDRINUSE) {
+      printf("%s: Try #%d: %s\n", __func__, tries+1, clnt_spcreateerror("clnt_create"));
+      continue;
+    }
+    
+    /* Some other failure that we don't handle */
+    return NULL;
+  }
+
+  return NULL;
+}
+      
+    
+
 
 struct file_handle *get_export_fh3(char *host, char *export, AUTH *auth) {
   mountres3 *mountres;
   CLIENT *clnt;
   struct file_handle *fh;
 
-  clnt=clnt_create(host, MOUNTPROG, 3, "udp");
+  clnt=clnt_create_with_retry(host, MOUNTPROG, 3, "udp");
   if (!clnt) {
-    printf("clnt_create failed[1]\n");
+    clnt_pcreateerror("clnt_create failed[1]");
     exit(1);
   }
   
@@ -56,7 +91,7 @@ struct file_handle *get_export_fh3(char *host, char *export, AUTH *auth) {
   memcpy(fh->data, mountres->mountres3_u.mountinfo.fhandle.fhandle3_val,
 	 fh->len);
   
-  if (clnt_freeres(clnt, (xdrproc_t) xdr_mountres3, mountres) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_mountres3, (char *)mountres) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -71,9 +106,9 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
   fhstatus *fhstatus;
   struct file_handle *fh;
 
-  clnt=clnt_create(host, MOUNTPROG, 1, "udp");
+  clnt=clnt_create_with_retry(host, MOUNTPROG, 1, "udp");
   if (!clnt) {
-    printf("clnt_create failed[2]\n");
+    clnt_pcreateerror("clnt_create failed[2]");
     exit(1);
   }
   clnt->cl_auth=auth;
@@ -100,7 +135,7 @@ struct file_handle *get_export_fh2(char *host, char *export, AUTH *auth) {
   fh->len=FHSIZE;
   memcpy(fh->data, fhstatus->fhstatus_u.fhs_fhandle, FHSIZE);
   
-  if (clnt_freeres(clnt, (xdrproc_t)xdr_fhstatus, fhstatus) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_fhstatus, (char *)fhstatus) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -120,6 +155,10 @@ struct file_handle *get_export_fh(int vers, char *host, char *export,
   case 3:
     return get_export_fh3(host, export, auth);
     break;
+  default:
+    printf("%s: Unsupported protocol version: %d\n", __func__, vers);
+    exit(1);
+    return NULL; // Satisfy compiler
   }
 }
       
@@ -135,8 +174,8 @@ struct file_handle *lookup2(CLIENT *clnt, struct file_handle *base,
   res=nfsproc_lookup_2(&arg, clnt);
   
   if (res->status != NFS_OK) {
-    printf("lookup of name %s failed with status: %d\n",
-	   name, res->status);
+    printf("%s: lookup of name %s failed with status: %d (%s)\n",
+	   __func__, name, res->status, strerror(res->status));
     exit(1);
   }
   
@@ -149,7 +188,7 @@ struct file_handle *lookup2(CLIENT *clnt, struct file_handle *base,
   fh->len=NFS_FHSIZE;
   memcpy(fh->data, &res->diropres_u.diropres.file, NFS_FHSIZE);
 
-  if (clnt_freeres(clnt, (xdrproc_t)xdr_diropres, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_diropres, (char *)res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -171,8 +210,8 @@ struct file_handle *lookup3(CLIENT *clnt, struct file_handle *base,
   res=nfsproc3_lookup_3(&arg, clnt);
   
   if (res->status != NFS_OK) {
-    printf("lookup of name %s failed with status: %d\n",
-	   name, res->status);
+    printf("%s: lookup of name %s failed with status: %d (%s)\n",
+	   __func__, name, res->status, strerror(errno));
     exit(1);
   }
   
@@ -187,7 +226,7 @@ struct file_handle *lookup3(CLIENT *clnt, struct file_handle *base,
   fh->len=res->LOOKUP3res_u.resok.object.data.data_len;
   memcpy(fh->data, res->LOOKUP3res_u.resok.object.data.data_val, fh->len);
 
-  if (clnt_freeres(clnt, (xdrproc_t)xdr_LOOKUP3res, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_LOOKUP3res, (char *)res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -203,6 +242,10 @@ struct file_handle *lookup(CLIENT *clnt, struct file_handle *base,
     return lookup2(clnt, base, name);
   case 3:
     return lookup3(clnt, base, name);
+  default:
+    printf("%s: Unsupported protocol version: %d\n", __func__, base->vers);
+    exit(1);
+    return NULL; // Satisfy compiler
   }
 }
 
@@ -245,7 +288,7 @@ int nfs_read2(CLIENT *clnt, struct file_handle *fh, int count) {
 
   count=res->readres_u.reply.data.data_len;
   
-  if (clnt_freeres(clnt, (xdrproc_t)xdr_readres, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_readres, (char *)res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -274,7 +317,7 @@ int nfs_read3(CLIENT *clnt, struct file_handle *fh, int count) {
   
   count=res->READ3res_u.resok.count;
   
-  if (clnt_freeres(clnt, (xdrproc_t)xdr_READ3res, res) != 1) {
+  if (clnt_freeres(clnt, (xdrproc_t)xdr_READ3res, (char *)res) != 1) {
     printf("clnt_freeres failed\n");
     exit(1);
   }
@@ -288,18 +331,55 @@ int nfs_read(CLIENT *clnt, struct file_handle *fh, int count) {
     return nfs_read2(clnt, fh, count);
   case 3:
     return nfs_read3(clnt, fh, count);
+  default:
+    printf("%s: Unsupported protocol version: %d\n", __func__, fh->vers);
+    exit(1);
+    return 0; // Satisfy compiler
   }
 }
 
+double timeval_to_seconds(struct timeval *tv) {
+  return tv->tv_sec + tv->tv_usec / (double)1000000;
+}
+
+/* Ref: http://www.gnu.org/software/libc/manual/html_node/Elapsed-Time.html */
+/* result=x-y */
+/* Subtract the `struct timeval' values X and Y,
+   storing the result in RESULT.
+   Return 1 if the difference is negative, otherwise 0. */
+
+int
+timeval_subtract (result, x, y)
+     struct timeval *result, *x, *y;
+{
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+  
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+  
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
 int main(int argc, char **argv) {
-  struct sockaddr_in addr;
   struct file_handle *rootfh, *fh;
   CLIENT *clnt;
-  diropargs doa;
-  diropres *dor;
   AUTH *auth;
   unsigned long long total=0;
-  time_t starttime, now;
+  int reads=0;
+  struct timeval starttime, now, elapsed;
   double kbps;
   char opt;
   char myhostname[255];
@@ -317,7 +397,7 @@ int main(int argc, char **argv) {
   int quiet = 0;
   char *proto="udp";
   
-  while ((opt=getopt(argc, argv, "i:v:t:h:e:f:u:g:b:qp:"))!=-1) {
+  while ((opt=getopt(argc, argv, "i:v:t:u:g:b:qp:"))!=-1) {
     switch (opt) {
     case 'v':
       vers=atoi(optarg);
@@ -405,9 +485,9 @@ int main(int argc, char **argv) {
 
   rootfh=get_export_fh(vers, host, exportname, auth);
 
-  clnt=clnt_create(host, NFS_PROGRAM, vers, proto);
+  clnt=clnt_create_with_retry(host, NFS_PROGRAM, vers, proto);
   if (!clnt) {
-    printf("clnt_create failed[3]\n");
+    clnt_pcreateerror("clnt_create failed[3]");
     exit(1);
   }
 
@@ -415,24 +495,32 @@ int main(int argc, char **argv) {
 
   fh=lookup_path(clnt, rootfh, testpath);
 
-  time(&starttime);
+  gettimeofday(&starttime, NULL);
   
   while (1) {
     int count;
 
-    time(&now);
+    gettimeofday(&now, NULL);
     
-    if (now-starttime >= duration) 
+    timeval_subtract(&elapsed, &now, &starttime);
+    
+    if (elapsed.tv_sec >= duration)
       break;
 
     count=nfs_read(clnt, fh, blocksize);
     total+=count;
+    reads++;
   }
 
-  printf(":duration %d ;; seconds\n", now-starttime);
-  
-  printf(":read-bytes %u\n", total);
-  kbps=(double)total/(double)(now-starttime)/(double)1024;
+#ifdef __APPLE__
+  printf(":duration %ld.%06d  ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+#else
+  printf(":duration %ld.%06ld  ;; seconds\n", elapsed.tv_sec, elapsed.tv_usec);
+#endif
+
+  printf(":reads %d\n", reads);
+  printf(":read-bytes %llu\n", total);
+  kbps=(double)total/timeval_to_seconds(&elapsed)/(double)1024;
   printf(":rate %f ;; KB/second\n", kbps);
   printf(")\n");
   clnt_destroy(clnt);

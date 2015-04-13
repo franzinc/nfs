@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -32,19 +32,9 @@
 (defvar *program-mode* nil) ;; nil or :service
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
-(defvar *log-rotation-file-size* 0)
-(defvar *log-rotation-file-count* 1)
 (defvar *log-rotation-current-count* 0)
 (defvar *log-file* "sys:nfsdebug-~D.txt")
 (defvar *nfs-debug-stream* nil)
-
-(defvar *kilobyte* 1024)
-(defvar *megabyte* (* *kilobyte* *kilobyte*))
-(defvar *gigabyte* (* *megabyte* *kilobyte*))
-(defvar *terabyte* (* *gigabyte* *kilobyte*))
-
-(defvar *log-rotation-file-size-magnitude*
-  *megabyte*)
 
 (defun log-rotateable (string)
   "Returns true if the *log-stream* will need rotation to write
@@ -83,8 +73,13 @@ a given string."
 		   (when (open-stream-p stream)
 		     (finish-output stream)
 		     (close stream :abort nil))))
-	    (close-stream *nfs-debug-stream*)
-	    (close-stream *log-stream*))
+	    ;; bug22497:
+	    ;; Close *log-stream* first, in case we're in non-service
+	    ;; mode, because otherwise an error results.
+	    ;; Reported by John Peterson.
+	    ;; https://github.com/franzinc/nfs/pull/7
+	    (close-stream *log-stream*)
+	    (close-stream *nfs-debug-stream*))
 	  ;; If we are running as a service then use the new file in both places.
 	  (if* (eq *program-mode* :service)
 	     then (setf *log-stream* new-log

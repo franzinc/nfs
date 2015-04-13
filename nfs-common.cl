@@ -1,3 +1,27 @@
+;; -*- mode: common-lisp -*-
+;;
+;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
+;;
+;; This code is free software; you can redistribute it and/or
+;; modify it under the terms of the version 2.1 of
+;; the GNU Lesser General Public License as published by 
+;; the Free Software Foundation, as clarified by the Franz
+;; preamble to the LGPL found in
+;; http://opensource.franz.com/preamble.html.
+;;
+;; This code is distributed in the hope that it will be useful,
+;; but without any warranty; without even the implied warranty of
+;; merchantability or fitness for a particular purpose.  See the GNU
+;; Lesser General Public License for more details.
+;;
+;; Version 2.1 of the GNU Lesser General Public License can be
+;; found at http://opensource.franz.com/license.html.
+;; If it is not present, you can access it from
+;; http://www.gnu.org/copyleft/lesser.txt (until superseded by a newer
+;; version) or write to the Free Software Foundation, Inc., 59 Temple
+;; Place, Suite 330, Boston, MA  02111-1307  USA
+
 (in-package :user)
 
 (eval-when (compile load eval)
@@ -5,30 +29,16 @@
   (use-package :excl.osi)
   (use-package :gen-nfs))
 
-;;;
-;;;;;;NOTE: when `test' release is removed, remove telnet server in
-;;;;;;           loadem.cl
-(defvar *nfsd-version* "5.2.2")
+;; NOTE: the form of the version *must* be a.b.c.  If you're starting
+;;       a new release, say 6.0, then use 6.0.0.
+(defvar *nfsd-version* "6.0.0")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
-(defvar *nfsd-commit-id*
-    (multiple-value-bind (commit-id stderr exit-status)
-	(excl.osi:command-output "git log -n1 --pretty=format:%H HEAD"
-				 :whole t)
-      (or (= 0 exit-status)
-	  (error "Getting commit id for HEAD failed with status: ~d~%~a"
-		 exit-status stderr))
-      commit-id))
-;;; 
+(load (merge-pathnames "commit-id.cl" *load-pathname*))
 
 ;; Filesystem allocation unit size.  Only used by statfs procedure.
 ;;   See discussion in spr39245 for why this was changed from 8192.
 (defconstant *blocksize* 512)
-
-(defparameter *nfs-debug* nil)
-(defparameter *nfs-gc-debug* nil)
-(defparameter *nfs-debug-timings* nil) 
-(defparameter *nfs-set-mtime-on-write* nil)
 
 (defconstant *nfs-debug-read*        #x00000001)
 (defconstant *nfs-debug-write*       #x00000002)
@@ -52,8 +62,6 @@
 (defconstant *nfs-debug-symlink*     #x00080000)
 (defconstant *nfs-debug-readlink*    #x00100000)
 (defconstant *nfs-debug-mknod*       #x00200000)
-
-(defparameter *nfs-debug-filter*     #x0fffffff)
 
 (defmacro nfs-debug-filter-on (type)
   (if (eq type 'readdirplus)

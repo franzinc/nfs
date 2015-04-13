@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -27,8 +27,6 @@
 ;; Ref: http://www.opengroup.org/onlinepubs/009629799/chap11.htm
 
 (in-package :nsm)
-
-(defparameter *nsm-port* nil)
 
 (sunrpc:def-rpc-program (NSM 100024 :port *nsm-port*)
   (
@@ -67,7 +65,6 @@
 (defvar *nsm-our-name* nil)
 
 (defparameter *nsm-state-file* "sys:nsm-state")
-(defparameter *nsm-debug* nil)
 (defparameter *nsm-callback-retry-interval* 10) ;; seconds
 (defparameter *nsm-notify-retry-interval* 10) ;; seconds
 (defparameter *nsm-gate* (mp:make-gate nil))
@@ -404,4 +401,4 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
     (sleep *nsm-notify-retry-interval*)))
 
 (eval-when (compile load eval)
-  (export '(*nsm-gate* *nsm-debug* *nsm-port* NSM)))
+  (export '(*nsm-gate* NSM)))

@@ -68,11 +68,26 @@ idea, so something like
 ** Performance
 *******************************************************************************
 
-`hammernfs' is used to test NFS performance.  Using the `nfstestfile'
-from the previous test, you can do
+Overview:
+  `hammernfs' is used to test NFS performance.  Using the `nfstestfile'
+  from the above, you can do
 
-    $ ./hammernfs localhost:/nfs.test/nfstestfile
+      $ ./hammernfs localhost:/nfs.test/nfstestfile
 
-The script performance.sh runs hammernfs in many different
-combinations of block size, NFS protocol version (2, 3) and transport
-layer (tcp, udp).
+  The script test/performance.sh runs hammernfs in many different
+  combinations of block size, NFS protocol version (2, 3) and transport
+  layer (tcp, udp).
+
+Setup:
+   - make a directory, say e:/nfs.test, and put a copy of some large
+     file there and call it `nfstestfile'
+   - NFS share e:/nfs.test as `nfs.test'
+
+First time:
+  $ test/performance.sh test/performance.log.5.1.baseline
+Second (and later) time:
+  $ test/performance.sh test/performance.log.5.1
+To see the results, run:
+  $ /c/acl90/mlisp -L test/performance.cl
+Make sure what files are in use in the call to `doit' at the end of
+the test/performance.cl script.

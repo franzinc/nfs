@@ -1,9 +1,10 @@
-;; -*- lisp-version: "9.0 [Windows] (Mar 11, 2013 12:56)"; cg: "9.0"; -*-
+;; -*- lisp-version: "9.0 [Windows] (Dec 2, 2013 16:01)"; cg: "9.0"; -*-
 
 (in-package :cg-user)
 
 (define-project :name :configure
-  :modules (list (make-instance 'module :name "../xdr")
+  :modules (list (make-instance 'module :name "../config-defs")
+  	   	 (make-instance 'module :name "../xdr")
                  (make-instance 'module :name "../sunrpc-common")
                  (make-instance 'module :name "../portmap-common")
                  (make-instance 'module :name "../mount-common")
@@ -24,7 +25,7 @@
   :projects nil
   :libraries nil
   :editable-files nil
-  :distributed-files (list "configuration.txt")
+  :distributed-files (list "../doc/configuration.txt")
   :internally-loaded-files nil
   :project-package-name :common-graphics-user
   :main-form 'configform

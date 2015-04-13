@@ -1,6 +1,8 @@
-#! /fi/cl/9.0/bin/mlisp -#!
 
 (in-package :user)
+
+(eval-when (compile eval load)
+  (require :osi))
 
 (defstruct datum
   export-name
@@ -24,6 +26,7 @@
 	    res))))
 
 (defun calc-avg-rate (group)
+  (assert group)
   ;; group is a list of datum's and we return the avg rate, ignoring the
   ;; high and low rate
   (flet ((remove-high-and-low (group)
@@ -31,9 +34,14 @@
 	   (setq group (sort (copy-list group) #'< :key #'datum-rate))
 	   (setq group (cdr group))
 	   (nbutlast group 1)))
-    (/ (reduce #'+ (mapcar #'datum-rate (remove-high-and-low group)))
-       ;; length - 2 (for the 2 items removed)
-       (- (length group) 2))))
+    (let ((len (length group))
+	  (group group))
+      (when (> (length group) 3)
+	(setq group (remove-high-and-low group))
+	;; length - 2 (for the 2 items removed)
+	(decf len 2))
+      (/ (reduce #'+ (mapcar #'datum-rate group))
+	 len))))
 
 (defun doit (ref new)
   (flet ((%change (ref new)
@@ -61,8 +69,8 @@
 	  (ref-group #1=(car ref-groups) #1#)
 	  (new-group #2=(car new-groups) #2#)
 	
-	  (ref-rate #3=(calc-avg-rate ref-group) #3#)
-	  (new-rate #4=(calc-avg-rate new-group) #4#))
+	  (ref-rate #3=(and ref-group (calc-avg-rate ref-group)) #3#)
+	  (new-rate #4=(and new-group (calc-avg-rate new-group)) #4#))
 	((null ref-groups)
 	 (when (not (null new-groups))
 	   (error "new-groups longer than ref-groups: ~s." new-groups)))
@@ -75,6 +83,17 @@
 	      new-rate
 	      (%change ref-rate new-rate)))))
 
-(doit "test/performance.log.5.1"
-      "test/performance.log.5.2.1")
-(exit 0 :quiet t)
+(doit
+ ;; this doesn't change and is committed into the repo
+ "test/performance.log.5.1.baseline"
+ ;; this changes each time performance.sh is run (via command line arg)
+ "test/performance.log.5.1")
+
+#+ignore
+(doit "test/performance.log.5.1.baseline"
+      (format nil "test/performance.log.~a"
+	      (string-trim
+	       '(#\newline)
+	       (excl.osi:command-output "make --silent echo_version"
+					:whole t))))
+#+ignore (exit 0 :quiet t)

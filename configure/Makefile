@@ -34,4 +34,4 @@ configure/configure.exe:
 	$(ALLEGRO) +B +cn -L buildit.cl
 
 clean:
-	rm -fr *.fasl configure *.build-dribble 
+	rm -fr *.fasl configure *.build-dribble *.out

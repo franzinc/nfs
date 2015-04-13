@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -145,7 +145,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		     proc))))
 	  (t
 	   (if *nfs-debug*
-	       (logit-stamp "NFS: ~a: Sending program version mismatch response"
+	       (logit-stamp "NFS: ~a: Sending program version mismatch response~%"
 		      (sunrpc:peer-dotted peer)))
 	   (sunrpc:send-prog-mismatch-reply peer xid sunrpc:*nullverf* 2 3)
 	   (return-from nfsd-message-handler)))))))
@@ -178,10 +178,14 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	 (handler-bind 
 	     ((illegal-filename-error 
 	       (lambda (,c)
-		 (declare (ignore ,c))
 		 (setf (xdr:xdr-pos ,xdr) ,savepossym)
 		 (when debug-this-procedure (logit "Illegal filename~%"))
-		 (xdr-int ,xdr #.*nfserr-acces*) ;; rfc1813 says to use this
+		 (ecase (mode ,c)
+		   (:lookup 
+		    ;; Filename is illegal so it will definitely not exist
+		    (xdr-int ,xdr #.*nfserr-noent*))
+		   (:create
+		    (xdr-int ,xdr #.*nfserr-acces*))) ;; rfc1813 says to use this
 		 (if (= ,vers 3)
 		     (nfs-xdr-wcc-data ,xdr nil nil))
 		 (go ,out)))
@@ -887,9 +891,8 @@ struct entry {
 ;; returns number of bytes added to xdr
 (defun make-direntry-xdr (xdr dirfh filename cookie vers plus)
   (let* ((fh (lookup-fh-in-dir dirfh filename 
-			       :create t
 			       :allow-dotnames t))
-	 (fileid (fh-id fh))
+	 (fileid (fh-file-id fh))
 	 inner-bytes-added)
     (when (and (nfs-debug-filter-on readdir) (eq *nfs-debug* :verbose))
       (logit "~D: ~A fileid=~A next=~A" 
@@ -911,12 +914,14 @@ struct entry {
 	 (nfs-xdr-post-op-fh xdr fh)))
      inner-bytes-added)))
 
-;; Errors out if file doesn't exist or something.. otherwise,
-;; returns file handle.
+;; Like lookup-fh-in-dir but returns nil if no such file or directory.
 (defun nfs-probe-file (dirfh filename &key allow-dotnames)
-  (with-potential-fhandle (fh dirfh filename :allow-dotnames allow-dotnames)
-    (lookup-attr fh)
-    fh))
+  (handler-bind 
+      ((syscall-error 
+	(lambda (e)
+	  (when (eq (syscall-error-errno e) *enoent*)
+	    (return-from nfs-probe-file nil)))))
+    (lookup-fh-in-dir dirfh filename :allow-dotnames allow-dotnames)))
 
 ;; v3 allowable errors: 
 ;;       NFS3ERR_IO
@@ -934,7 +939,7 @@ struct entry {
 (define-nfs-proc lookup ((dirfh fhandle) (filename filename))
   (with-dirfh (dirfh)
     (with-permission (dirfh :read)
-      (let ((fh (nfs-probe-file dirfh filename :allow-dotnames t)))
+      (let ((fh (lookup-fh-in-dir dirfh filename :allow-dotnames t)))
 	(xdr-int *nfsdxdr* #.*nfs-ok*)
 	(xdr-fhandle *nfsdxdr* vers fh)
 	(ecase vers
@@ -975,7 +980,9 @@ struct entry {
       (check *access3-extend*)
       (check *access3-delete*)
       (check *access3-execute*))
-    (list-to-delimited-string (nreverse res) #\|)))
+    (if* res
+       then (list-to-delimited-string (nreverse res) #\|)
+       else "NONE")))
 
 (define-nfs-proc access ((fh fhandle) (access access-mask))
   (xdr-int *nfsdxdr* #.*nfs-ok*)
@@ -1046,54 +1053,57 @@ struct entry {
 
 (define-nfs-proc create ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
-    (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
-	   (newpath (fh-pathname fh)))
-      ;; Create the file is necessary 
+    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
+      ;; Create the file if necessary 
       (close (unicode-open newpath :direction :output :if-exists :overwrite))
       (update-atime-and-mtime dirfh)
       (nfs-add-file-to-dir filename dirfh)
       
-      (set-file-attributes fh sattr)
-      
-      (xdr-int *nfsdxdr* #.*nfs-ok*)
-      (xdr-fhandle *nfsdxdr* 2 fh)
-      (nfs-xdr-fattr *nfsdxdr* fh 2))))
+      (let ((fh (lookup-fh-in-dir dirfh filename)))
+	(set-file-attributes fh sattr)
+	
+	(xdr-int *nfsdxdr* #.*nfs-ok*)
+	(xdr-fhandle *nfsdxdr* 2 fh)
+	(nfs-xdr-fattr *nfsdxdr* fh 2)))))
 
 (define-nfs-proc create3 ((dirfh fhandle) 
 			  (filename filename) 
 			  (how createhow3))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
-	   (fh (lookup-fh-in-dir dirfh filename :create t))
-	   (newpath (fh-pathname fh))
+	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create))
+	   ;; attributes only supplied for unchecked or guarded mode.
 	   (sattr (if (sattr-p (second how)) (second how)))
+	   fh
 	   created)
 
-      (ecase (first how)
-	(:unchecked
-	 (close (unicode-open newpath :direction :output
-			      :if-exists :overwrite))
-	 (setf created t))
-	(:guarded
-	 ;; the error handler will handle the *eexist* case.
-	 (close (unicode-open newpath :direction :output :if-exists :error))
-	 (setf created t))
-	(:exclusive
-	 ;; XXX - The verifier information is supposed to be stored in
-	 ;; stable storage but we don't do that because of how 
-	 ;; gross Windows filesystem semantics are with respect to
-	 ;; time resolution.  Instead, we fake it by storing some information
-	 ;; in the file handle.
-	 (let ((verifier (second how)))
-	   (if* (eql verifier (fh-verifier fh))
-	      then ;; Must be a duplicate request.  Report success.
-		   (if debug-this-procedure 
-		       (logit " Duplicate request~%"))
-	      else ;; the error handler will handle the *eexist* case
-		   (close (unicode-open newpath :direction :output :if-exists :error))
-		   (setf (fh-verifier fh) verifier)
-		   (setf created t)))))
-      
+      (flet ((create-the-file (if-exists verifier)
+	       (close (unicode-open newpath :direction :output :if-exists if-exists))
+	       (setf created t)
+	       (setf fh (lookup-fh-in-dir dirfh filename))
+	       (setf (fh-verifier fh) verifier)))
+	     
+	(ecase (first how)
+	  (:unchecked
+	   (create-the-file :overwrite nil))
+	  (:guarded
+	   ;; the error handler will handle the *eexist* case.
+	   (create-the-file :error nil))
+	  (:exclusive
+	   ;; XXX - The verifier information is supposed to be stored in
+	   ;; stable storage but we don't do that because of how 
+	   ;; gross Windows filesystem semantics are with respect to
+	   ;; time resolution.  Instead, we fake it by storing the verifier
+	   ;; in the file handle.
+	   (let ((verifier (second how)))
+	     (setf fh (nfs-probe-file dirfh filename)) ;; nil if file doesn't exist yet
+	     (if* (and fh (eql verifier (fh-verifier fh)))
+		then ;; Must be a duplicate request.  Report success.
+		     (if debug-this-procedure 
+			 (logit " Duplicate request~%"))
+		else ;; the error handler will handle the *eexist* case
+		     (create-the-file :error verifier))))))
+
       (when created
 	(update-atime-and-mtime dirfh)
 	(nfs-add-file-to-dir filename dirfh))
@@ -1132,9 +1142,8 @@ struct entry {
       (with-non-dir-fh (fh :op :link)
 	(with-dirfh (destdirfh :op :link)
 	  (with-same-dir-fh ((fh-parent fh) destdirfh)
-	    (sanity-check-filename destfilename)
 	    (let* ((newpath 
-		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename))
+		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename :create))
 		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
 	      (unicode-link (fh-pathname fh) newpath)
 	      (update-alternate-pathnames fh :add destfilename)
@@ -1156,10 +1165,10 @@ struct entry {
 
 ;; returns status
 (define-nfs-proc remove ((dirfh fhandle) (filename filename))
-  ;; nfs-probe-file will throw an error if file doesn't exist
+  ;; lookup-fh-in-dir will throw an error if file doesn't exist
   (let ((pre-op-attrs (get-pre-op-attrs dirfh))
-	(fh (nfs-probe-file dirfh filename))
-	(path (add-filename-to-dirname (fh-pathname dirfh) filename)))
+	(fh (lookup-fh-in-dir dirfh filename)) 
+	(path (add-filename-to-dirname (fh-pathname dirfh) filename :lookup)))
     (with-permission (dirfh :write)
       (if* (eq (close-open-file fh :check-refcount t) :still-open)
 	 then ;; Unfortunately there is no NFS error code that indicates
@@ -1327,9 +1336,10 @@ struct entry {
 
 ;;; from:  fhandle dir, filename name
 ;;; to:    fhandle dir, filename name
-;; Renames across exports are not allowed.
-;; for NFSv3, we'd return *nfserr-xdev*.  
-;; for NFSv2, we return *nfserr-acces* (ala Linux)
+;; Renames across exports are not allowed. 
+;; If attempted:
+;;  for NFSv3, we return *nfserr-xdev*.  
+;;  for NFSv2, we return *nfserr-acces* (ala Linux)
 
 (define-nfs-proc rename ((fromdirfh fhandle) 
 			 (fromfilename filename)
@@ -1342,25 +1352,24 @@ struct entry {
       ;; but leaving it this way to make it clearer.
       (with-permission (fromdirfh :write)
 	(with-permission (todirfh :write)
-	  ;; nfs-probe-file will throw an error if the file doesn't
+	  ;; lookup-fh-in-dir will throw an error if the file doesn't
 	  ;; exist.
 	  (let* ((pre-op-attrs-from (get-pre-op-attrs fromdirfh))
 		 (pre-op-attrs-to (get-pre-op-attrs todirfh))
-		 (fromfh (nfs-probe-file fromdirfh fromfilename))
+		 (fromfh (lookup-fh-in-dir fromdirfh fromfilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (from (add-filename-to-dirname (fh-pathname fromdirfh)
-						fromfilename))
+						fromfilename :lookup))
 		 ;; See if the destination already exists.
-		 (tofh (lookup-fh-in-dir todirfh tofilename))
+		 (tofh (nfs-probe-file todirfh tofilename))
 		 ;; Use name provided by client (in case of hard link)
 		 (to (add-filename-to-dirname (fh-pathname todirfh)
-					      tofilename)))
+					      tofilename :create)))
 	    (if* (or 
 		  (eq (close-open-file fromfh :check-refcount t) :still-open)
-		  (eq (close-open-file tofh :check-refcount t) :still-open))
+		  (and tofh (eq (close-open-file tofh :check-refcount t) :still-open)))
 	       then (xdr-int *nfsdxdr* #.*nfserr-perm*)
-	       else #+ignore
-		    (format t "~%rename ~a~%" fromfh)
+	       else 
 		    ;; This will auto-delete any existing destination
 		    ;; file.
 		    (my-rename from to :unicode t)
@@ -1392,8 +1401,10 @@ struct entry {
 (define-nfs-proc mkdir ((dirfh fhandle) (filename filename) (sattr sattr))
   (with-permission (dirfh :write)
     (let ((pre-op-attrs (get-pre-op-attrs dirfh))
-	  (fh (lookup-fh-in-dir dirfh filename :create t)))
-      (unicode-mkdir (fh-pathname fh))
+	  (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create))
+	  fh)
+      (unicode-mkdir newpath)
+      (setf fh (lookup-fh-in-dir dirfh filename))
       (nfs-add-file-to-dir filename dirfh)
       (update-atime-and-mtime dirfh)
       (if debug-this-procedure
@@ -1412,9 +1423,9 @@ struct entry {
 (define-nfs-proc rmdir ((dirfh fhandle) (filename filename))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
-	   (fh (lookup-fh-in-dir dirfh filename :create t))
+	   (fh (lookup-fh-in-dir dirfh filename))
 	   (path (fh-pathname fh)))
-      ;; rmdir system cal doesn't return a decent error if the object
+      ;; rmdir system call doesn't return a decent error if the object
       ;; is not a directory (it returns "invalid argument", so check
       ;; here first.
       (if* (zerop (logand (unicode-stat path) excl::*s-ifdir*))
@@ -1458,8 +1469,7 @@ struct entry {
 			  (symlink filename)
 			  (sattr sattr))
   (with-permission (dirfh :write)
-    (let* ((fh (lookup-fh-in-dir dirfh filename :create t))
-	   (newpath (fh-pathname fh)))
+    (let ((newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
       (unicode-symlink symlink newpath)
       (update-atime-and-mtime dirfh)
       (nfs-add-file-to-dir filename dirfh)
@@ -1473,17 +1483,17 @@ struct entry {
 			   (symlink filename))
   (with-permission (dirfh :write)
     (let* ((pre-op-attrs (get-pre-op-attrs dirfh))
-	   (fh (lookup-fh-in-dir dirfh filename :create t))
-	   (newpath (fh-pathname fh)))
+	   (newpath (add-filename-to-dirname (fh-pathname dirfh) filename :create)))
       (unicode-symlink symlink newpath)
       (update-atime-and-mtime dirfh)
       (nfs-add-file-to-dir filename dirfh)
       (if debug-this-procedure
 	  (logit " ==> OK"))
-      (xdr-int *nfsdxdr* #.*nfs-ok*)
-      (nfs-xdr-post-op-fh *nfsdxdr* fh)
-      (nfs-xdr-post-op-attr *nfsdxdr* fh)
-      (nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh))))
+      (let ((fh (lookup-fh-in-dir dirfh filename)))
+	(xdr-int *nfsdxdr* #.*nfs-ok*)
+	(nfs-xdr-post-op-fh *nfsdxdr* fh)
+	(nfs-xdr-post-op-attr *nfsdxdr* fh)
+	(nfs-xdr-wcc-data *nfsdxdr* pre-op-attrs dirfh)))))
 
 ;;; Unsupported section
 
@@ -1495,27 +1505,44 @@ struct entry {
 
 (defun nfs-okay-to-write (fh cred)
   (declare (optimize speed (safety 0) (debug 0)))
-  (let ((exp (fh-export fh)))
-    (case (sunrpc:opaque-auth-flavor cred)
-      (#.sunrpc:*auth-unix* 
-       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-	 (export-user-write-access-allowed-p 
-	  exp
-	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
-      (#.sunrpc:*auth-null*
-       (export-user-write-access-allowed-p exp nil)))))
+  (and 
+   ;; Check export permissions
+   (let ((exp (fh-export fh)))
+     (case (sunrpc:opaque-auth-flavor cred)
+       (#.sunrpc:*auth-unix* 
+	(xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	  (export-user-write-access-allowed-p 
+	   exp
+	   (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+       (#.sunrpc:*auth-null*
+	(export-user-write-access-allowed-p exp nil))))
+   ;; Check mode bits.  Note that we're not considering
+   ;; nfs-export-umask and nfs-export-set-mode-bits here.  Those are hacks
+   ;; to provide a virtual reality to NFS clients.  We must consider actual reality here.
+   (let* ((attr (lookup-attr fh))
+	  (mode (nfs-attr-mode attr)))
+     (logtest mode #o0200))))
+
   
 (defun nfs-okay-to-read (fh cred)
   (declare (optimize speed (safety 0) (debug 0)))
-  (let ((exp (fh-export fh)))
-    (case (sunrpc:opaque-auth-flavor cred)
-      (#.sunrpc:*auth-unix* 
-       (xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
-	 (export-user-read-access-allowed-p 
-	  exp
-	  (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
-      (#.sunrpc:*auth-null*
-       (export-user-read-access-allowed-p exp nil)))))
+  (and
+   ;; Check export permissions
+   (let ((exp (fh-export fh)))
+     (case (sunrpc:opaque-auth-flavor cred)
+       (#.sunrpc:*auth-unix* 
+	(xdr:with-opaque-xdr (xdr (sunrpc:opaque-auth-body cred))
+	  (export-user-read-access-allowed-p 
+	   exp
+	   (sunrpc:auth-unix-uid (sunrpc:xdr-auth-unix xdr)))))
+       (#.sunrpc:*auth-null*
+	(export-user-read-access-allowed-p exp nil))))
+   ;; Check mode bits.  Note that we're not considering
+   ;; nfs-export-umask and nfs-export-set-mode-bits here.  Those are hacks
+   ;; to provide a virtual reality to NFS clients.  We must consider actual reality here.
+   (let* ((attr (lookup-attr fh))
+	  (mode (nfs-attr-mode attr)))
+     (logtest mode #o0400))))
 
 ;;; configuration program interface
 

@@ -10,7 +10,7 @@ make hammernfs$exe
 
 hammernfs="./hammernfs$exe"
 # The log file is lisp readable
-logfile="${1-test/performance.log}"
+logfile="${1-}"
 # Use localhost here, to maximize consistency.  It seems to help
 # a little.
 nfstestpath="127.0.0.1:/nfs.test/nfstestfile"
@@ -20,21 +20,29 @@ nfstestpath="127.0.0.1:/nfs.test/nfstestfile"
 iterations=5
 duration=60
 
-echo Logging to: $logfile
+[ "$logfile" ] && echo Logging to: $logfile
 
 host=$(hostname)
 
 function logit {
-    echo "$@" >> $logfile
+    if [ "$logfile" ]; then
+	echo "$@" >> $logfile
+    else
+	echo "$@"
+    fi
 }
 
-cp /dev/null $logfile
+[ "$logfile" ] && cp /dev/null $logfile
 logit ';;;' performance tests, $host - $(date)
 
 function hammertime {
     logit ';;' $hammernfs "$@"
     echo $hammernfs "$@"
-    $hammernfs "$@" >> $logfile
+    if [ "$logfile" ]; then
+	$hammernfs "$@" >> $logfile
+    else
+	$hammernfs "$@"
+    fi
 }
 
 for ver in 2 3; do
@@ -51,4 +59,4 @@ for ver in 2 3; do
 done
 
 # So we can commit
-cvt -f -d $logfile
+[ "$logfile" ] && cvt -f -d $logfile

@@ -2,11 +2,10 @@
 # NFS makefile (requires Cygwin and GNU make)
 #
 # Rules of note:
-#  make all release_suffix=rc2
-#     builds release candidate 2 of current version
-#  make clean dist LISPDIR=/c/acl90
-#     builds a Windows-installable version for testing, using c:\acl90
-#     as the installed lisp.
+# - make release candidate 2:
+#   $ make all release_suffix=rc2
+# - make demo and non-demo versions:
+#   $ make clean dist dist-demo LISPDIR=/c/acl90.patched
 
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
@@ -16,9 +15,10 @@ endif
 
 LISPDIR ?= /c/acl90.patched
 LISPEXE = $(LISPDIR)/mlisp
-MAKENSIS ?= "/c/Program Files (x86)/NSIS/makensis.exe"
+MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
+major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
 
 default: build
 
@@ -26,12 +26,18 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-MODULES = .:nfs52 date:acl90 demoware:master
+MODULES = date:acl90 demoware:master
 
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
 
-tag_name = nfs$(version)$(release_suffix)
+
+tag_name = nfs$(major-version)$(release_suffix)
+
+commit-id.cl: FORCE
+	echo -n '(defvar *nfsd-commit-id* "' > commit-id.cl
+	echo -n `git log -n1 --pretty=format:%H HEAD` >> commit-id.cl
+	echo -n '")' >> commit-id.cl
 
 tag: FORCE
 ifndef release_suffix
@@ -53,7 +59,7 @@ check_cpp: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
-do_build: prereqs rpc FORCE
+do_build: prereqs rpc commit-id.cl FORCE
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp build.out
 	echo '(dribble "build.out")' >> b.tmp
@@ -61,7 +67,7 @@ do_build: prereqs rpc FORCE
 ifdef DEMOWARE
 	echo '(push :nfs-demo *features*)' >> b.tmp
 endif
-	echo '(load "loadem.cl")' >> b.tmp
+	echo '(load "load.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
@@ -109,6 +115,10 @@ dists: clean
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
+	@if grep -q '^(pushnew :nfs-' load.cl; then \
+	    echo ERROR: debugging features enabled for production build; \
+	    exit 1; \
+	fi
 	$(MAKE) $(MFLAGS) dist
 	$(MAKE) $(MFLAGS) dist-demo
 	$(MAKE) $(MFLAGS) tag
@@ -135,11 +145,11 @@ hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
 	  test/hammernfs-libs/mount_clnt.c \
 	  test/hammernfs-libs/nfs_clnt.c \
 	  test/hammernfs-libs/nfs_xdr.c \
-	  test/hammernfs-libs/compat.c \
 	  $(shell uname | grep -q CYGWIN && echo -ltirpc)
 
 perftest: FORCE
 	test/performance.sh test/performance.log.$(version)
+	$(LISPEXE) -L test/performance.cl
 
 testnfs: test/testnfs.c
 	cc -O -o testnfs test/testnfs.c
@@ -147,10 +157,16 @@ testnfs: test/testnfs.c
 ###############################################################################
 # misc
 
+echo_version: FORCE
+	@echo $(version)
+
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 	rm -f gen-nfs-*.cl mount-*.cl sunrpc-common.cl nlm-*.cl nsm-*.cl 
-	rm -f portmap-*.cl
+	rm -f portmap-*.cl hammernfs
 	$(MAKE) -C configure clean
+
+tags: FORCE
+	find . -name "*.[ch]" | xargs etags
 
 FORCE:

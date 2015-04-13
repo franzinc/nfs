@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -30,36 +30,45 @@
   (use-package :xdr)
   (declaim (optimize (speed 3))))
 
-(eval-when (compile load eval)
-;; Far too large for our needs.
-(defconstant *fhsize2* 32)
-(defconstant *fhsizewords2* (/ *fhsize2* 4))
-;; NFSv3 allows for a variable length file handle of up to 64 bytes.
-;; We only use as much as needed to hold a fixnum (rounded to a 4 byte
-;; boundary)
-(defconstant *fhsize3* 
-    (/ (floor (roundup (log (1+ most-positive-fixnum) 2) 32)) 8))
-(defconstant *fhsizewords3* (/ *fhsize3* 4))
-)
-
-;; Maps file handle ids to file handles
-(defparameter *fhandles* (make-hash-table))
+;; Maps file handle vecs to fh structs
+(defparameter *fhandles* (make-hash-table :test #'equalp))
 ;; Maps export paths to fhandles
 (defparameter *export-roots* (make-hash-table :test #'equalp))
+;; Tracks used non-persistent file ids
+(defparameter *fake-ids* (make-hash-table :values nil))
 
 (defstruct fh
   pathname
-  id
+  (vec (make-ausb8 *nfs-fhsize* :initial-element 0))
   (refs 0 :type fixnum)
+  file-id ;; like inode number
   export
   parent ;; nil if root
   children ;; hash of basenames of directory children. values are fh's
   verifier ;; used by create call w/ exclusive mode.
   alternate-pathnames) ;; for files with known hard links
 
+(defconstant *fhandle-type-non-persistent* 0)
+(defconstant *fhandle-type-persistent*     1)
+
+(defmacro fh-vec-type (vec)
+  `(aref (the ausb8 ,vec) 0))
+
+(excl::defsubst fh-vec-non-persistent-p (vec)  
+  (declare (optimize speed (safety 0)))
+  (= (fh-vec-type vec) *fhandle-type-non-persistent*))
+
+(excl::defsubst fh-vec-persistent-p (vec)  
+  (declare (optimize speed (safety 0)))
+  (= (fh-vec-type vec) *fhandle-type-persistent*))
+
+(excl::defsubst fh-persistent-p (fh)
+  (declare (optimize speed (safety 0)))
+  (fh-vec-persistent-p (fh-vec fh)))
+
 (defmethod print-object ((fh fh) stream)
-  (format stream "#<fh ~d=~a~a~a>" 
-	  (fh-id fh) 
+  (format stream "#<fh [~a] ~a~a~a>" 
+	  (if (fh-persistent-p fh) "P" "N")
 	  (fh-pathname fh)
 	  (if (fh-alternate-pathnames fh)
 	      (format nil " (aka ~s)" (fh-alternate-pathnames fh))
@@ -74,40 +83,111 @@
 			res))
 	    "")))
 
-(defun add-filename-to-dirname (dir filename)
+(define-condition illegal-filename-error (file-error) 
+  (
+   (mode :initarg :mode :accessor mode) ;; :lookup or :create
+   ))
+
+;; Ref: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#naming_conventions
+(excl::defsubst illegal-character-in-filename-p (filename)
+  (declare (simple-string filename))
+  (dotimes (n (length filename))
+    (let* ((char (schar filename n))
+	   (code (char-code char)))
+      (when (or (< code 32)
+		(case char
+		  ((#\< #\> #\: #\" #\/ #\\ #\| #\? #\*)
+		   t)))
+	(return t)))))
+  
+(define-compiler-macro sanity-check-filename (filename mode &key allow-dotnames)
+  `(sanity-check-filename-1 ,filename ,mode ,allow-dotnames))
+
+(defun sanity-check-filename-1 (filename mode allow-dotnames)
+  (if (or 
+       ;; check 1
+       (illegal-character-in-filename-p filename)
+       ;; check 2
+       (and (or (string= filename ".") (string= filename ".."))
+	    (not allow-dotnames)) )
+      (error 'illegal-filename-error 
+	     :mode mode
+	     :format-control "Illegal filename: ~S" 
+	     :format-arguments (list filename))))
+
+(defun add-filename-to-dirname (dir filename mode &key allow-dotnames)
+  (declare (optimize speed (safety 0))
+	   (simple-string dir filename))
+
+  (sanity-check-filename filename mode :allow-dotnames allow-dotnames)
+  
   (if (char= (schar dir (1- (length dir))) #\\)
       (concatenate 'string dir filename)
     (concatenate 'string dir "\\" filename)))
 
-;; File handle ids are chosen randomly to prevent
-;; the search from taking linearly-increasing time.
-;; caller should use without-interrupts.  Callers are 
-;; all contained within this file.
-(defun make-fhandle (dirfh filename &key root-export)
-  (let ((id (random #.most-positive-fixnum)))
-    (while (gethash id *fhandles*)
-      (setf id (random #.most-positive-fixnum)))
+(defparameter *fhandles-lock* (mp:make-process-lock :name "*fhandles-lock*"))
 
-    ;; special case for root of exports
-    (if* root-export
-       then
-	    (make-fh :pathname filename
-		     :id id
-		     :export root-export)
-       else
-	    (make-fh :pathname (add-filename-to-dirname (fh-pathname dirfh)
-							filename)
-		     :id id
-		     :export (fh-export dirfh)
-		     :parent dirfh))))
+(defmacro with-fhandles-lock (() &body body)
+  `(mp:with-process-lock (*fhandles-lock*)
+     ,@body))
+
+;; Non-persistent file handle ids are chosen randomly to prevent the
+;; search from taking linearly-increasing time.  Callers must be
+;; holding *fhandles-lock*.  All callers of this function are
+;; contained within this file.
+(defun select-non-persistent-file-id ()
+  (declare (optimize speed))
+  (let (id)
+    (loop
+      (setf id (random most-positive-fixnum))
+      (when (null (gethash id *fake-ids*))
+	;; Claim it
+	(puthash-key id *fake-ids*)
+	;; Return it
+	(return id)))))
+
+(defun populate-non-persistent-fhandle (fh)
+  (declare (optimize speed (safety 0)))
+  (let ((vec (fh-vec fh))
+	(id (select-non-persistent-file-id)))
+    (setf (fh-vec-type vec) *fhandle-type-non-persistent*)
+    (set-sb32-in-vec id vec 4)
+    (setf (fh-file-id fh) id)))
+
+(defun populate-persistent-fhandle (fh)
+  "Returns NIL if a persistent file handle could not be created for FILENAME"
+  (let* ((vec (fh-vec fh))
+	 (pathname (fh-pathname fh))
+	 (id (put-file-id-into-vec pathname vec 4)))
+    (when id
+      (setf (fh-vec-type vec) *fhandle-type-persistent*)
+      (setf (fh-file-id fh) id))))
+
+(defun make-fhandle (dirfh filename mode &key root-export)
+  "FILENAME is a basename"
+  (let* ((fh 
+	  ;; special case for root of exports
+	  (if* root-export
+	     then
+		  (make-fh :pathname filename
+			   :export root-export)
+	     else
+		  (make-fh :pathname (add-filename-to-dirname (fh-pathname dirfh) filename mode)
+			   :export (fh-export dirfh)
+			   :parent dirfh))))
+    
+    (or (populate-persistent-fhandle fh)
+	(populate-non-persistent-fhandle fh))
+    
+    fh))
 
 ;; Used by mountd
 ;; 'tail' is guaranteed to have no leading or trailing slash
 (defun get-fhandle-for-path (tail exp)
   (let ((dirfh (get-export-fhandle exp)))
     (when (string/= tail "")
-      (dolist (comp (delimited-string-to-list tail #\/))
-	(let ((fh (ignore-errors (nfs-probe-file dirfh comp))))
+      (dolist (comp (split-re "[\\\\/]" tail))
+	(let ((fh (nfs-probe-file dirfh comp)))
 	  (if* (null fh)
 	     then (return-from get-fhandle-for-path nil))
 	  (setf dirfh fh))))
@@ -120,24 +200,9 @@
     (if* fh
        then fh
        else ;; first use.
-	    (setf fh (make-fhandle nil path :root-export exp))
-	    (setf (gethash (fh-id fh) *fhandles*) fh)
+	    (setf fh (make-fhandle nil path :lookup :root-export exp))
+	    (setf (gethash (fh-vec fh) *fhandles*) fh)
 	    (setf (gethash path *export-roots*) fh))))
-
-(define-condition illegal-filename-error (file-error) ())
-
-(defun sanity-check-filename (filename &key allow-dotnames)
-  (if (or 
-       ;; check 1
-       (or (position #\\ filename)
-	   (position #\/ filename)
-	   (position #\: filename))
-       ;; check 2
-       (and (or (string= filename ".") (string= filename ".."))
-	    (not allow-dotnames)) )
-      (error 'illegal-filename-error 
-	     :format-control "Illegal filename: ~S" 
-	     :format-arguments (list filename))))
 
 (defun link-fh-in-dir (fh dirfh filename)
   (declare (optimize (speed 3) (safety 0)))
@@ -147,7 +212,7 @@
 ;; Put a fhandle into the hash.. and make sure the 
 ;; parent has a child entry.
 (defun insert-fhandle (fh filename)
-  (setf (gethash (fh-id fh) *fhandles*) fh)
+  (setf (gethash (fh-vec fh) *fhandles*) fh)
   (let ((parent (fh-parent fh)))
     (if (null parent)
 	(error "insert-fhandle: ~S has no parent" fh))
@@ -155,12 +220,15 @@
     (if (not (fh-children parent))
 	(setf (fh-children parent) (make-hash-table :test #'equalp)))
     (link-fh-in-dir fh parent filename)))
-      
-(defun lookup-fh-in-dir (dirfh filename &key create allow-dotnames)
+
+(define-compiler-macro lookup-fh-in-dir (dirfh filename &key allow-dotnames)
+  `(lookup-fh-in-dir-1 ,dirfh ,filename ,allow-dotnames))
+
+(defun lookup-fh-in-dir-1 (dirfh filename allow-dotnames)
   (block nil
-    (without-interrupts 
+    (with-fhandles-lock () 
       ;; will error out if filename is not acceptable.
-      (sanity-check-filename filename :allow-dotnames allow-dotnames)
+      (sanity-check-filename filename :lookup :allow-dotnames allow-dotnames)
       ;; special cases:
       ;;  . is the same as dirfh 
       ;;  .. is the parent of dirfh
@@ -171,7 +239,7 @@
       (if (string= filename "..")
 	  (return (or (fh-parent dirfh) dirfh)))
       
-      ;; See if an entry exists.
+      ;; Check cache
       (when (fh-children dirfh)
 	(let ((fh (gethash filename (fh-children dirfh))))
 	  (when fh
@@ -180,28 +248,47 @@
 		    dirfh filename fh)
 	    (return fh))))
       
-      ;; no hash table or no entry
-      (when (not create)
-	#+ignore
-	(format t "lookup-fh-in-dir(~a,~a) returning nil~%"
-		dirfh filename)
-	(return nil))
-      
-      ;; Create a fresh entry
+      ;; No hit.  Make an entry.
+      ;; make-fhandle will throw an error if something goes wrong (such
+      ;; as the file not existing).
+
       #+ignore
       (format t "lookup-fh-in-dir(~a,~a) making new fh.~%"
 	      dirfh filename)
-      (insert-fhandle (make-fhandle dirfh filename) filename))))
+      
+      (insert-fhandle (make-fhandle dirfh filename :lookup) filename))))
+
+;; Called by:
+;; remove-fhandle, rename-fhandle, nfsd-link
+(defun update-alternate-pathnames (fh op altname)
+  (ecase op
+    (:add 
+     (push altname (fh-alternate-pathnames fh)))
+    (:remove
+     (if* (equalp (fh-pathname fh) (add-filename-to-dirname (fh-pathname (fh-parent fh)) altname :lookup))
+	then (let ((nextup (pop (fh-alternate-pathnames fh))))
+	       (when nextup
+		 (setf (fh-pathname fh) 
+		   (add-filename-to-dirname (fh-pathname (fh-parent fh))
+					    nextup :lookup))))
+	else (setf (fh-alternate-pathnames fh)
+	       (delete altname (fh-alternate-pathnames fh) :test #'equalp))
+	     t))))
+
+(defun remove-fhandle-from-hash (fh)
+  (let ((vec (fh-vec fh)))
+    (remhash vec *fhandles*)
+    (when (fh-vec-non-persistent-p vec)
+      (remhash (get-sb32-in-vec vec 4) *fake-ids*))))
 
 ;; To be used with file deletion (or deletion as a side effect
 ;; of renaming onto an existing file).
-;; Called by: nfsd-rename, nfsd-remove, nfsd-rmdir, nfs-probe-file,
-;; with-potential-fhandle
+;; Called by: nfsd-rename, nfsd-remove, nfsd-rmdir
 (defun remove-fhandle (fh filename)
-  (declare (optimize (speed 3)))
-  (without-interrupts
-    (if (zerop (setf (fh-refs fh) (the fixnum (1- (fh-refs fh)))))
-	(remhash (fh-id fh) *fhandles*))
+  (declare (optimize (speed 3) (safety 0)))
+  (with-fhandles-lock ()
+    (if (zerop (decf (fh-refs fh)))
+	(remove-fhandle-from-hash fh))
     
     (update-alternate-pathnames fh :remove filename)
     
@@ -211,22 +298,27 @@
 	  (error "remove-fhandle: ~S has no parent" fh))
       (remhash filename (fh-children parent)))))
 
-;; Called by:
-;; remove-fhandle, rename-fhandle, nfsd-link
-(defun update-alternate-pathnames (fh op altname)
-  (ecase op
-    (:add 
-     (push altname (fh-alternate-pathnames fh)))
-    (:remove
-     (if* (equalp (fh-pathname fh) (add-filename-to-dirname (fh-pathname (fh-parent fh)) altname))
-	then (let ((nextup (pop (fh-alternate-pathnames fh))))
-	       (when nextup
-		 (setf (fh-pathname fh) 
-		   (add-filename-to-dirname (fh-pathname (fh-parent fh))
-					    nextup))))
-	else (setf (fh-alternate-pathnames fh)
-	       (delete altname (fh-alternate-pathnames fh) :test #'equalp))
-	     t))))
+;; parentname is the updated directory name.
+;; yourname is the new basename
+(defun update-fhandle-pathname (fh parentname yourname oldpath oldbasename)
+  (let ((newname (add-filename-to-dirname parentname yourname :create)))
+    (if* (equalp (fh-pathname fh) oldpath)
+       then ;; We're changing the primary name.
+	    (setf (fh-pathname fh) newname)
+       else ;; Update one of the alternate names.
+	    (setf (fh-alternate-pathnames fh)
+	      (nsubstitute yourname oldbasename (fh-alternate-pathnames fh)
+			   :count 1 :test #'string=)))
+
+    (if (fh-children fh)
+	(maphash 
+	 #'(lambda (childname childfh)
+	     (update-fhandle-pathname 
+	      childfh newname childname
+	      (add-filename-to-dirname oldpath childname :lookup)
+	      childname))
+	 (fh-children fh)))))
+
 
 ;; Caller is expected to remove any existing todir/tofilename
 ;; beforehand.  This function updates the pathname slot of the fhandle
@@ -236,14 +328,14 @@
   #+ignore
   (format t "rename-fhandle(~a, ~a, ~a, ~a)~%" 
 	  fh fromfilename todir tofilename)
-  (without-interrupts
+  (with-fhandles-lock ()
     (let ((oldparent (fh-parent fh))
 	  oldpath)
       (if (null oldparent)
 	  (error "rename-fhandle: ~S has no parent" fh))
       
       (setf oldpath 
-	(add-filename-to-dirname (fh-pathname oldparent) fromfilename))
+	(add-filename-to-dirname (fh-pathname oldparent) fromfilename :lookup))
       
       ;; Remove from current parent
       (remhash fromfilename (fh-children oldparent))
@@ -261,34 +353,13 @@
 			       fromfilename))))
 			       
   
-;; parentname is the updated directory name.
-;; yourname is the new basename
-(defun update-fhandle-pathname (fh parentname yourname oldpath oldbasename)
-  (let ((newname (add-filename-to-dirname parentname yourname)))
-    (if* (equalp (fh-pathname fh) oldpath)
-       then ;; We're changing the primary name.
-	    (setf (fh-pathname fh) newname)
-       else ;; Update one of the alternate names.
-	    (setf (fh-alternate-pathnames fh)
-	      (nsubstitute yourname oldbasename (fh-alternate-pathnames fh)
-			   :count 1 :test #'string=)))
-
-    (if (fh-children fh)
-	(maphash 
-	 #'(lambda (childname childfh)
-	     (update-fhandle-pathname 
-	      childfh newname childname
-	      (add-filename-to-dirname oldpath childname)
-	      childname))
-	 (fh-children fh)))))
-
 ;; debugging
 
-#+ignore
 (defun dump-fhandles ()
   (maphash 
-   #'(lambda (id fh)
-       (format t "~a (#x~x)-> ~a" id id (fh-pathname fh))
+   #'(lambda (vec fh)
+       (declare (ignore vec))
+       (format t "~a" fh)
        (if (fh-alternate-pathnames fh)
 	   (format t " AKA: ~a" (fh-alternate-pathnames fh)))
        (terpri))
@@ -367,27 +438,8 @@
 	(dump-fhandles)))))
       
 
-;; If body runs to completion, the filehandle will be saved,
-;; otherwise, it will be removed.
-(defmacro with-potential-fhandle ((fhvar dirfh filename &key allow-dotnames) 
-				  &body body)
-  (let ((successvar (gensym))
-	(dirfhvar (gensym))
-	(filenamevar (gensym))
-	(allow-dotnamesvar (gensym)))
-    `(let* ((,dirfhvar ,dirfh)
-	    (,filenamevar ,filename)
-	    (,allow-dotnamesvar ,allow-dotnames)
-	    (,fhvar (lookup-fh-in-dir ,dirfhvar ,filenamevar :create t 
-				      :allow-dotnames ,allow-dotnamesvar))
-	    (,successvar nil))
-       (unwind-protect 
-	   (multiple-value-prog1 (progn ,@body) (setf ,successvar t))
-	 (when (not ,successvar)
-	   (remove-fhandle ,fhvar ,filenamevar))))))
-
 (defun invalidate-fhandles (fh)
-  (remhash (fh-id fh) *fhandles*)
+  (remove-fhandle-from-hash fh)
   (let ((children (fh-children fh)))
     (when children
       (maphash #'(lambda (key value) 
@@ -401,7 +453,71 @@
     (invalidate-fhandles fh)
     (remhash (nfs-export-path exp) *export-roots*)))
 
+;; FIXME: add a sanity check to verify that the supplied fh vec
+;; matches a freshly constructed one.
+(defun recover-persistent-fh (vec)
+  (logit-stamp  "uncached persistent file handle seen.~%")
+  (let ((pathname (file-id-vec-to-path vec 4)))
+    (logit-stamp "Looks to be: ~a~%" pathname)
+    (multiple-value-bind (exp tail)
+	(locate-nearest-export-by-real-path pathname)
+      (when exp
+	(get-fhandle-for-path tail exp)))))
+
 ;; XDR
+
+(defun xdr-fhandle-extract-common (o)
+  (declare (optimize speed (safety 0)))
+  
+  (let ((vec (opaque-vec o))
+	(offset (opaque-offset o)))
+    (block nil
+      (when (/= (opaque-len o) *nfs-fhsize*)
+	(return :inval))
+      
+      ;; BLEH
+      (let ((fh-vec (make-ausb8 *nfs-fhsize*)))
+	(declare (dynamic-extent fh-vec))
+	(copy-ausb8-into fh-vec 0 vec offset *nfs-fhsize*)
+	
+	(with-fhandles-lock ()
+	  (let ((fh (gethash fh-vec *fhandles*)))
+	    (if* fh
+	       then fh
+	     elseif (and (fh-vec-persistent-p fh-vec)
+			 (setf fh (recover-persistent-fh fh-vec)))
+	       then fh
+	       else :stale)))))))
+
+(defun xdr-fhandle (xdr vers &optional fh)
+  "Build: Populates XDR with the information from fh-vec.
+   Extract: Returns an fh struct, or :stale or :inval"
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum vers))
+  ;;(check-type xdr xdr)
+  ;;(check-type vers number)
+  (ecase (xdr-direction xdr)
+    (:build
+     (if (null fh)
+	 (error "xdr-fhandle: 'fh' parameter is required when building"))
+     (ecase vers
+       (2
+	(xdr-opaque-fixed xdr (fh-vec fh)))
+       (3
+	(xdr-opaque-variable xdr (fh-vec fh)))))
+        
+    (:extract
+     (block nil
+       (let ((o 
+	      (case vers
+		(2
+		 (xdr-opaque-fixed xdr nil *nfs-fhsize*))
+		(3 
+		 (xdr-opaque-variable xdr))
+		(t
+		 (logit "Invalid file handle version: ~D" vers)
+		 (return :inval)))))
+	 (xdr-fhandle-extract-common o))))))
 
 (defun xdr-fhandle2 (xdr &optional fh)
   (xdr-fhandle xdr 2 fh))
@@ -411,82 +527,11 @@
 
 ;; For use by nlm.cl
 (defun fhandle-to-vec (fh vers)
-  (let ((id (fh-id fh)))
-    (let ((xdr (create-xdr :direction :build)))
-      (xdr-fhandle-build-common xdr (ecase vers
-				      (2 #.*fhsizewords2*)
-				      (3 #.*fhsizewords3*))
-				id)
-      (xdr-get-vec xdr))))
+  (declare (ignore vers))
+  (fh-vec fh))
 
 ;; For use by nlm.cl
 (defun opaque-to-fhandle3 (o)
-  (with-opaque-xdr (xdr o)
-    (let ((words (/ (- (xdr-size xdr) (xdr-pos xdr)) 4)))
-      (if* (/= words #.*fhsizewords3*)
-	 then (logit "Invalid file handle size (~D words)" words)
-	      :inval
-	 else (xdr-fhandle-extract-common xdr words)))))
+  (xdr-fhandle-extract-common o))
 
-(defun xdr-fhandle-build-common (xdr words value)
-  (dotimes (i words)
-    (declare (type fixnum i))
-    (xdr-unsigned-int xdr (logand value #xffffffff))
-    (setf value (ash value -32))))
 
-(defun xdr-fhandle-extract-common (xdr words)
-  (block nil
-    (let ((id 0)
-	  (shift 0))
-      (dotimes (i words)
-	(declare (type fixnum words shift i))
-	(setf id (logior id (ash (xdr-unsigned-int xdr) shift)))
-	(incf shift 32))
-      (when (not (fixnump id))
-	(logit "Invalid file handle (non-fixnum) ~D" id)
-	(return :inval))
-      (without-interrupts
-	(let ((fh (gethash id *fhandles*)))
-	  (if* (null fh)
-	     then :stale
-	     else fh))))))
-
-(defun xdr-fhandle (xdr vers &optional fh)
-  (declare (optimize (speed 3) (safety 0))
-	   (type fixnum vers))
-  ;;(check-type xdr xdr)
-  ;;(check-type vers number)
-  (ecase (xdr-direction xdr)
-    (:build
-     (if (null fh)
-	 (error "xdr-fhandle: 'fh' parameter is required when building"))
-     (let ((value (fh-id fh))
-	   words)
-       (declare (type fixnum value words))
-       (ecase vers
-	 (2
-	  (setf words #.*fhsizewords2*))
-	 (3 
-	  (setf words #.*fhsizewords3*)
-	  (xdr-int xdr #.*fhsize3*)))
-       (xdr-fhandle-build-common xdr words value)))
-        
-    (:extract
-     (block nil
-       (let (words)
-	 ;; Can't trust client not to fool with the file handle
-	 ;; so can't declare this.
-	 ;;(declare (type fixnum id))   
-	 (case vers
-	   (2
-	    (setf words #.*fhsizewords2*))
-	   (3 
-	    (setf words (/ (xdr-unsigned-int xdr) 4))
-	    ;; sanity check.
-	    (when (/= words #.*fhsizewords3*)
-	      (logit "Invalid file handle size (~D words)" words)
-	      (return :inval)))
-	   (t 
-	    (logit "Invalid file handle version: ~D" vers)
-	    (return :inval)))
-	 (xdr-fhandle-extract-common xdr words))))))

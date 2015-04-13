@@ -5,7 +5,9 @@
 /Makefile.local
 /autoloads.out
 /build.out
+/commit-id.cl
 /configure/module-report.txt
+/configure/configform.bak
 /date/
 /demoware/
 /dists/
@@ -30,3 +32,4 @@
 /portmap-server.cl
 /sunrpc-common.cl
 /testnfs
+/TAGS

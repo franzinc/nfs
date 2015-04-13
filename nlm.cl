@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -30,8 +30,6 @@
 
 (eval-when (compile load eval)
   (use-package :nsm))
-
-(defparameter *nlm-port* nil)
 
 (sunrpc:def-rpc-program (NLM 100021 :port *nlm-port*)
   (
@@ -98,7 +96,6 @@
 ;;;;;;
 
 (defparameter *nlm-gate* (mp:make-gate nil))
-(defparameter *nlm-debug* nil)
 (defparameter *nlm-retry-interval* 2) ;; seconds
 (defparameter *nlm-grant-notify-interval* 30) ;; seconds
 
@@ -107,6 +104,8 @@
 ;; XXX - We do not do grace period stuff because when our NFS 
 ;; server restarts, all filehandles are invalid, so there would be
 ;; no way for a client to reclaim a lock anyway.
+;; XXX/FIXME:  As of v5.3.0, this is no longer necessarily true.  File handles
+;; for NTFS files are persistent.
 
 (defun NLM-init ()
   (mp:process-run-function "nlm retry loop" #'nlm-lock-retry-loop)
@@ -141,6 +140,7 @@
 (defmacro nlm-vers-to-nfs-vers (vers)
   `(if-nlm-v4 ,vers 3 2))
 
+
 (defstruct (nlm-lock-internal
 	    (:print-object nlm-lock-internal-printer))
   peer-addr ;; For retry locks (To send GRANTED message)
@@ -148,8 +148,8 @@
   cookie ;; cookie from the original lock request
   exclusive
   caller-name
-  fh
-  oh 
+  fh ;; file handle struct (fhandle.cl), or perhaps :stale
+  oh ;; opaque lock owner handle
   svid ;; aka pid
   offset
   len)
@@ -180,6 +180,7 @@
    :cookie (if cookie (opaque-data cookie))
    :exclusive exclusive
    :caller-name (nlm-lock-caller-name lock)
+   ;; XXXX: Why not just (user::xdr-fhandle xdr (nlm-vers-to-nfs-vers vers)) ?
    :fh (if-nlm-v4 vers
 		  (user::opaque-to-fhandle3 (nlm-lock-fh lock))
 		  (xdr:with-opaque-xdr (xdr (nlm-lock-fh lock))
@@ -336,7 +337,7 @@
       (values #.*nlm-granted* newlocks))))
 
 ;; This code has a race condition in it which we can't work around.
-;; Windows does now allow shrinking of an existing locked region.  You
+;; Windows does not allow shrinking of an existing locked region.  You
 ;; have to unlock and relock a smaller portion.  During the unlock and
 ;; relock, another (non-Allegro NFS) process could put a lock on the
 ;; region in question which would foil our attempt to shrink.  If that
@@ -891,4 +892,4 @@ NLM: Unexpected error while calling NSM UNMON: ~a~%" c)))
 		      :test #'socket:ipaddr-equalp))))))))
 
 (eval-when (compile load eval)
-  (export '(*nlm-gate* *nlm-debug* *nlm-port* NLM)))
+  (export '(*nlm-gate* NLM)))

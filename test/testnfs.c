@@ -67,7 +67,8 @@
 
 /* NFS client caching will likely interfere with some tests 
    (e.g., the repeat-create or repeat-remove tests.. they
-   don't really result in repeated NFS calls) */
+   don't really result in repeated NFS calls).  For best results, 
+   mount with -o noac */
 
 #define DEFAULT_TESTFILE "nfstestfile"
 #define DEFAULT_HOSTTEMP "/tmp"
@@ -276,6 +277,26 @@ void test_mkdir(char *workdir) {
   
 }  
 
+void test_lookup_illegal(char *workdir) {
+    char filename[1024];
+    struct stat sb;
+
+    printf("testing lookup of illegal filename\n");
+
+    sprintf(filename, "%s/1:2", workdir);
+
+    if (stat(filename, &sb) != -1) {
+	printf("stat(illegal filename) succeeded.  WTF?\n");
+	exit(1);
+    }
+    
+    if (errno != ENOENT) {
+	printf("stat(illegal filename) got error %d (%s) but we wanted %d (ENOENT)\n",
+	       errno, strerror(errno));
+	exit(1);
+    }
+}
+
 void test_create(char *workdir) {
     int fd;
     char filename[1024];
@@ -290,8 +311,33 @@ void test_create(char *workdir) {
 	       filename, strerror(errno));
 	exit(1);
     }
-  
     close(fd);
+
+    printf("testing create (O_EXCL)\n");
+    sprintf(filename, "%s/file1excl", workdir);
+    fd=open(filename, O_WRONLY|O_CREAT|O_EXCL, 0666); 
+    if (fd < 0) {
+	printf("open(%s, O_WRONLY|O_CREAT|O_EXCL, 0666) failed: %s\n",
+	       filename, strerror(errno));
+	exit(1);
+    }
+    close(fd);
+
+
+    /* Test attempt to create a file with a name that is illegal
+       on Windows */
+    printf("testing illegal filename\n");
+    sprintf(filename, "%s/1:2", workdir);
+    int res=open(filename, O_WRONLY|O_CREAT, 0666); 
+    if (res >= 0) {
+	printf("Creating a file w/ a colon in its name succeeded. WTF?\n");
+	exit(1);
+    }
+    if (errno != EACCES) {
+	printf("Got error %d (%s) but expected EACCES (%d)\n",
+	       errno, strerror(errno), EACCES);
+	exit(1);
+    }
 }
 
 
@@ -317,6 +363,13 @@ void test_remove(char *workdir) {
     if (errno != ENOENT) {
 	printf("Got '%s' when doing repeat unlink(%s).\nexpected: %s\n",
 	       strerror(errno), workdir, strerror(ENOENT));
+	exit(1);
+    }
+
+    /* test remove again*/
+    sprintf(filename, "%s/file1excl", workdir);
+    if (unlink(filename)) {
+	printf("unlink(%s) failed: %s\n", filename, strerror(errno));
 	exit(1);
     }
 }
@@ -591,6 +644,40 @@ void test_link(char *workdir) {
 
 }
 
+void test_symlink(char *workdir) {
+    char path[1024], buf[1024];
+    
+    printf("Testing symlink\n");
+    sprintf(path, "%s/symlink", workdir);
+    if (symlink("This is a test", path) != 0) {
+	printf("symlink(\"This is a test\", %s): %s\n",
+	       path, strerror(errno));
+	exit(1);
+    }
+
+    /* Unfortunately the Linux NFS client doesn't actually make a
+       readlink NFS call here, even when mounting with -o noac */
+    printf("Testing readlink\n");
+    int got=readlink(path, buf, sizeof(buf));
+    if (got == -1) {
+	printf("readlink(%s): %s\n", path, strerror(errno));
+	exit(1);
+    }
+    buf[got]=0;
+    if (strcmp(buf, "This is a test")!=0) {
+	printf("readlink: Got '%s' but expected '%s'\n",
+	       buf, "This is a test");
+	exit(1);
+    }
+
+    if (unlink(path) != 0) {
+	printf("unlink(%s): %s\n", path, strerror(errno));
+	exit(1);
+    }
+	
+    
+}
+
 int mysystem(char *buf)
 {
     printf("system: %s\n", buf);
@@ -751,11 +838,14 @@ int main(int argc, char **argv) {
 
     test_mkdir(workdir);
 
+    test_lookup_illegal(workdir);
+
     test_create(workdir);
 
     test_setattr(workdir);
 
     test_link(workdir);
+    test_symlink(workdir);
 
     if (!skipread) 
 	test_read(nfsdir);

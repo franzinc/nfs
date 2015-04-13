@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -31,8 +31,10 @@
 
 (eval-when (compile load eval)
 (defparameter *filelist*
-    '("bswap"
+    '("config-defs"
+      "bswap"
       "utf8"
+      "utils"
       "xdr" 
       "unicode-file"
       "sunrpc-common"
@@ -50,6 +52,7 @@
       "ipaddr" 
       "export"
       "configure"
+      "nfs-log"
       "fhandle" 
       "mountd" 
       "nsm-client"
@@ -62,7 +65,6 @@
       "locking"
       "nlm"
       "gen-nfs-client"
-      "nfs-log"
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"

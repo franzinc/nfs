@@ -80,7 +80,6 @@
 ;; Called by:
 ;; nfsd-rename, :operator
 ;; nfsd-remove, :operator
-;; set-file-attributes, :operator
 (defun close-open-file (fh &key check-refcount)
   (mp:with-process-lock (*open-file-cache-lock*)
     (let ((of (locate-open-file fh)))
@@ -112,5 +111,5 @@
 
 (defun nfsd-open-file-reaper ()
   (loop
-    (sleep *openfilereaptime*)
+    (sleep (max *openfilereaptime* 1))
     (reap-open-files)))

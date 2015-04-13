@@ -9,8 +9,6 @@
 (defparameter *nfs-dircache* (make-hash-table :test #'eq))
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
-(defvar *nfs-dircache-update-interval* 2)
-
 (defparameter *dir-id* 0)
 
 (defstruct dircache 
@@ -147,7 +145,7 @@
 ;; Called by link, rename, mkdir, create(3) procs.
 ;;; doesn't add duplicates
 (defun nfs-add-file-to-dir (file dirfh)
-  (sanity-check-filename file)
+  (sanity-check-filename file :create)
   (mp:with-process-lock (*nfs-dircachelock*)
     (multiple-value-bind (entries dc)
 	(nfs-lookup-dir dirfh nil)
@@ -157,7 +155,7 @@
 
 ;; Called by rename, rmdir, and remove procs.
 (defun nfs-remove-file-from-dir (file dirfh)
-  (sanity-check-filename file)
+  (sanity-check-filename file :lookup)
   (mp:with-process-lock (*nfs-dircachelock*)
     (multiple-value-bind (entries dc)
 	(nfs-lookup-dir dirfh nil)

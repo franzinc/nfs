@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2010 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -23,13 +23,6 @@
 ;; Place, Suite 330, Boston, MA  02111-1307  USA
 
 (in-package :mount)
-
-(defparameter *mountd-debug* nil)
-(defparameter *mountd-port-number* nil)
-(defvar *showmount-disabled* ())
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (export '(*showmount-disabled*)))
 
 (sunrpc:def-rpc-program (MNT 100005 :port *mountd-port-number*)
     (
@@ -89,7 +82,7 @@
 
 (defun mountproc-mnt-common (dirpath vers peer)
   (multiple-value-bind (exp tail) 
-      (user::locate-nearest-export dirpath)
+      (user::locate-nearest-export-by-nfs-path dirpath)
     (if *mountd-debug* 
 	(user::logit-stamp "MNT~d: ~a: MOUNT ~a "
 			   vers (sunrpc:peer-dotted peer) dirpath))
@@ -109,7 +102,7 @@
 			       :test #'equalp)
 		      fh
 		 else (if *mountd-debug* (user::logit "==> Not found.~%"))
-		      nil)))))
+		      gen-nfs:*nfserr-noent*)))))
 
 (defun mountproc-mnt (dirpath vers peer cbody)
   (declare (ignore cbody))

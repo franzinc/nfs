@@ -6,9 +6,8 @@
 
 (in-package :common-graphics-user)
 
-(defparameter *nfs-debug* nil)
-(defparameter *nfs-debug-filter* #x0fffffff)
-(defparameter *nfs-set-mtime-on-write* nil)
+(eval-when (compile load eval)
+  (require :regexp2))
 
 (eval-when (compile)
   (defparameter *nfs-debug-types* 
@@ -16,50 +15,6 @@
            mkdir rmdir remove rename create mknod commit null
            statfs fsstat fsinfo pathconf readdir readlink)))
   
-
-(defparameter *nfs-gc-debug* nil)
-(defparameter *nfs-debug-timings* nil)
-
-(in-package :user)
-(defvar *log-rotation-file-size* 0)
-(defvar *log-rotation-file-count* 1)
-(defvar *kilobyte* 1024)
-(defvar *megabyte* (* *kilobyte* *kilobyte*))
-(defvar *gigabyte* (* *megabyte* *kilobyte*))
-(defvar *terabyte* (* *gigabyte* *kilobyte*))
-
-(defvar *log-rotation-file-size-magnitude*
-    *megabyte*)
-;; defined in dir.cl
-(defvar *nfs-dircache-update-interval* 2)
-
-(in-package :portmap)
-(defparameter *portmap-debug* nil)
-(defparameter *use-system-portmapper* :auto)
-(eval-when (compile load eval)
-  (export '(*portmap-debug* *use-system-portmapper*)))
-
-(in-package :mount)
-(defparameter *mountd-debug* nil)
-(defparameter *mountd-port-number* nil)
-(defvar *showmount-disabled* nil)
-(eval-when (compile load eval)
-  (export '(*mountd-debug* 
-            *mountd-port-number*
-	    *showmount-disabled*)))
-
-(in-package :nsm)
-(defparameter *nsm-debug* nil)
-(defparameter *nsm-port* nil)
-(eval-when (compile load eval)
-  (export '(*nsm-debug* *nsm-port*)))
-
-(in-package :nlm)
-(defparameter *nlm-debug* nil)
-(defparameter *nlm-port* nil)
-(eval-when (compile load eval)
-  (export '(*nlm-debug* *nlm-port*)))
-
 (in-package :common-graphics-user)
 
 (defparameter *host-lists* nil)
@@ -140,8 +95,10 @@
                   (append (list 'define-user-list key) value)
                   config))
              *user-lists*)
-    
+
+;;;;NOTE: these are defined in ../config-defs.cl
     ;; parameters
+    (push `(user::*executable-types* ,user::*executable-types*) config)
     (push `(portmap:*portmap-debug* ,portmap:*portmap-debug*) config)
     (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
@@ -158,15 +115,19 @@
     (push `(user::*nfs-dircache-update-interval* 
 	   ,user::*nfs-dircache-update-interval*) 
 	  config)
+    (push `(user::*attr-cache-reap-time* 
+	   ,user::*attr-cache-reap-time*) 
+	  config)
     (push `(nsm:*nsm-debug* ,nsm:*nsm-debug*) config)
     (push `(nsm:*nsm-port* ,nsm:*nsm-port*) config)
     (push `(nlm:*nlm-debug* ,nlm:*nlm-debug*) config)
     (push `(nlm:*nlm-port* ,nlm:*nlm-port*) config)
-    (push `(*nfs-debug* ,*nfs-debug*) config)
-    (push `(*nfs-debug-filter* ,*nfs-debug-filter*) config)
-    (push `(*nfs-gc-debug* ,*nfs-gc-debug*) config)
-    (push `(*nfs-debug-timings* ,*nfs-debug-timings*) config)
-    (push `(*nfs-set-mtime-on-write* ,*nfs-set-mtime-on-write*) config)
+    (push `(user::*nfs-debug* ,user::*nfs-debug*) config)
+    (push `(user::*nfs-debug-filter* ,user::*nfs-debug-filter*) config)
+    (push `(user::*nfs-gc-debug* ,user::*nfs-gc-debug*) config)
+    (push `(user::*nfs-debug-timings* ,user::*nfs-debug-timings*) config)
+    (push `(user::*nfs-set-mtime-on-write* ,user::*nfs-set-mtime-on-write*)
+	  config)
     
     config))
 
@@ -195,11 +156,11 @@
   (setf (value (my-find-component :portmap-debug-checkbox form))
     portmap:*portmap-debug*)
   (setf (value (my-find-component :nfs-debug-checkbox form))
-    *nfs-debug*)
+    user::*nfs-debug*)
   (setf (value (my-find-component :gc-debug-checkbox form))
-    *nfs-gc-debug*)
+    user::*nfs-gc-debug*)
   (setf (value (my-find-component :log-timestamps-checkbox form))
-    *nfs-debug-timings*)
+    user::*nfs-debug-timings*)
   (setf (value (my-find-component :mountd-debug-checkbox form))
     mount:*mountd-debug*)
   (setf (value (my-find-component :set-showmount-disable-checkbox form))
@@ -210,25 +171,26 @@
     (format nil "~D" user::*log-rotation-file-count*))
   (setf (value (my-find-component :dircache-update-interval form))
     (format nil "~D" user::*nfs-dircache-update-interval*))
+  (setf (value (my-find-component :attr-cache-reap-time form))
+    (format nil "~D" user::*attr-cache-reap-time*))
   (setf (value (my-find-component :nsm-debug-checkbox form))
     nsm:*nsm-debug*)
   (setf (value (my-find-component :nlm-debug-checkbox form))
     nlm:*nlm-debug*)
   (setf (value (my-find-component :set-mtime-on-write-checkbox form))
-    *nfs-set-mtime-on-write*)
+    user::*nfs-set-mtime-on-write*)
   
-(setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude
-				  form))
-	(cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
-	       :Kb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*megabyte*)
-	       :Mb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*gigabyte*)
-	       :Gb)
-	      ((= user::*log-rotation-file-size-magnitude* user::*terabyte*)
-	       :Tb)
-	      (t :Mb)))
-
+  (setf (value (my-find-component :combo-box-log-rotation-file-size-magnitude form))
+    (cond ((= user::*log-rotation-file-size-magnitude* user::*kilobyte*)
+           :Kb)
+          ((= user::*log-rotation-file-size-magnitude* user::*megabyte*)
+           :Mb)
+          ((= user::*log-rotation-file-size-magnitude* user::*gigabyte*)
+           :Gb)
+          ((= user::*log-rotation-file-size-magnitude* user::*terabyte*)
+           :Tb)
+          (t :Mb)))
+  
   (setf (value (my-find-component :combo-box-port-mapper form))
     (if* (null portmap:*use-system-portmapper*)
        then :no
@@ -243,9 +205,9 @@
                                           (filter-constant (intern (format nil "*nfs-debug-~a*" type) :user)))
                                       (push `(let ((wij (my-find-component ,component-name form)))
                                                (setf (value wij)
-                                                 (if (/= 0 (logand *nfs-debug-filter* ,filter-constant)) 
+                                                 (if (/= 0 (logand user::*nfs-debug-filter* ,filter-constant)) 
                                                      t))
-                                               (setf (available wij) *nfs-debug*))
+                                               (setf (available wij) user::*nfs-debug*))
                                             res)))
                                       
                                   (setf res (nreverse res))
@@ -327,7 +289,7 @@
   
 (defun extract-number (string &key (radix 10))
   (multiple-value-bind (matched whole digits)
-      (match-regexp "^\\b*\\([0-9]+\\)\\b*$" string)
+      (match-re "^\\s*([0-9]+)\\s*$" string)
     (declare (ignore whole))
     (when matched
       (ignore-errors (parse-integer digits :radix radix)))))
@@ -990,6 +952,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
     (with-open-file (f tmpname :direction :output
 		     :if-does-not-exist :create
 		     :if-exists :supersede)
+      (format t ";; written by NFS version ~a.~%~%"
+	      user::*nfsd-version*)
       (let ((*print-right-margin* 55)
 	    (*print-pretty* nil))
 	(pprint (generate-config-expression) f)))
@@ -1001,14 +965,16 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                 old-value)
   (declare (ignore-if-unused widget new-value old-value))
   (let ((form (parent widget)))
-    (setf *nfs-debug* new-value)
+    (setf user::*nfs-debug* new-value)
     
     (macrolet ((set-filters-availability (types)
                                          (let (res)
                                            (dolist (type types)
                                              (let ((component-name (intern (format nil "debug-nfs-~a" type) :keyword)))
                                                (push `(let ((wij (my-find-component ,component-name form)))
-                                                        (setf (available wij) *nfs-debug*))
+                                                        (setf (available
+							       wij)
+							  user::*nfs-debug*))
                                                      res)))
                                            
                                            (setf res (nreverse res))
@@ -1031,84 +997,81 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (refresh-apply-button (parent widget))
   t) 
 
+(defun collect-integer-common (widget string 
+                                      &key (complaint-title "Invalid input!")
+                                      (minimum 0) maximum
+                                      allow-blank)
+  "If successful, returns the value as a number (or just t if allow-blank is true
+   and the string was blank)"
+  (let ((blank (match-re "^\\s*$" string))
+        (value (extract-number string)))
+    (if* (or (and allow-blank blank)
+             (and value
+                  (or (null minimum) (>= value minimum))
+                  (or (null maximum) (<= value maximum))))
+       then ;; Constraints satisfied.
+            (if* blank
+               then (setf (value widget) "")
+                    t
+               else (setf (value widget) (format nil "~d" value))
+                    value)
+       else (pop-up-message-dialog (parent widget)
+                                   complaint-title
+                                   (if* (and minimum maximum)
+                                      then (format nil "Must be an integer between ~a and ~a (inclusive)"
+                                             minimum maximum)
+                                    elseif minimum
+                                      then (format nil "Must be an integer >= ~a" minimum)
+                                    elseif maximum
+                                      then (format nil "Must be an integer <= ~a" maximum)
+                                      else (error "This should never happen"))
+				   error-icon
+				   "OK")
+	    nil)))
+
 (defun on-log-rotation-file-size-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-log-rotation-file-size-change t))
-
-  (let ((size (extract-number new-value)))
-    (if* (and size (>= size 0))
-	 then (setf (value widget) (format nil "~D" size)
-		    user::*log-rotation-file-size* size)
-              (refresh-apply-button (parent widget))
-	      t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file size!"
-				     "Must be a number greater than 0."
-				     error-icon
-				     "OK")
-	       nil)))
-
-
+  (let ((size (collect-integer-common widget new-value :complaint-title "Invalid file size!")))
+    (when size
+      (setf user::*log-rotation-file-size* size)
+      (refresh-apply-button (parent widget))
+      t)))
 
 (defun on-log-rotation-file-count-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-log-rotation-file-count-change t))
-
-  (let ((count (extract-number new-value)))
-    (if* (and count (>= count 1))
-	 then (setf (value widget) (format nil "~D" count)
-		    user::*log-rotation-file-count* count)
-	      (refresh-apply-button (parent widget))
-              t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file count!"
-				     "Must be a number greater than 0."
-				     error-icon
-				     "OK")
-	       nil)))
-
+  (let ((count (collect-integer-common widget new-value :complaint-title "Invalid file count!" 
+                                       :minimum 1)))
+    (when count
+      (setf user::*log-rotation-file-count* count)
+      (refresh-apply-button (parent widget))
+      t)))
 
 (defun on-dircache-update-interval-change (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
+  (let ((value (collect-integer-common widget new-value)))
+    (when value
+      (setf user::*nfs-dircache-update-interval* value)
+      (refresh-apply-button (parent widget))
+      t)))
 
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (refresh-apply-button (parent widget))
-          (return-from on-dircache-update-interval-change t))
 
-  (let ((count (extract-number new-value)))
-    (if* (and count (>= count 0))
-	 then (setf (value widget) (format nil "~D" count)
-		    user::*nfs-dircache-update-interval* count)
-	      (refresh-apply-button (parent widget))
-              t
-         else (pop-up-message-dialog (parent widget)
-				     "Invalid file count!"
-				     "Must be a number of seconds 0 or greater."
-				     error-icon
-				     "OK")
-	       nil)))
-
+(defun on-attr-cache-reap-time-change (widget new-value old-value)
+  (declare (ignore old-value))
+  (let ((time (collect-integer-common widget new-value)))
+    (when time
+      (setf user::*attr-cache-reap-time* time)
+      (refresh-apply-button (parent widget))
+      t)))
+  
 (defun configform-gc-debug-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-gc-debug* new-value)
+  (setf user::*nfs-gc-debug* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
 (defun configform-log-timestamps-checkbox-on-change (widget new-value old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-debug-timings* new-value)
+  (setf user::*nfs-debug-timings* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -1157,22 +1120,12 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   
 (defun on-port-number-change-common (widget new-value old-value)
   (declare (ignore old-value))
-  (setf new-value (string-trim '(#\space) new-value))
-  
-  (if* (string= new-value "")
-     then (setf (value widget) new-value)
-          (return-from on-port-number-change-common t))
-  
-  (let ((port (extract-number new-value)))
-    (if* (and port (> port 0) (< port 65536))
-       then (setf (value widget) (format nil "~d" port))
-            t ;; accept
-       else (pop-up-message-dialog (parent widget)
-                                   "Invalid port number" 
-                                   "The number number must be an integer between 1 and 65535" error-icon "OK")
-            nil ;; don't accept
-            )))
-    
+  (collect-integer-common widget new-value 
+                          :complaint-title "Invalid port number!"
+                          :minimum 1
+                          :maximum 65535
+                          :allow-blank t))                          
+                          
 (defun configform-portmap-debug-checkbox-on-change (widget
                                                     new-value
                                                     old-value)
@@ -1187,8 +1140,8 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
   (declare (ignore-if-unused widget new-value old-value))
   (let ((code (symbol-value (intern (format nil "*nfs-debug-~a*" (string-downcase (title widget))) :user))))
     (if* new-value
-       then (setf *nfs-debug-filter* (logior *nfs-debug-filter* code))
-       else (setf *nfs-debug-filter* (logand *nfs-debug-filter* (lognot code)))))
+       then (setf user::*nfs-debug-filter* (logior user::*nfs-debug-filter* code))
+       else (setf user::*nfs-debug-filter* (logand user::*nfs-debug-filter* (lognot code)))))
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
 
@@ -1212,6 +1165,7 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                          new-value
                                                          old-value)
   (declare (ignore-if-unused widget new-value old-value))
-  (setf *nfs-set-mtime-on-write* new-value)
+  (setf user::*nfs-set-mtime-on-write* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value
+

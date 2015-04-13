@@ -130,19 +130,124 @@
     (dolist (exp *old-exports*)
       (invalidate-export-fhandles exp))))
 
-(defun locate-nearest-export (path)
+(defun locate-nearest-export-by-nfs-path (path)
   (mp:with-process-lock (*exports-lock*)
     (if (null *exports*)
-	(return-from locate-nearest-export nil))
+	(return-from locate-nearest-export-by-nfs-path nil))
     (let (exp)
       (dotimes (n (length *exports*))
 	(setf exp (svref *exports* n))
 	(multiple-value-bind (ok match tail) 
 	    (match-re (nfs-export-match exp) path)
 	  (when (and ok match)
-	    (return-from locate-nearest-export 
+	    (return-from locate-nearest-export-by-nfs-path 
 	      (values exp
 		      (or tail "")))))))))
+
+(defun extract-path-drive-and-tail (path)
+  (multiple-value-bind (matched whole drive tail)
+      (match-re "^([A-Za-z]:)(.*)" path)
+    (declare (ignore whole))
+    (if* matched
+       then (values drive tail)
+       else (multiple-value-bind (matched whole drive tail)
+		(match-re "^(\\\\\\\\[^\\\\]+\\\\[^\\\\]+)(.*)" path)
+	      (declare (ignore whole))
+	      (when matched
+		(values drive tail))))))
+
+(defun real-path-prefix-p-1 (prefix string)
+  "If PREFIX is a prefix of STRING, return the tail (excluding leading slash).
+   Otherwise returns NIL"
+  (declare (optimize speed (safety 0))
+	   (simple-string prefix string))
+  (let ((pos 0)
+	(p-max (length prefix))
+	(s-max (length string)))
+    (declare (fixnum pos pos p-max s-max))
+
+    ;; Make sure input is in the expected form.
+    (assert (plusp p-max))
+    (assert (plusp s-max))
+    (assert (prefixp "\\" prefix))
+    (assert (prefixp "\\" string))
+    
+    ;; Handle the special case of prefix == "\" 
+    (when (string= prefix "\\")
+      (return-from real-path-prefix-p-1 (subseq string 1)))
+
+    (when (>= s-max p-max)
+      (while (< pos p-max)
+	(let ((p-char (schar prefix pos))
+	      (s-char (schar string pos)))
+	  (incf pos)
+	  
+	  (when (not (char-equal p-char s-char))
+	    (return-from real-path-prefix-p-1 nil))))
+      ;; Exhausted the prefix.
+
+      (if* (= pos s-max)
+	 then ;; STRING and PREFIX match exactly. 
+	      ""
+       elseif (eq (schar string pos) #\\)
+	 then (subseq string (1+ pos))
+	 else nil))))
+
+(defun real-path-prefix-p (path prefix)
+  "PATH and PREFIX must be strings.  PREFIX must be in standard form
+   (as returned by cleanup-dir) which means it may or may not have
+   a trailing slash.  If PREFIX is a prefix of PATH, return the tail 
+   (excluding leading slash).  Otherwise returns NIL"
+  (multiple-value-bind (path-drive path-tail)
+      (extract-path-drive-and-tail path)
+    (multiple-value-bind (prefix-drive prefix-tail)
+	(extract-path-drive-and-tail prefix)
+      (when (equalp path-drive prefix-drive)
+	(real-path-prefix-p-1 prefix-tail path-tail)))))
+
+#+ignore
+(defun test-real-path-prefix-p ()
+  ;;  path, prefix, result 
+  (let ((data '(("c:\\" "c:\\" "")
+		("c:\\" "d:\\" nil)
+		("c:\\temp" "c:\\" "temp")
+		("c:\\temp" "c:\\temp" "")
+		("c:\\temp\\deeper" "c:\\temp" "deeper")
+		("c:\\temper" "c:\\temp" nil)
+		
+		("\\\\server1\\share\\" "\\\\server1\\share\\" "")
+		("\\\\server1\\share\\" "d:\\" nil)
+		("\\\\server1\\share\\" "\\\\server2\\share\\" nil)
+		("\\\\server1\\share\\" "\\\\server1\\other\\" nil)
+		("\\\\server1\\share\\temp" "\\\\server1\\share\\" "temp")
+		("\\\\server1\\share\\temp" "\\\\server1\\share\\temp" "")
+		("\\\\server1\\share\\temp\\deeper" "\\\\server1\\share\\temp" "deeper")
+		("\\\\server1\\share\\temper" "\\\\server1\\share\\temp" nil)
+
+		)))
+    (dolist (entry data)
+      (destructuring-bind (path prefix expected-result)
+	  entry
+	(let ((got (real-path-prefix-p path prefix)))
+	  (when (not (equal got expected-result))
+	    (error "(real-path-prefix-p ~s ~s) returned ~s but expected ~s"
+		   path prefix got expected-result)))))))
+
+(defun locate-nearest-export-by-real-path (path)
+  (let (best-export best-tail)
+    (mp:with-process-lock (*exports-lock*)
+      (when *exports*
+	(dotimes (n (length *exports*))
+	  (let ((exp (svref *exports* n)))
+	    (let* ((prefix (nfs-export-path exp))
+		   (tail (real-path-prefix-p path prefix)))
+	      (when (and tail
+			 (or (null best-export)
+			     (> (length prefix) (length (nfs-export-path best-export)))))
+		(setf best-export exp)
+		(setf best-tail tail)))))))
+    (values best-export best-tail)))
+
 
 (defun export-host-access-allowed-p (exp addr)
   (declare (optimize speed (safety 0) (debug 0)))

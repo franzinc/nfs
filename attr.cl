@@ -31,8 +31,6 @@
   ctime ;; stored as universal time
   )
 
-;; should always be larger than *openfilereaptime*.
-(defparameter *attr-cache-reap-time* 5) 
 
 ;; keys are file handles
 (defparameter *nfs-attr-cache* (make-hash-table :test #'eq))
@@ -47,8 +45,9 @@
      (#o0120000
       *NFLNK*)))
 
-(defun nfs-attr (fh)
+(defun nfs-stat (fh)
   (declare (optimize (speed 3)))
+  ;;(logit "Collecting fresh attrs for ~a" (fh-pathname fh))
   (multiple-value-bind (mode nlink uid gid size atime mtime ctime)
       (unicode-stat (fh-pathname fh))
     (let ((type (stat-mode-to-type mode)))
@@ -65,7 +64,7 @@
        :used size
        :blocks (howmany size 512)
        :fsid (nfs-export-id (fh-export fh))
-       :fileid (fh-id fh)
+       :fileid (fh-file-id fh)
        :atime atime
        :mtime mtime
        :ctime ctime))))
@@ -79,19 +78,20 @@
   (mp:with-process-lock (*attr-cache-lock*)
     (let ((attr-cache (gethash fh *nfs-attr-cache*)))
       (if* attr-cache
-	 then ;; We have a cached entry.  Check it's expiration
+	 then ;; We have a cached entry.  Check its expiration
 	      (let ((now (excl::cl-internal-real-time)))
 		(if* (>= now (nfs-attr-cache-expiration attr-cache))
 		   then ;; It expired.  Refresh the attributes and return.
-			(let ((attr (nfs-attr fh)))
+			(let ((attr (nfs-stat fh)))
 			  (setf (nfs-attr-cache-attr attr-cache) attr)
 			  (setf (nfs-attr-cache-expiration attr-cache) (+ now *attr-cache-reap-time*))
 			  ;; Good to go
 			  attr)
 		   else ;; Not expired.  Use the cached attributes
+			;;(logit "Using cached attrs")
 			(nfs-attr-cache-attr attr-cache)))
 	 else ;; No cached entry.  Make one.
-	      (let ((attr (nfs-attr fh)))
+	      (let ((attr (nfs-stat fh)))
 		(setf (gethash fh *nfs-attr-cache*) 
 		  (make-nfs-attr-cache 
 		   :attr attr
@@ -119,7 +119,7 @@
 
 (defun attr-cache-reaper ()
   (loop
-    (sleep *attr-cache-reap-time*)
+    (sleep (max *attr-cache-reap-time* 1))
     (reap-attr-cache)))
 
 ;;; XXX --  might want to make sure that directories
