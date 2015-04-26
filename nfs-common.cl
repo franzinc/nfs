@@ -78,6 +78,7 @@
     (#.*enotempty* *nfserr-notempty*) 
     (#.*eexist* *nfserr-exist*)
     (#.*einval* *nfserr-inval*)
+    (#.*enospc* *nfserr-nospc*)
     ;; very general... avoid.  For v3, should should be
     ;; *nfserr-serverfault*
     (t *nfserr-io*))) 

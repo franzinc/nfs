@@ -150,25 +150,38 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	   (sunrpc:send-prog-mismatch-reply peer xid sunrpc:*nullverf* 2 3)
 	   (return-from nfsd-message-handler)))))))
        
-
-(defun file-or-syscall-error (c xdr savedpos vers debug-this-procedure)
-  (setf (xdr:xdr-pos xdr) savedpos)
-  ;; Make some errors look less alarming. 
-  (when debug-this-procedure
-    (case (excl::syscall-error-errno c)
-      (#.*enoent* 
-       (logit " => [Not found]~%"))
-      (#.*enotempty*
-       (logit " => [Not empty]~%"))
-      (#.*eexist*
-       (logit " => [Already exists]~%"))
-      (t
-       (logit "Handling file error: ~A~%" c))))
-  (xdr-int xdr (map-errno-to-nfs-error-code 
-		(excl::syscall-error-errno c)))
-  (if (= vers 3)
-      (nfs-xdr-wcc-data xdr nil nil)))
-
+(defun get-error-code-from-condition (c)
+  "Handles syscall-error and errno-stream-error"
+  (typecase c
+    (syscall-error
+     (excl::syscall-error-errno c))
+    (errno-stream-error 
+     (slot-value c 'excl::code))))
+     
+(defun syscall-error-handler (c xdr savedpos vers debug-this-procedure)
+  "Handles syscall-error and errno-stream-error"
+  (let ((errno (get-error-code-from-condition c)))
+    (setf (xdr:xdr-pos xdr) savedpos)
+    
+    ;; Make some errors look less alarming. 
+    (when debug-this-procedure
+      (case errno
+	(#.*enoent* 
+	 (logit " => [Not found]~%"))
+	(#.*enotempty*
+	 (logit " => [Not empty]~%"))
+	(#.*eexist*
+	 (logit " => [Already exists]~%"))
+	(#.*enospc*
+	 (logit " => [No space]~%"))
+	(t
+	 (logit "Handling file error: ~A~%" c))))
+    
+    
+    (xdr-int xdr (map-errno-to-nfs-error-code errno))
+    (if (= vers 3)
+	(nfs-xdr-wcc-data xdr nil nil))))
+  
 (defmacro with-nfs-err-handler ((xdr vers) &body body)
   (let ((savepossym (gensym))
 	(c (gensym))
@@ -189,13 +202,13 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		 (if (= ,vers 3)
 		     (nfs-xdr-wcc-data ,xdr nil nil))
 		 (go ,out)))
-	      (file-error 
-	       (lambda (,c)
-		 (file-or-syscall-error ,c ,xdr ,savepossym ,vers debug-this-procedure)
-		 (go ,out)))
 	      (syscall-error
 	       (lambda (,c)
-		 (file-or-syscall-error ,c ,xdr ,savepossym ,vers debug-this-procedure)
+		 (syscall-error-handler ,c ,xdr ,savepossym ,vers debug-this-procedure)
+		 (go ,out)))
+	      (errno-stream-error
+	       (lambda (,c)
+		 (syscall-error-handler ,c ,xdr ,savepossym ,vers debug-this-procedure)
 		 (go ,out)))
 	      (error 
 	       (lambda (,c)
