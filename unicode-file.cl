@@ -771,7 +771,8 @@ struct __stat64 {
 
 
 (defun open-volume-by-guid-string (guid-string)
-  "guid-string must NOT have the curly braces"
+  "Returns an open volume handle, or throws an error if unsuccessful.
+  guid-string must NOT have the curly braces."
   (let ((volume-guid-path (format nil "\\\\?\\Volume{~a}\\" guid-string)))
     (multiple-value-bind (handle err)
 	(CreateFileW volume-guid-path win:GENERIC_READ win:FILE_SHARE_READ 0 win:OPEN_EXISTING
@@ -781,6 +782,7 @@ struct __stat64 {
 	 else handle))))
 
 (defun open-volume-by-guid-vec (vec offset)
+  "Returns an open volume handle, or throws an error if unsuccessful"
   (declare (optimize speed (safety 0)))
   (let ((guid-string (make-string *max-guid-string-length*)))
     (declare (dynamic-extent guid-string))
@@ -918,7 +920,7 @@ struct __stat64 {
 ;; recycle bin, this function might return something like
 ;; "C:\\$Recycle.Bin\\S-1-5-21-2517939709-4264412073-2524334547-1000\\$RYNHO31.txt".
 ;; If the file is subsequently deleted from the recycle bin, OpenFileById will
-;; error w/ (translated) errno *einval*.  Higher level count will need to catch this
+;; error w/ (translated) errno *einval*.  Higher level code will need to catch this
 ;; and translate that to a stale file handle error.
 (defun file-id-vec-to-path (vec offset)
   (declare (optimize speed (safety 0))

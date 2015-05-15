@@ -447,7 +447,8 @@
 		   (invalidate-fhandles value))
 	       children))))
 
-;; called by finalize-exports
+;; called by finalize-exports for exports that have been removed
+;; from the configuration.
 (defun invalidate-export-fhandles (exp)
   (let ((fh (get-export-fhandle exp)))
     (invalidate-fhandles fh)
