@@ -73,22 +73,36 @@ exported NFS shares.
 The changes in this section will appear in the release of Allegro
 NFS
 
-* `user::*executable-types*` now in config file, allows FAQ to be
-  written for experienced users to modify it
+* When constructing file mode bits for reporting to an NFS client,
+  Allegro NFS uses the filename extension to determine if the file
+  should have the executable (x) bits set.  Previously only files with
+  extension .exe, .com, or .bat were marked executable.  This list is
+  now adjustable by modifying nfs.cfg and adding an entry for
+  *executable-types*.  This operation should only be performed by
+  advanced users.
 
-* Added support for persistent file handles for files on NTFS
-  volumes. Non-NTFS files (or inaccessible files on NTFS volumes)
-  still use non-persistent file handles.
+* Added support for persistent file handles for files on NTFS volumes.
+  This means that you can restart Allegro NFS or the machine that it
+  is running on and not suffer stale NFS file handle errors on the
+  client.  Non-NTFS files (or inaccessible files on NTFS volumes)
+  still use non-persistent file handles are still subject to stable
+  NFS file handle errors after restarts.
 
 * Allow control over how long file attribute are cached through the
-  configuration GUI.
+  configuration GUI.  See the "File attribute caching time" setting in
+  the "Global" tab of the Allegro NFS configuration program.
 
-* Fixed some input validation bugs in configure program.
+* Fixed some input validation bugs in the Allegro NFS configuration
+  program.
 
-* Fix mounting a subdirectory of an export.
+* Fixed mounting a subdirectory of an export.  For example, if you
+  have an export named "/export" which has a subdirectory named
+  "files", then mounting <servername>:/export/files from an NFS client
+  now works properly.
 
-* File and directory changes on the server weren't see by some
-  clients.
+* File and directory changes on the server weren't seen by some
+  clients.  This would make files appear to be static even though they
+  had been modified on the server.
 
 * Configuration for "Host lists" allows host names in the "New
   address" field.  When loading the configuration and resolving the
@@ -99,7 +113,7 @@ NFS
   in the roots of filesystems, "System Volume Information" and
   "pagefile.sys".
 
-* File attributes are cached for a max of 5 seconds. Prior to this
+* File attributes are cached for a maximum of 5 seconds. Prior to this
   change, the expiration for cached file attributes would be extended
   each time they were accessed.  This could be a problem in the
   following scenario:
@@ -110,7 +124,7 @@ NFS
   * the attributes of the file were altered outside of Allegro NFS's
     knowledge.
 
-  In this case the new file attributes would never be returned... at
+  In this case the new file attributes would never be returned, at
   least not until the client stopped probing for a sufficiently long
   time.
 
