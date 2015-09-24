@@ -549,6 +549,68 @@ struct __stat64 {
     ))
 
 
+(ff:def-foreign-type large-integer
+    (:struct
+     (LowPart win:dword) ;; unsigned long
+     (HighPart :long)))
+
+(ff:def-foreign-type ularge-integer
+    (:struct
+     ;; win:dword is unsigned long
+     (LowPart win:dword)
+     (HighPart win:dword)))
+
+(defun get-ularge-integer (uli)
+  (logior
+   (ff:fslot-value-typed 'ularge-integer :foreign uli 'LowPart)
+   (ash (ff:fslot-value-typed 'ularge-integer :foreign uli 'HighPart) 32)))
+
+(ff:def-foreign-call GetDiskFreeSpaceExW
+    ;; Must be a directory! Can't be a file (unlike Unix statfs).
+    ((lpDirectoryName (* void)) ;; in
+     ;; Free bytes available to the user
+     (lpFreeBytesAvailable (* ularge-integer)) ;; out
+     ;; Size of the filesystem (possibly constrained by user's quota)
+     (lpTotalNumberOfBytes (* ularge-integer)) ;; out
+     ;; Free bytes available (regardless of user)
+     (lpTotalNumberOfFreeBytes (* ularge-inteegr)) ;; out
+     )
+  :returning (:int boolean)
+  :strings-convert nil
+  :error-value :os-specific)
+
+(defun unicode-get-filesystem-free-space-1 (directory)
+  "DIRECTORY must be path to a directory.  It can't be a file.
+  
+   Returns values 
+   1) The number of free bytes available for the calling user
+   2) The number of free bytes available regardless of user
+   3) The size of the filesystem
+  "
+  (ff:with-stack-fobjects ((user-free 'ularge-integer)
+			   (apparent-size 'ularge-integer)
+			   (total-free 'ularge-integer))
+    (multiple-value-bind (ok err)
+	(GetDiskFreeSpaceExW directory user-free apparent-size total-free)
+      (if* ok
+	 then (values (get-ularge-integer user-free)
+		      (get-ularge-integer total-free)
+		      (get-ularge-integer apparent-size)
+		      )
+	 else ;;(warn "unicode-get-filesystem-free-space got windows error code ~a~%" err)
+	      (excl.osi:perror (excl.osi::win_err_to_errno err) "GetDiskFreeSpaceExW")))))
+
+(defun unicode-get-filesystem-free-space (filename)
+  "Wrapper for unicode-get-filesystem-free-space-1 which handles the
+   case where FILENAME is a file, not a directory"
+  
+  (let ((mode (unicode-stat filename)))
+    (when (not (logtest mode *s-ifdir*))
+      ;; Not a directory.  Strip the filename portion
+      (setf filename (dirname filename))))
+  
+  (unicode-get-filesystem-free-space-1 filename))
+
 (ff:def-foreign-call GetVolumePathNameW
     ((filename (* :void)) ;; in
      (volume-path (* :void)) ;; out
@@ -792,11 +854,6 @@ struct __stat64 {
   `(let ((,handle (open-volume-by-guid-vec ,vec ,offset)))
      (unwind-protect (progn ,@body)
        (windows:CloseHandle ,handle))))
-
-(ff:def-foreign-type large-integer
-    (:struct
-     (LowPart win:dword) ;; unsigned long
-     (HighPart :long)))
 
 (ff:def-foreign-type guid
     (:struct

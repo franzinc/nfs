@@ -660,7 +660,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 (define-nfs-proc statfs ((fh fhandle))
   (with-permission (fh :read)
     (multiple-value-bind (non-priv-free priv-free total)
-	(ignore-errors (get-filesystem-free-space (fh-pathname fh)))
+	(ignore-errors (unicode-get-filesystem-free-space (fh-pathname fh)))
       (if* (null non-priv-free)
 	 then
 	      (when debug-this-procedure (logit " I/O error~%"))
@@ -700,7 +700,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 (define-nfs-proc fsstat ((fh fhandle))
   (multiple-value-bind (non-priv-free priv-free total)
-      (ignore-errors (get-filesystem-free-space (fh-pathname fh)))
+      (ignore-errors (unicode-get-filesystem-free-space (fh-pathname fh)))
     (if* (null non-priv-free)
        then
 	    (when debug-this-procedure (logit " I/O error~%"))
