@@ -1,8 +1,8 @@
 /* -*- mode: c-mode; c-basic-offset: 4; -*- */
-/* $Header: /repo/cvs.copy/nfs/testnfs.c,v 1.11 2007/08/15 15:05:18 dancy Exp $ */
 
-/* To build on 'blade', use /opt/SUNWspro/bin/cc */
+/* This file is primarily developed/compiled/tested using Linux */
 
+#define _GNU_SOURCE /* For asprintf */
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -73,11 +73,11 @@
 #define DEFAULT_TESTFILE "nfstestfile"
 #define DEFAULT_HOSTTEMP "/tmp"
 #define DEFAULT_LOCALTEMP "."
-#define DEFAULT_TESTFILES 1000
+#define DEFAULT_NUM_TESTFILES 1000
 
 char *testfile=DEFAULT_TESTFILE;
 char *localtemp=DEFAULT_LOCALTEMP;
-int testfiles=DEFAULT_TESTFILES;
+int num_testfiles=DEFAULT_NUM_TESTFILES;
 
 #ifdef Solaris
 #define statfs statvfs
@@ -97,8 +97,8 @@ void verify_no_exist(char *filename) {
     struct stat sb;
     
     if (!stat(filename, &sb)) {
-	printf("%s exists when it shouldn't\n");
-	exit(1);
+      fprintf(stderr, "%s exists when it shouldn't\n", filename);
+      exit(1);
     }
 }
   
@@ -111,7 +111,7 @@ void verify_inum(char *filename, struct stat *sb1) {
 	
     if (sb1->st_ino != sb2.st_ino) {
 	printf("inode number of %s changed during rename operation.\n"
-	       "Expected %d but got %d\n", 
+	       "Expected %lu but got %lu\n", 
 	       filename, sb1->st_ino, sb2.st_ino);
 	       
 	exit(1);
@@ -169,6 +169,52 @@ void my_link(char *src, char *dest) {
     }
 }
 
+void my_statfs(const char *path, struct statfs *buf) {
+    if (statfs(path, buf)) {
+	fprintf(stderr, "statfs(%s): %s\n", path, strerror(errno));
+	exit(1);
+    }
+}
+
+DIR *my_opendir(const char *name) {
+    DIR *dirp=opendir(name);
+    
+    if (dirp == NULL) {
+	fprintf(stderr, "opendir(%s): %s\n", name, strerror(errno));
+	exit(1);
+    }
+
+    return dirp;
+}
+
+struct dirent *my_readdir(DIR *dirp) {
+    errno=0;
+    struct dirent *res=readdir(dirp);
+    /* 
+       On success, readdir() returns a pointer to a dirent structure.  (This structure may be statically allocated; do  not  attempt  to  free(3)
+       it.)   If the end of the directory stream is reached, NULL is returned and errno is not changed.  If an error occurs, NULL is returned and
+       errno is set appropriately.
+    */
+
+    if (res == NULL) {
+	if (errno == 0) {
+	    return NULL;
+	} else {
+	    perror("readdir");
+	    exit(1);
+	}
+    } else {
+	return res;
+    }
+}
+
+void my_closedir(DIR *dirp) {
+    if (closedir(dirp)) {
+	perror("closedir");
+	exit(1);
+    }
+}
+
 
 void test_statfs(char *nfsdir) {
     struct statfs sfs;
@@ -176,19 +222,51 @@ void test_statfs(char *nfsdir) {
     printf("testing statfs\n");
   
     /* test statfs */
-    if (statfs(nfsdir, &sfs)) {
-	printf("statfs(%s) failed: %s\n", nfsdir, strerror(errno));
-	exit(1);
-    }
+    my_statfs(nfsdir, &sfs);
   
     if (sfs.f_blocks < sfs.f_bfree ||
 	sfs.f_blocks < sfs.f_bavail) {
-	printf("Weird! statfs says that total filesystem blocks is less than free blocks.\n");
+	fprintf(stderr, "Weird! statfs says that total filesystem blocks is less than free blocks.\n");
 	exit(1);
     }
-  
 }
 
+/* bug23531 */
+void test_statfs_file(char *workdir) {
+    char *path;
+    struct statfs sfs;
+    
+    printf("testing statfs against a file\n");
+    
+    if(asprintf(&path, "%s/statfs_test", workdir) == -1) {
+	perror("asprintf");
+	exit(1);
+    }
+    
+    int fd=open(path, O_CREAT|O_EXCL|O_WRONLY, 0666);
+    if (fd < 0) {
+	fprintf(stderr, "open(%s) failed: %s\n", path, strerror(errno));
+	exit(1);
+    }
+    close(fd);
+
+    my_statfs(path, &sfs);
+    
+    if (sfs.f_blocks < sfs.f_bfree ||
+	sfs.f_blocks < sfs.f_bavail) {
+	fprintf(stderr, "Weird! statfs says that total filesystem blocks is less than free blocks.\n");
+	exit(1);
+    }
+    
+    my_unlink(path);
+    
+    free(path);
+}
+
+int mysystem(char *buf) {
+    printf("system: %s\n", buf);
+    return system(buf);
+}
 
 void test_read(char *nfsdir) {
     char infilename[1024], outfilename[1024], buf[64*1024];
@@ -249,7 +327,7 @@ void test_read(char *nfsdir) {
     }
   
     /* cleanup */
-    unlink(outfilename);
+    my_unlink(outfilename);
 
 }
 
@@ -292,7 +370,7 @@ void test_lookup_illegal(char *workdir) {
     
     if (errno != ENOENT) {
 	printf("stat(illegal filename) got error %d (%s) but we wanted %d (ENOENT)\n",
-	       errno, strerror(errno));
+	       errno, strerror(errno), ENOENT);
 	exit(1);
     }
 }
@@ -341,6 +419,7 @@ void test_create(char *workdir) {
 }
 
 
+/* Depends on test_create executing first */
 void test_remove(char *workdir) {
     char filename[1024];
   
@@ -349,10 +428,7 @@ void test_remove(char *workdir) {
     sprintf(filename, "%s/file1", workdir);
   
     /* test remove */
-    if (unlink(filename)) {
-	printf("unlink(%s) failed: %s\n", filename, strerror(errno));
-	exit(1);
-    }
+    my_unlink(filename);
   
     /* Second attempt should fail w/ ENOENT */
     if (!unlink(filename)) {
@@ -368,10 +444,7 @@ void test_remove(char *workdir) {
 
     /* test remove again*/
     sprintf(filename, "%s/file1excl", workdir);
-    if (unlink(filename)) {
-	printf("unlink(%s) failed: %s\n", filename, strerror(errno));
-	exit(1);
-    }
+    my_unlink(filename);
 }
   
 
@@ -400,7 +473,6 @@ void test_rename(char *workdir) {
     char file1[1024], file2[1024], link[1024],
 	subdir[1024], newdir[1024];
     struct stat sb1, sb2;
-    int fd;
     
     printf("testing rename\n");
 
@@ -477,12 +549,12 @@ void test_readdir(char *workdir) {
     char filename[1024];
     DIR *dirp;
     struct dirent *de;
-    char *seen=malloc(testfiles);
+    char *seen=malloc(num_testfiles);
 	
     printf("Making a bunch of directory entries...\n");
     /* make a bunch of test files */
 	
-    for(i=0; i<testfiles; i++) {
+    for(i=0; i<num_testfiles; i++) {
 	snprintf(filename, sizeof(filename), "%s/dirent%d", 
 		 workdir, i);
 	fd=open(filename, O_WRONLY|O_CREAT, 0666);
@@ -497,16 +569,11 @@ void test_readdir(char *workdir) {
     printf("Testing readdir\n");
     memset(seen, 0, sizeof(seen));
 	
-    dirp=opendir(workdir);
-    if (!dirp) {
-	printf("failed to opendir(%s): %s\n",
-	       workdir, strerror(errno));
-	exit(1);
-    }
+    dirp=my_opendir(workdir);
 	
     /* tests modifying the directory while readdiring it */
     errno=0;
-    while ((de=readdir(dirp))) {
+    while ((de=my_readdir(dirp))) {
 	/* printf("%s\n", de->d_name); */
 	if (!strncmp(de->d_name, "rent", 4)) {
 	    printf("readdir is returning truncated directory entries.  This is a C library or building bug.  Aborting.\n");
@@ -516,12 +583,7 @@ void test_readdir(char *workdir) {
 	if (sscanf(de->d_name, "dirent%d", &direntnum)==1) {
 	    seen[direntnum]=1;
 	    sprintf(filename, "%s/%s", workdir, de->d_name);
-	    if (unlink(filename)) {
-		printf("unlink(%s) failed: %s\n",
-		       filename, strerror(errno));
-		exit(1);
-	    }
-			
+	    my_unlink(filename);
 	}
 	errno=0;
     }
@@ -531,10 +593,10 @@ void test_readdir(char *workdir) {
 	exit(1);
     }
 #endif
-    closedir(dirp);
-
+    my_closedir(dirp);
+    
     /* Make sure we saw all the expected files */
-    for (i=0; i<testfiles; i++) {
+    for (i=0; i<num_testfiles; i++) {
 	if (!seen[i]) {
 	    printf("File dirent%d wasn't seen in the directory listing.\n", i);
 	    exit(1);
@@ -670,21 +732,8 @@ void test_symlink(char *workdir) {
 	exit(1);
     }
 
-    if (unlink(path) != 0) {
-	printf("unlink(%s): %s\n", path, strerror(errno));
-	exit(1);
-    }
-	
-    
+    my_unlink(path);
 }
-
-int mysystem(char *buf)
-{
-    printf("system: %s\n", buf);
-    return system(buf);
-}
-
-
 
 void test_write(char *workdir, char *nfshost, char *hosttemp, 
 		char *workdirbasename) {
@@ -754,23 +803,101 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
 	printf("Non-zero return code from remote diff.\n");
 	exit(1);
     }
-  
-    if (unlink(outfilename)) {
-	printf("unlink(%s): %s\n", outfilename, strerror(errno));
+
+    my_unlink(outfilename);
+}
+
+void test_international(char *workdir) {
+    char *dirname="【期間生産限定盤】";
+    char *basename="ブギーポップは笑わない～";
+    
+    char *dirpath, *filepath;
+
+    printf("Testing international file/directory names\n");
+    
+    if (asprintf(&dirpath, "%s/%s", workdir, dirname) == -1) {
+	perror("asprintf");
 	exit(1);
     }
-  
+    if (asprintf(&filepath, "%s/%s", dirpath, basename) == -1) {
+	perror("asprintf");
+	exit(1);
+    }
+    
+    if (mkdir(dirpath, 0777)) {
+      fprintf(stderr, "mkdir(%s): %s\n", dirpath, strerror(errno));
+      exit(1);
+    }
+
+    int fd=open(filepath, O_CREAT|O_EXCL|O_RDWR, 0666);
+    if (fd < 0) {
+      fprintf(stderr, "open(%s): %s\n", filepath, strerror(errno));
+      exit(1);
+    }
+
+    char *data="Hello\n";
+    int len=strlen(data);
+    int wrote=write(fd, data, len);
+    if (wrote < 0) {
+      perror("write");
+      exit(1);
+    }
+    if (wrote != len) {
+      fprintf(stderr, "Tried to write %d but only wrote %d\n", len, wrote);
+      exit(1);
+    }
+
+    close(fd);
+    
+    /* Test statfs against international file and directory (bug23532) */
+    struct statfs sfs;
+    my_statfs(dirpath, &sfs);
+    my_statfs(filepath, &sfs);
+
+    /* Test readdir */
+    
+    DIR *dirp=my_opendir(dirpath);
+    struct dirent *de;
+    int file_seen = 0;
+
+    while ((de=readdir(dirp))) {
+	if (!strcmp(de->d_name, basename)) {
+	    file_seen=1;
+	}
+    }
+    
+    my_closedir(dirp);
+
+    if (!file_seen) {
+	fprintf(stderr, "Did not find expected file in readdir test\n");
+	exit(1);
+    }
+
+
+    my_unlink(filepath);
+
+    if (rmdir(dirpath)) {
+      fprintf(stderr, "rmdir(%s): %s\n", dirpath, strerror(errno));
+      exit(1);
+    }
+
+    free(dirpath);
+    free(filepath);
+
 }
+
 
 void usage(char *prg) {
     printf("Usage: %s\n", prg);
     printf("\t[-o skipread] [-o skipwrite] [-o skipdir ] [-t tmpdir-on-nfshost]\n");
     printf("\t[-c num-files-to-create-in-dir-test ]\n");
-    printf("\t[-l local-test-dir] [-f test-filename] nfshost mountpoint\n");
+    printf("\t[-l local-test-dir] [-f test-filename] NFSHOST MOUNTPOINT\n");
     printf("\n");
-    printf("    tmpdir-on-nfshost defaults to '%s'\n", DEFAULT_HOSTTEMP);
+    printf("    NFSHOST is used by the write test (to log into using \"on\").\n");
+    printf("    MOUNTPOINT must be a (possibly automounted) NFS mounted directory to use for testing.\n");
+    printf("    tmpdir-on-nfshost defaults to '%s' and is used for the write test.\n", DEFAULT_HOSTTEMP);
     printf("    local-test-dir defaults to the current working directory.\n");
-    printf("    test-filename defaults to '%s'\n", DEFAULT_TESTFILE);
+    printf("    test-filename defaults to '%s' and is used for the read and write tests.\n", DEFAULT_TESTFILE);
     printf("    -c defaults to 1000\n");
     exit(1);
 }
@@ -814,7 +941,7 @@ int main(int argc, char **argv) {
 	    testfile=strdup(optarg);
 	    break;
 	case 'c':
-	    testfiles=atoi(optarg);
+	    num_testfiles=atoi(optarg);
 	    break;
 	}
     }
@@ -847,6 +974,8 @@ int main(int argc, char **argv) {
     test_link(workdir);
     test_symlink(workdir);
 
+    test_international(workdir);
+
     if (!skipread) 
 	test_read(nfsdir);
 
@@ -859,6 +988,8 @@ int main(int argc, char **argv) {
 	test_readdir(workdir);
   
     test_remove(workdir);
+
+    test_statfs_file(workdir);
   
     test_rmdir(workdir);
 
