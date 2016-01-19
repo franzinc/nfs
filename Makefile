@@ -13,7 +13,7 @@ ifeq ($(DO_MAKEFILE_LOCAL),yes)
 include Makefile.local
 endif
 
-LISPDIR ?= /c/acl90.patched
+LISPDIR ?= /c/acl100.patched
 LISPEXE = $(LISPDIR)/mlisp
 MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
 
@@ -26,7 +26,7 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-MODULES = date:acl90 demoware:master
+MODULES = date:master demoware:master
 
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
