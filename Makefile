@@ -115,7 +115,7 @@ dists: clean
 ifndef release_suffix
 	$(error release_suffix is not defined.)
 endif
-	@if grep -q '^(pushnew :nfs-' load.cl; then \
+	@if grep -q '^(pushnew :nfs-' load.cl && ! grep -q 'nfsd-version.*beta' nfs-common.cl; then \
 	    echo ERROR: debugging features enabled for production build; \
 	    exit 1; \
 	fi
