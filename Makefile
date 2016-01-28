@@ -7,6 +7,9 @@
 # - make demo and non-demo versions:
 #   $ make clean dist dist-demo LISPDIR=/c/acl90.patched
 
+# chosen because it seems to work on thor and for spr42738
+ACL_BUILD_ACLMALLOC_HEAP_START = 0x8ab0000
+
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
 ifeq ($(DO_MAKEFILE_LOCAL),yes)
@@ -31,8 +34,19 @@ MODULES = date:master demoware:master
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
 
+ifdef release_suffix
+tag_name = nfs-$(version)-$(release_suffix)
+else
+tag_name = nfs-$(version)
+endif
 
-tag_name = nfs$(major-version)$(release_suffix)
+check_tag_name: FORCE
+	@if git tag | grep -q '^$(tag_name)$$'; then \
+	    echo ERROR: git tag $(tag_name) already exists; \
+	    exit 1; \
+	else \
+	    echo '**** TAG: $(tag_name)'; \
+	fi
 
 commit-id.cl: FORCE
 	echo -n '(defvar *nfsd-commit-id* "' > commit-id.cl
@@ -40,9 +54,6 @@ commit-id.cl: FORCE
 	echo -n '")' >> commit-id.cl
 
 tag: FORCE
-ifndef release_suffix
-	$(error release_suffix is not defined.)
-endif
 	git.sh tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
 	@echo NOTE: do this to push the tag:
 	@echo git.sh push origin $(tag_name)
@@ -71,6 +82,7 @@ endif
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
+	env ACL_BUILD_ACLMALLOC_HEAP_START=$(ACL_BUILD_ACLMALLOC_HEAP_START) \
 	$(LISPEXE) +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
@@ -111,10 +123,7 @@ installer-demo: installer-common
 #
 # `clean' added to make sure that configure is really rebuilt.  There
 # was evidence in June of 2011 that this wasn't happening.  -Kevin/Elliott
-dists: clean
-ifndef release_suffix
-	$(error release_suffix is not defined.)
-endif
+dists: clean check_tag_name
 	@if grep -q '^(pushnew :nfs-' load.cl && ! grep -q 'nfsd-version.*beta' nfs-common.cl; then \
 	    echo ERROR: debugging features enabled for production build; \
 	    exit 1; \
