@@ -116,11 +116,17 @@
 				,(- (truncate (log blocksize 2)))))))
 	 else whole))))
 
+;; debugmain sets this to nil
+(defparameter *exit-on-bailout* t)
+
 (defmacro bailout (format &rest format-args)
-  `(progn
-     (logit-stamp ,format ,@format-args)
-     (console-control :close t :show t)
-     (exit 1)))
+  (let ((complaint (gensym "complaint")))
+    `(let ((,complaint (format nil ,format ,@format-args)))
+       (logit-stamp "~a" ,complaint)
+       (console-control :close t :show t)
+       (if* *exit-on-bailout*
+	  then (exit 1)
+	  else (error "~a" ,complaint)))))
 
 (ff:def-foreign-call MoveFileExA ((from (* :char)) 
 				  (to (* :char))

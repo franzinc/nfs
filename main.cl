@@ -49,6 +49,26 @@
       (bailout "~
 An NFS server is already running on this machine.  Aborting.~%")))
 
+(defun start-subprocess (name function &key start-gate)
+  "Returns the subprocess object"
+  (flet ((subprocess-wrapper ()
+	   (handler-bind 
+	       ((error #'(lambda (c)
+			   (logit-stamp "~%Unhandled condition in thread ~a: ~a~%" 
+					(mp:process-name mp:*current-process*)
+					c)
+			   (logit-stamp "Backtrace:~%~a~%"
+					(with-output-to-string (s)
+					  (top-level.debug:zoom s :count t :length 10))))))
+	     (funcall function))))
+    
+    (let ((proc (mp:process-run-function name #'subprocess-wrapper)))
+      (when start-gate
+	(mp:process-wait (format nil "Waiting for ~a to start" name)
+			 #'mp:gate-open-p start-gate))
+      
+      proc)))
+
 (defun startem (&rest args)
   (declare (ignore args)
 	   (special nlm:*nlm-gate*))
@@ -59,21 +79,21 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (logit-stamp "commit id: ~a~%" *nfsd-commit-id*)
   (logit-stamp "Built with Allegro CL ~a~%" (lisp-implementation-version))
   (check-nfs-already-running)
+
   (setf *pmap-process* 
-    (mp:process-run-function "portmapper" #'portmap:portmapper))
-  (mp:process-wait "Waiting for portmapper to start" 
-		   #'mp:gate-open-p portmap:*pmap-gate*)
+    (start-subprocess "portmapper" #'portmap:portmapper :start-gate portmap:*pmap-gate*))
+
   (setf *mountd-process* 
-    (mp:process-run-function "mountd" #'mount:MNT))
-  (mp:process-wait "Waiting for mountd to start" 
-		   #'mp:gate-open-p mount:*mountd-gate*)
-  (setf *nsm-process* (mp:process-run-function "nsm" #'nsm:NSM))
-  (mp:process-wait "Waiting for nsm to start" 
-		   #'mp:gate-open-p nsm:*nsm-gate*)
-  (setf *nlm-process* (mp:process-run-function "nlm" #'nlm:NLM))
-  (mp:process-wait "Waiting for nlm to start" 
-		   #'mp:gate-open-p nlm:*nlm-gate*)
-  (setf *nfsd-process* (mp:process-run-function "nfsd" #'nfsd)))
+    (start-subprocess "mountd" #'mount:MNT :start-gate mount:*mountd-gate*))
+  
+  (setf *nsm-process* 
+    (start-subprocess "nsm" #'nsm:NSM :start-gate nsm:*nsm-gate*))
+
+  (setf *nlm-process* 
+    (start-subprocess "nlm" #'nlm:NLM :start-gate nlm:*nlm-gate*))
+
+  (setf *nfsd-process* 
+    (start-subprocess "nfsd" #'nfsd)))
 
 (defvar *shutting-down* (mp:make-gate nil))
 
@@ -108,6 +128,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 
 (defun debugmain (&optional (config "nfs.cfg"))
   (setf *configfile* config)
+  (setf *exit-on-bailout* nil)
   (read-nfs-cfg *configfile*)
   (setf mount:*mountd-debug* t)
   (setf *nfs-debug* t)
