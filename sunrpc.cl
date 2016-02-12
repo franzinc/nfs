@@ -100,8 +100,11 @@
   vec)
   
 
+;;; Used by with-good-reply-msg
 (defun verbose-accept-stat (code)
-  (ecase code
+  "Translates an enum accept_stat into a string"
+  (case code
+    ;; These 5 are defined by rfc1057 (1988)
     (#.*success*
      "success")
     (#.*prog-unavail*
@@ -111,8 +114,13 @@
     (#.*proc-unavail*
      "procedure unavailable")
     (#.*garbage-args*
-     "garbage arguments")))
-
+     "garbage arguments")
+    ;; This one showed up in rfc1831 (1995)
+    (#.*system-err*
+     "system error")
+    ;; Hmmm
+    (t
+     (format nil "<Unrecognized enum accept_stat = ~a>" code))))
 
 ;; returns rpc-msg struct.
 (defun rpc-get-reply (peer &key buffer)

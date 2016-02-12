@@ -104,7 +104,7 @@
   (when (eq *use-system-portmapper* :auto)
     (setf *use-system-portmapper* nil)
     (when (ping-portmapper)
-      (user::logit-stamp "PMAP: Using system portmapper.~%")
+      (user::logit-stamp "PMAP: Using system portmapper. ** A conflicting NFS server may be running**~%")
       (setf *use-system-portmapper* t)
       (mp:open-gate *pmap-gate*)))
   

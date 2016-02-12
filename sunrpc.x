@@ -1,6 +1,5 @@
-/* $Id: sunrpc.x,v 1.1 2006/05/11 21:58:59 dancy Exp $ */
-
 /* Extracted from rfc1057 (plus some tweaks) */
+/* Updated to rfc1831 */
 
 	const TRUE = 1;
 	const FALSE = 0;
@@ -33,7 +32,8 @@
             PROG_UNAVAIL  = 1, /* remote hasn't exported program  */
             PROG_MISMATCH = 2, /* remote can't support version #  */
             PROC_UNAVAIL  = 3, /* program can't support procedure */
-            GARBAGE_ARGS  = 4  /* procedure can't decode params   */
+            GARBAGE_ARGS  = 4, /* procedure can't decode params   */
+	    SYSTEM_ERR    = 5  /* errors like memory allocation failure */
          };
 
          enum reject_stat {
@@ -42,11 +42,20 @@
          };
 
          enum auth_stat {
+	    AUTH_OK           = 0,  /* success                       */
+	    /* 
+ 	     * failed at remote end
+             */
             AUTH_BADCRED      = 1,  /* bad credentials (seal broken) */
             AUTH_REJECTEDCRED = 2,  /* client must begin new session */
             AUTH_BADVERF      = 3,  /* bad verifier (seal broken)    */
             AUTH_REJECTEDVERF = 4,  /* verifier expired or replayed  */
-            AUTH_TOOWEAK      = 5   /* rejected for security reasons */
+            AUTH_TOOWEAK      = 5,  /* rejected for security reasons */
+	    /*
+	     * failed locally
+	     */
+	    AUTH_INVALIDRESP  = 6,  /* bogus response verifier       */
+	    AUTH_FAILED       = 7   /* reason unknown                */
          };
 
          struct rpc_msg {
@@ -93,7 +102,7 @@
              default:
                 /*
                  * Void.  Cases include PROG_UNAVAIL, PROC_UNAVAIL,
-                 * and GARBAGE_ARGS.
+                 * GARBAGE_ARGS, and SYSTEM_ERR.
                  */
                 void;
              } reply_data;
