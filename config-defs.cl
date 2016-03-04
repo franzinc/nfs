@@ -51,6 +51,8 @@
 ;; should always be larger than *openfilereaptime*.  FIXME: Why?
 (defvar *attr-cache-reap-time* 5) 
 
+(defvar *disable-persistent-fhandles* nil)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PORTMAP
 

@@ -37,11 +37,20 @@
 ;; Tracks used non-persistent file ids
 (defparameter *fake-ids* (make-hash-table :values nil))
 
+#-64bit
+(progn
+  (deftype file-id-type () 'fixnum)
+  (defconstant *max-file-id* most-positive-fixnum))
+#+64bit
+(progn
+  (deftype file-id-type () '(unsigned-byte 32))
+  (defconstant *max-file-id* (1- (expt 2 32))))
+
 (defstruct fh
   pathname
   (vec (make-ausb8 *nfs-fhsize* :initial-element 0))
   (refs 0 :type fixnum)
-  file-id ;; like inode number
+  (file-id 0 :type file-id-type) ;; like inode number
   export
   parent ;; nil if root
   children ;; hash of basenames of directory children. values are fh's
@@ -134,15 +143,18 @@
 ;; Non-persistent file handle ids are chosen randomly to prevent the
 ;; search from taking linearly-increasing time.  Callers must be
 ;; holding *fhandles-lock*.  All callers of this function are
-;; contained within this file.
+;; contained within this file.    The id selected by this function
+;; is guaranteed to fit into 32-bits.
 (defun select-non-persistent-file-id ()
   (declare (optimize speed))
-  (let (id)
+  (let ((fake-ids *fake-ids*)
+	id)
     (loop
-      (setf id (random most-positive-fixnum))
-      (when (null (gethash id *fake-ids*))
+      ;; 1+ to ensure that we never use 0.
+      (setf id (1+ (random *max-file-id*)))
+      (when (null (gethash id fake-ids))
 	;; Claim it
-	(puthash-key id *fake-ids*)
+	(puthash-key id fake-ids)
 	;; Return it
 	(return id)))))
 
@@ -158,7 +170,7 @@
   "Returns NIL if a persistent file handle could not be created for FILENAME"
   (let* ((vec (fh-vec fh))
 	 (pathname (fh-pathname fh))
-	 (id (put-file-id-into-vec pathname vec 4)))
+	 (id (put-file-id-into-vec pathname vec 4))) ;; 64-bits
     (when id
       (setf (fh-vec-type vec) *fhandle-type-persistent*)
       (setf (fh-file-id fh) id))))
@@ -176,9 +188,11 @@
 			   :export (fh-export dirfh)
 			   :parent dirfh))))
     
-    (or (populate-persistent-fhandle fh)
-	(populate-non-persistent-fhandle fh))
-    
+    (if* *disable-persistent-fhandles* 
+       then (populate-non-persistent-fhandle fh)
+       else (or (populate-persistent-fhandle fh)
+		(populate-non-persistent-fhandle fh)))
+	    
     fh))
 
 ;; Used by mountd
@@ -485,7 +499,8 @@
 	  (let ((fh (gethash fh-vec *fhandles*)))
 	    (if* fh
 	       then fh
-	     elseif (and (fh-vec-persistent-p fh-vec)
+	     elseif (and (not *disable-persistent-fhandles*)
+			 (fh-vec-persistent-p fh-vec)
 			 (setf fh (recover-persistent-fh fh-vec)))
 	       then fh
 	       else :stale)))))))

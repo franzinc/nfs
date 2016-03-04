@@ -14,7 +14,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 707 181 1240 523)) (name :configform)
+     (interior (make-box 198 123 731 465)) (name :configform)
      (title "NFS Server for Windows Configuration Utility") (border :frame) (child-p t)
      form-p)
   (let ((owner
@@ -34,8 +34,7 @@
            :pop-up nil
            :resizable t
            :scrollbars nil
-	   ;; rfe13687/rfe13690
-	   :state :icon
+           :state :icon
            :system-menu t
            :title title
            :title-bar t
@@ -413,7 +412,7 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        'configform-showmount-disable-checkbox-on-change :tab-control
                        (list :tab-control :global) :title
                        "Disable export listings via remote showmount." :top 210 :width
-                       297)
+                       240)
         (make-instance 'editable-text :font (make-font-ex nil "Tahoma / Default" 11)
                        :left 154 :name :dircache-update-interval :on-change
                        'on-dircache-update-interval-change :tab-control
@@ -436,6 +435,11 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        26 :name :static-text-26 :tab-control (list :tab-control :global)
                        :tooltip "How long file attributes are cached" :top 259 :value
                        "File attribute caching time:" :width 135)
+        (make-instance 'check-box :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       286 :name :disable-persistent-fhandles-checkbox :on-change
+                       'configform-disable-persistent-fhandles-checkbox-on-change
+                       :tab-control (list :tab-control :global) :title
+                       "Disable persistent file handles" :top 210 :width 186)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :static-text-log-rotation :tab-control
                        (list :tab-control :log) :top 43 :value
@@ -493,6 +497,7 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :static-text-18 :static-text-19
                                               :group-box-3
                                               :set-showmount-disable-checkbox
+					      :disable-persistent-fhandles-checkbox
                                               :dircache-update-interval
                                               :attr-cache-reap-time :static-text-20
                                               :static-text-21 :static-text-25

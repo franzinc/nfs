@@ -797,8 +797,11 @@ struct __stat64 {
 ;; FIXME: Add a check to ensure that all volumes on the system have a different
 ;; serial number.
 
-;; If successful, returns:
-;;    fileid (which may be 0 if the file is on a filesystem that doesn't support fileids)
+;; If successful a fileid (which may be 0 if the file is on a
+;; filesystem that doesn't support fileids).  Note that this will be a
+;; 64-bit number, so NFSv2 clients (which use 32-bit file ids) and
+;; 32-bit NFSv3 clients may behave badly (EOVERFLOW) or get bogus
+;; results (due to truncation).  Ref: spr42796
 
 ;; If not successful, returns:
 ;;    nil
