@@ -1,0 +1,591 @@
+<!-- Copyright 1997 The Open Group, All rights reserved -->
+<html><head>
+<title>Protocols for Interworking: XNFS, Version 3W - Network Lock Manager Protocol</title>
+</head><body bgcolor="#FFFFFF"><center><a href="chap9.htm">Previous section.</a></center>
+<p>
+<basefont size=3>
+<!-- instructions: Typically 2 lines of text under this percentage -->
+<!-- they appear at the HEAD of each file, just UNDER "previous section" -->
+<basefont size=3>
+<center>
+<font size=2>
+Protocols for Interworking: XNFS, Version 3W
+<br>
+Copyright &copy; 1998 The Open Group
+</center>
+</font>
+<hr size=2 noshade>
+<h2><a name = "tagcjh_11"></a>Network Lock Manager Protocol</h2>
+<xref type="1" name="nlmprotocol"></xref>
+<h3><a name = "tagcjh_11_01"></a>Introduction</h3>
+<index term="NLM protocol"></index>
+<p>
+The Network Lock Manager (NLM) is a service that provides advisory
+X/Open CAE file and record locking, and DOS compatible file sharing and
+locking in an XNFS environment.
+Here, DOS refers to MS-DOS or PC DOS, and DOS file sharing and 
+record locking is as defined in Disk Operating System Technical Reference, IBM part no. 6138536.
+<h4><a name = "tagcjh_11_01_01"></a>Versions</h4>
+<index term="versions"></index>
+<p>
+There are multiple versions of the NLM.
+This document describes version 3 which is backward
+compatible with versions 1 and 2.
+<h4><a name = "tagcjh_11_01_02"></a>Synchronization of NLMs</h4>
+<p>
+Due to the stateless nature of XNFS servers it is difficult to
+incorporate a stateful service.
+The NLM relies on the server
+holding the locks as the keeper of the state and on the NSM
+for information on host status (monitored locks only).
+When an XNFS server crashes and is rebooted, locks
+which it had granted may be recreated by the lock holders (clients) during a
+grace period.
+During this grace period no new locks are accepted
+although NFS requests are accepted.
+The duration of this grace period
+is implementation-dependent; 45 seconds is common.
+<h4><a name = "tagcjh_11_01_03"></a>DOS-Compatible File-Sharing Support</h4>
+<p>
+Version 3 of the protocol supports DOS compatible file locking and sharing.
+File sharing is a
+mechanism which allows a DOS process to open or create a file and to
+restrict the way in which subsequent processes may access the file.
+For example, a DOS client may request that a file is opened for
+reading and writing, and that subsequent users may only open it for
+reading.
+To use a DOS sharing mode an <i>NLM_SHARE</i>
+request is issued when a file is opened, and a corresponding 
+<i>NLM_UNSHARE</i> is performed when it is closed.
+These procedures rely on the <b>nlm_share</b> structure, defined below.
+Because the sharing requests were intended to be used by a
+single-tasking client host, they are non-monitored.
+<h3><a name = "tagcjh_11_02"></a>RPC Information</h3>
+<index term="NLM protocol, RPC information"></index>
+<h5><a name = "tagcjh_11_02_00_01"></a>Authentication</h5>
+<p>
+The NLM service uses <i>AUTH_UNIX</i> style authentication only.
+<h5><a name = "tagcjh_11_02_00_02"></a>Transport Protocols</h5>
+<p>
+The NLM Protocol supports both UDP/IP and TCP/IP transports.
+However, a client implementation may choose to only generate requests over
+the UDP/IP protocol.
+<h5><a name = "tagcjh_11_02_00_03"></a>Port Number</h5>
+<p>
+Consult the server's port mapper, described in 
+<xref href=portmapprotocol><a href="chap6.htm#tagcjh_07">
+Port Mapper Protocol
+</a></xref>,
+to find the port number on which the NLM service is registered.
+<h4><a name = "tagcjh_11_02_01"></a>Sizes of XDR Structures</h4>
+<p>
+These are the sizes, given in decimal bytes, of various XDR structures
+used in the protocol.
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+/* The maximum length of the string identifying the caller. */
+const LM_MAXSTRLEN = 1024;
+
+/* The maximum number of bytes in the nlm_notify name argument. */
+const LM_MAXNAMELEN = LM_MAXSTRLEN+1;
+
+const MAXNETOBJ_SZ = 1024;
+</dl>
+</code>
+</pre>
+</tt><h4><a name = "tagcjh_11_02_02"></a>Basic Data Types for Locking</h4>
+<index term="NLM protocol, basic data types"></index>
+<index term="NLM data types"></index>
+<p>
+The following XDR definitions are the basic structures and types used in
+the parameters passed to, and returned from, the NLM.
+<h5><a name = "tagcjh_11_02_02_01"></a>netobj</h5>
+<index term="NLM data types, netobj"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+opaque netobj&lt;MAXNETOBJ_SZ&gt;
+</dl>
+</code>
+</pre>
+</tt><p>
+<b>Netobj</b> is used to identify an object, generally a transaction,
+owner or file.
+The contents and form of the netobj are defined by the client.
+<h5><a name = "tagcjh_11_02_02_02"></a>nlm_stats</h5>
+<index term="NLM data types, nlm_stats"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+enum nlm_stats {
+    LCK_GRANTED = 0,
+    LCK_DENIED = 1,
+    LCK_DENIED_NOLOCKS = 2,
+    LCK_BLOCKED = 3,
+    LCK_DENIED_GRACE_PERIOD = 4
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+<b>Nlm_stats</b> are returned whenever the NLM is called upon
+to create or test a lock on a file.
+<dl compact>
+<index term="NLM procedure return codes, LCK_GRANTED"></index>
+<p>
+<dt>LCK_GRANTED<dd>Indicates that the procedure call completed successfully.
+<index term="NLM procedure return codes, LCK_DENIED"></index>
+<p>
+<dt>LCK_DENIED<dd>Indicates that the request failed.
+<index term="NLM procedure return codes, LCK_DENIED_NOLOCKS"></index>
+<p>
+<dt>LCK_DENIED_NOLOCKS<dd><br>
+Indicates that the procedure call failed because the server
+NLM could not allocate the resources needed to process the request.
+<index term="NLM procedure return codes, LCK_BLOCKED"></index>
+<p>
+<dt>LCK_BLOCKED<dd>Indicates the blocking request cannot be granted immediately.
+The server NLM
+will make a call-back to the client with an NLM_GRANTED procedure call when
+the lock can be granted.
+<index term="NLM procedure return codes, LCK_DENIED_GRACE_PERIOD"></index>
+<p>
+<dt>LCK_DENIED_GRACE_PERIOD<dd><br>
+Indicates that the procedure call failed because the server has recently been
+rebooted and the server NLM is re-establishing existing locks,
+and is not yet ready to accept normal service requests.
+<p>
+</dl>
+<p>
+Note that some versions of NFS source may use mixed or lower-case
+names for the enumeration constants in &quot;nlm_stats&quot;.
+<h5><a name = "tagcjh_11_02_02_03"></a>nlm_stat</h5>
+<index term="NLM data types, nlm_stat"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_stat {
+    nlm_stats stat;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+This structure returns lock status.
+It is used in many of the other data structures.
+<h5><a name = "tagcjh_11_02_02_04"></a>nlm_res</h5>
+<index term="NLM data types, nlm_res"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_res {
+    netobj cookie;
+    nlm_stat stat;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_res</b>
+structure is returned by all of the main lock routines except for
+NLM_TEST which has a separate return structure defined below.
+Note that clients must <i>not</i>
+rely upon the &quot;cookie&quot; being the same as that passed in the corresponding
+request.
+<h5><a name = "tagcjh_11_02_02_05"></a>nlm_holder</h5>
+<index term="NLM data types, nlm_holder"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_holder {
+    bool exclusive;
+    int uppid;
+    netobj oh;
+    unsigned l_offset;
+    unsigned l_len;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_holder</b> structure identifies the holder of a particular lock.
+It is used as part of the return value from the NLM_TEST procedure.
+The boolean &quot;exclusive&quot; indicates whether the lock is exclusively held by
+the current holder.
+The integer &quot;uppid&quot; provides a unique
+per-process identifier for lock differentiation.
+The values &quot;l_offset&quot;
+and &quot;l_len&quot; define the region of the file locked by this holder.
+The &quot;oh&quot; field is an opaque object that identifies the host,
+or a process on the host, that is holding the lock.
+<h5><a name = "tagcjh_11_02_02_06"></a>nlm_testrply</h5>
+<index term="NLM data types, nlm_testrply"></index>
+<index term="NLM procedure return codes, LCK_DENIED"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+union nlm_testrply switch (nlm_stats stat) {
+    case LCK_DENIED:
+        struct nlm_holder holder;    /*  holder of the lock */
+    default:
+        void;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_testrply</b>
+is used as part of the return value from the NLM_TEST procedure.
+If the lock
+specified in the NLM_TEST procedure call would conflict with a previously
+granted lock, information on the holder of the lock is returned in
+&quot;holder&quot;, otherwise just the status is returned.
+<h5><a name = "tagcjh_11_02_02_07"></a>nlm_testres</h5>
+<index term="NLM data types, nlm_testres"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_testres {
+    netobj cookie;
+    nlm_testrply test_stat;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+This structure is the return value from the NLM_TEST procedure.
+The other main lock routines return the nlm_res structure.
+<h5><a name = "tagcjh_11_02_02_08"></a>nlm_lock</h5>
+<index term="NLM data types, nlm_lock"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_lock {
+    string caller_name&lt;LM_MAXSTRLEN&gt;;
+    netobj fh;         /*  identify a file  */
+    netobj oh;         /*  identify owner of a lock  */
+    int uppid;         /*  Unique process identifier  */
+    unsigned l_offset; /*  File offset (for record locking) */
+    unsigned l_len;    /*  Length (size of record)  */
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_lock</b>
+structure defines the information needed to uniquely specify a lock.
+The &quot;caller_name&quot; uniquely identifies the host making the call.
+The &quot;fh&quot; field identifies the file to lock.
+The &quot;oh&quot; field is an opaque object that identifies the host,
+or a process on the host, that is making the request.  &quot;uppid&quot; uniquely
+describes the process owning the file on the calling host.
+The &quot;uppid&quot; may be generated in any system-dependent fashion.
+On an X/Open-compliant system it is generally the process ID.
+On a DOS system it may be generated from the  program segment prefix (PSP).
+The &quot;l_offset&quot; and &quot;l_len&quot; determine which bytes of the file are locked.
+<h5><a name = "tagcjh_11_02_02_09"></a>nlm_lockargs</h5>
+<index term="NLM data types, nlm_lockargs"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_lockargs {
+    netobj cookie;
+    bool block;            /*  Flag to indicate blocking behaviour. */
+    bool exclusive;        /*  If exclusive access is desired. */
+    struct nlm_lock alock; /*  The actual lock data (see above) */
+    bool reclaim;          /*  used for recovering locks  */
+    int state;             /*  specify local NSM state  */
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_lockargs</b>
+structure defines the information needed to request a lock on a server.
+The &quot;block&quot; field must be set to <i>true</i>
+if the client wishes the procedure call
+to block until the lock can be granted (see NLM_LOCK).
+A <i>false</i>
+value will cause the procedure call to return immediately if the
+lock cannot be granted.
+The &quot;reclaim&quot; field must only be set to <i>true</i>
+if the client is attempting to reclaim a
+lock held by an NLM which has been restarted (due to a server crash,
+and so on).
+The &quot;state&quot; field is used with the monitored lock procedure call (NLM_LOCK).
+It is the state value supplied by the local NSM, see
+<xref href=nsmprotocol><a href="chap11.htm#tagcjh_12">
+Network Status Monitor Protocol
+</a></xref>.
+<h5><a name = "tagcjh_11_02_02_10"></a>nlm_cancargs</h5>
+<index term="NLM data types, nlm_cancargs"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_cancargs {
+    netobj cookie;        
+    bool block;
+    bool exclusive;
+    struct nlm_lock alock;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_cancargs</b>
+structure defines the information needed to cancel an outstanding lock
+request.
+The data in the nlm_cancargs structure must exactly match the
+corresponding information in the nlm_lockargs structure of the
+outstanding lock request to be cancelled.
+<h5><a name = "tagcjh_11_02_02_11"></a>nlm_testargs</h5>
+<index term="NLM data types, nlm_testargs"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_testargs {
+    netobj cookie;        
+    bool exclusive;
+    struct nlm_lock alock;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_testargs</b>
+structure defines the information needed to test a lock.
+The information in this structure is the same as the corresponding
+fields in the nlm_lockargs structure.
+<h5><a name = "tagcjh_11_02_02_12"></a>nlm_unlockargs</h5>
+<index term="NLM data types, nlm_unlockargs"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_unlockargs {
+    netobj cookie;        
+    struct nlm_lock alock;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_unlockargs</b>
+structure defines the information needed to remove a previously
+established lock.
+<index term="NLM protocol, additional data types"></index>
+<index term="NLM data types"></index>
+<h4><a name = "tagcjh_11_02_03"></a>DOS File-Sharing Data Types</h4>
+<p>
+The following data types are used in version 3 of the NLM to
+support DOS 3.1 and above compatible file-sharing control.
+All file-sharing procedure calls are non-monitored.
+<h5><a name = "tagcjh_11_02_03_01"></a>fsh_mode</h5>
+<index term="NLM data types, fsh_mode"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+enum fsh_mode {
+    fsm_DN = 0,        /*  deny none  */
+    fsm_DR = 1,        /*  deny read  */
+    fsm_DW = 2,        /*  deny write  */
+    fsm_DRW = 3        /*  deny read/write  */
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+<b>fsh_mode</b> defines the legal sharing modes.
+<h5><a name = "tagcjh_11_02_03_02"></a>fsh_access</h5>
+<index term="NLM data types, fsh_access"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+enum fsh_access {
+    fsa_NONE = 0,     /*  for completeness  */
+    fsa_R = 1,        /*  read-only  */
+    fsa_W = 2,        /*  write-only  */
+    fsa_RW = 3        /*  read/write  */
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+<b>fsh_access</b> defines the legal file access modes.
+<h5><a name = "tagcjh_11_02_03_03"></a>nlm_share</h5>
+<index term="NLM data types, nlm_share"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_share {
+    string caller_name&lt;LM_MAXSTRLEN&gt;;
+    netobj fh;
+    netobj oh;
+    fsh_mode mode;
+    fsh_access access;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+The <b>nlm_share</b>
+structure defines the information needed to uniquely specify a share
+operation.
+The netobj's define the file.
+&quot;fh&quot; and owner &quot;oh&quot;, &quot;caller_name&quot; uniquely identifies the host.
+&quot;mode&quot; and &quot;access&quot; define the file-sharing and the access modes.
+<h5><a name = "tagcjh_11_02_03_04"></a>nlm_shareargs</h5>
+<index term="NLM data types, nlm_shareargs"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_shareargs {
+    netobj cookie;
+    nlm_share share;     /*  actual share data  */
+    bool reclaim;        /*  used for recovering shares  */
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+This structure encodes the arguments for an NLM_SHARE or
+NLM_UNSHARE procedure call.
+The boolean &quot;reclaim&quot; must be <i>true</i>
+if the client is attempting to reclaim a
+previously-granted sharing request, and <i>false</i> otherwise.
+<h5><a name = "tagcjh_11_02_03_05"></a>nlm_shareres</h5>
+<index term="NLM data types, nlm_shareres"></index>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_shareres {
+    netobj cookie;
+    nlm_stats stat;
+    int sequence;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+This structure encodes the results of an NLM_SHARE or
+NLM_UNSHARE procedure call.
+The &quot;cookie&quot; and &quot;sequence&quot; fields should be ignored;
+they are required only for compatibility reasons.
+The result of the request is given by &quot;stat&quot;.
+<h5><a name = "tagcjh_11_02_03_06"></a>nlm_notify</h5>
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+struct nlm_notify {
+    string name&lt;LM_MAXNAMELEN&gt;;
+    long state;
+};
+</dl>
+</code>
+</pre>
+</tt><p>
+This structure encodes the arguments for releasing all locks and shares a
+client holds.
+<h3><a name = "tagcjh_11_03"></a>NLM Procedures</h3>
+<xref type="2" name="NLMprocedures"></xref>
+<index term="NLM procedures"></index>
+<p>
+The following reference pages define the protocol used by the NLM using RPC
+Language.
+Version 3 of the protocol is the same as version 1 and 2 with the addition
+of the non-monitored locking procedures and the DOS compatible sharing
+procedures.
+<code>
+<pre>
+<tt><dl compact><dt> <dd>
+/*
+ * NLM procedures
+ */
+
+program NLM_PROG {
+    version NLM_VERSX {
+        /*
+         *  synchronous procedures
+         */
+        void         NLM_NULL(void) = 0;
+        nlm_testres  NLM_TEST(struct nlm_testargs) = 1;
+        nlm_res      NLM_LOCK(struct nlm_lockargs) = 2;
+        nlm_res      NLM_CANCEL(struct nlm_cancargs) = 3;
+        nlm_res      NLM_UNLOCK(struct nlm_unlockargs) = 4;
+
+        /*
+         *  server   NLM call-back procedure to grant lock
+         */
+        nlm_res      NLM_GRANTED(struct nlm_testargs) = 5;
+
+        /*
+         *  asynchronous requests and responses
+         */
+        void         NLM_TEST_MSG(struct nlm_testargs) = 6;
+        void         NLM_LOCK_MSG(struct nlm_lockargs) = 7;
+        void         NLM_CANCEL_MSG(struct nlm_cancargs) =8;
+        void         NLM_UNLOCK_MSG(struct nlm_unlockargs) = 9;
+        void         NLM_GRANTED_MSG(struct nlm_testargs) = 10;
+        void         NLM_TEST_RES(nlm_testres) = 11;
+        void         NLM_LOCK_RES(nlm_res) = 12;
+        void         NLM_CANCEL_RES(nlm_res) = 13;
+        void         NLM_UNLOCK_RES(nlm_res) = 14;
+        void         NLM_GRANTED_RES(nlm_res) = 15;
+
+        /*
+         *  synchronous non-monitored lock and DOS file-sharing
+         *  procedures (not defined for version 1 and 2)
+         */
+        nlm_shareres NLM_SHARE(nlm_shareargs) = 20;
+        nlm_shareres NLM_UNSHARE(nlm_shareargs) = 21;
+        nlm_res      NLM_NM_LOCK(nlm_lockargs) = 22;
+        void         NLM_FREE_ALL(nlm_notify) = 23;
+    } = 3;
+} = 100021;
+</dl>
+</code>
+</pre>
+</tt><p>
+The NLM provides synchronous and asynchronous procedures which provide
+the same functionality.
+The client portion of an NLM may choose to implement locking and
+file-sharing functionality by using either set of procedure calls.
+<p>
+The server portion of an NLM implementation must
+support both the synchronous and asynchronous procedures.
+<p>
+The asynchronous procedures implement a message passing scheme to facilitate
+asynchronous handling of locking and unlocking.
+Each of the functions <b>Test</b>, <b>Lock</b>, <b>Unlock</b> and 
+<b>Grant</b> is broken up into a message part, and a result part.
+An NLM will send a message to another NLM to perform some action.
+The receiving NLM will queue the request, and
+when it is dequeued and completed, will send the appropriate result via
+the result procedure.
+For example an NLM may send an
+NLM_LOCK_MSG and will expect an NLM_LOCK_RES in return.
+These functions have the same functionality and parameters as the synchronous
+procedures. 
+<p>
+Note that most NLM implementations do not send RPC-layer replies to
+asynchronous procedures. When a client sends an NLM_LOCK_MSG call, for
+example, it should not expect an RPC reply with the corresponding xid.
+Instead, it must expect an NLM_LOCK_RES call from the server.
+The server should not expect an RPC reply to the NLM_LOCK_RES call.
+<!-- Typically ORDERING INFORMATION & further LEGAL or WAIVER information is -->
+<!-- under this percentage -->
+<!-- The ifo appears at the FOOT of each file, just above "Next Section" -->
+<!-- **REMOVE** reference to hard-copy if we don't intend to do this  -->
+<hr size=2 noshade>
+<center>
+<font size=-1>
+Why not acquire a nicely bound hard copy?<br>
+<a HREF="http://www.opengroup.org/pubs/catalog/c702.htm">
+Click here</a> to return to the publication details or order a copy
+of this publication.
+</center></font>
+<p><center><table border=0 cellspacing=12><tr>
+<td align="left"><a href="toc.htm">Contents</a>
+<td align="center"><a href="NLM_CANCEL.htm">Next&nbsp;section</a>
+<td align="right"><a href="docix.htm">Index</a></tr></table></center>
+</body bgcolor="#FFFFFF"></html>

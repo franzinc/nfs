@@ -764,7 +764,7 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 			    (user::logit-stamp "~
 NLM: Unexpected error while unlocking ~a: ~a~%" lock c)))))))))
 
-;; Used by FREE ALL and by the nsm-callback.
+;; Called by nlm-free-all and by nlm=-nsm-callback.
 (defun nlm-cleanup-common (addr)
   (mp:with-process-lock (*nlm-state-lock*)
     (let ((entries (nlm-find-locks-by-addr addr *nlm-locks*)))

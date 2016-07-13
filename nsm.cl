@@ -41,6 +41,7 @@
    )
   ))
 
+;; As defined by the "spec" (C702.PDF), even number means down and odd number means up.
 (defvar *nsm-state* 0) ;; down
 
 (defstruct nsm-monitor
@@ -50,7 +51,9 @@
   vers
   proc
   priv ;; usb8
-  state)
+  ;; As defined by the "spec" (C702.PDF), even number means down and odd number means up.
+  state
+  )
 
 (defun nsm-monitor-to-string (obj)
   (format nil "[Monitor ~a (Callback: ~a, Prg: ~a, V: ~a, Proc: ~a)]"
@@ -110,6 +113,8 @@
 (defun nsm-advance-state ()
   (mp:with-process-lock (*nsm-state-lock*)
     (incf *nsm-state*)
+    ;; As defined by the "spec" (C702.PDF), even number means down and odd number means up.
+    ;; We want to indicate an 'up' state here.
     (until (and (oddp *nsm-state*) (> *nsm-state* 0))
       (incf *nsm-state*))
     ;; Make sure it remains a signed-positive.
@@ -288,10 +293,9 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
       (nsm-advance-state) ;; auto-saves
       (nsm-notify-peers))))
 
-;; Clients call this to notify us that they rebooted.  
-
 ;; in: stat-chge, out: void
 (defun sm-notify  (arg vers peer cbody)
+  "Clients call this to notify us that they rebooted."
   (declare (ignore vers cbody))
   (let* ((host (stat-chge-mon-name arg))
 	 (newstate (stat-chge-state arg))
@@ -301,7 +305,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
 	(user::logit-stamp "NSM: ~a: NOTIFY (~a, ~a)~%" 
 	       dotted host newstate))
     
-    ;; Notify interested parties (if the status actually changed)
+    ;; Set up to notify interested parties (if the status actually changed)
     (mp:with-process-lock (*nsm-state-lock*)
       (dolist (entry *nsm-monitored-hosts*)
 	(when (and (string= (nsm-monitor-host entry) dotted)
@@ -360,6 +364,7 @@ NSM: ~a: UNMON_ALL Requestor: ~a, Prog: ~a, V: ~a, Proc: ~a~%"
     
     (sleep *nsm-callback-retry-interval*)))
 
+;; Called by NSM-init and sm-simu-crash
 (defun nsm-notify-peers ()
   (mp:with-process-lock (*nsm-state-lock*)
     (when *nsm-monitored-hosts*
