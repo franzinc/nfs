@@ -63,8 +63,8 @@
    )
    (3 ;; version
     (0 nlm-null void void)
-    ;;(20 nlm-share nlm-shareargs nlm-shareres)
-    ;;(21 nlm-unshare nlm-shareargs nlm-shareres)
+    (20 nlm-share nlm-shareargs nlm-shareres)
+    (21 nlm-unshare nlm-shareargs nlm-shareres)
     (22 nlm-nm-lock nlm-lockargs nlm-res)
     (23 nlm-free-all nlm-notify void)
    )
@@ -86,8 +86,8 @@
      ;;(13 nlm4-cancel-res nlm4-res void)
      ;;(14 nlm4-unlock-res nlm4-res void)
      (15 nlm4-granted-res nlm4-res void)
-     ;;(20 nlm4-share nlm4-shareargs nlm4-shareres)
-     ;;(21 nlm4-unshare nlm4-shareargs nlm4-shareres)
+     (20 nlm-share nlm4-shareargs nlm4-shareres)
+     (21 nlm-unshare nlm4-shareargs nlm4-shareres)
      (22 nlm4-nm-lock nlm4-lockargs nlm4-res)
      (23 nlm4-free-all nlm-notify void)
    )
@@ -173,6 +173,12 @@
 	       then (format nil "~a (EOF)" len)
 	       else len))))
 
+(defun decode-netobj-fh (o vers)
+  (if-nlm-v4 vers
+	     (user::opaque-to-fhandle3 o)
+	     (xdr:with-opaque-xdr (xdr o)
+	       (user::xdr-fhandle xdr 2))))
+
 (defun nlm-internalize-lock (lock exclusive vers addr cookie)
   (make-nlm-lock-internal 
    :peer-addr addr
@@ -180,11 +186,7 @@
    :cookie (if cookie (opaque-data cookie))
    :exclusive exclusive
    :caller-name (nlm-lock-caller-name lock)
-   ;; XXXX: Why not just (user::xdr-fhandle xdr (nlm-vers-to-nfs-vers vers)) ?
-   :fh (if-nlm-v4 vers
-		  (user::opaque-to-fhandle3 (nlm-lock-fh lock))
-		  (xdr:with-opaque-xdr (xdr (nlm-lock-fh lock))
-		    (user::xdr-fhandle xdr 2)))
+   :fh (decode-netobj-fh (nlm-lock-fh lock) vers)
    :oh (opaque-data (nlm-lock-oh lock))
    :svid (nlm-lock-svid lock)
    :offset (nlm-lock-l-offset lock)
@@ -671,6 +673,71 @@ NLM: ~a: CANCEL~a~A (~a, block: ~a, excl: ~a)~%"
 (defun-nlm-async lock)
 (defun-nlm-async unlock)
 (defun-nlm-async cancel)
+
+(defun fsh-mode-to-string (mode)
+  (ecase mode
+    (#.*fsm-dn* 
+     "deny none")
+    (#.*fsm-dr*
+     "deny read")
+    (#.*fsm-dw*
+     "deny write")
+    (#.*fsm-drw*
+     "deny read/write")))
+
+(defun fsh-access-to-string (access)
+  (ecase access
+    (#.*fsa-none* 
+     "none")
+    (#.*fsa-r*
+     "read only")
+    (#.*fsa-w*
+     "write only")
+    (#.*fsa-rw*
+     "read/write")))
+
+;; The shape of args and returns is the same for all versions.
+;; In: nlm-shareargs Out: nlm-shareres
+(defun nlm-share-unshare-common (op arg vers peer)
+  (let* ((cookie (nlm-shareargs-cookie arg))
+	 (share (nlm-shareargs-share arg))
+
+	 (caller (nlm-share-caller-name share))
+	 (fh     (nlm-share-fh share))
+	 (fh     (decode-netobj-fh fh vers))
+	 (mode   (nlm-share-mode share))
+	 (access (nlm-share-access share)))
+	 
+    (when *nlm-debug*
+      (user::logit-stamp "NLM~a: ~a: ~a(~a), Caller: ~a, mode: ~a, access: ~a~%"
+			 (if-nlm-v4 vers "4" "")
+			 (sunrpc:peer-dotted peer)
+			 op
+			 (if* (user::fh-p fh)
+			    then (user::fh-pathname fh)
+			    else fh)
+			 caller
+			 (fsh-mode-to-string mode)
+			 (fsh-access-to-string access)))
+
+    ;; Placeholder implementation which just reports success.
+    
+    ;; C702.PDF says that the cookie and sequence
+    ;; fields should be ignored.
+    (make-nlm-shareres :cookie cookie
+		       :stat *nlm-granted*
+		       :sequence 0)))
+
+
+;; SHARE (20)
+(defun nlm-share (arg vers peer cbody)
+  (declare (ignore cbody))
+  (nlm-share-unshare-common "share" arg vers peer))
+
+;; UNSHARE (21)
+(defun nlm-unshare (arg vers peer cbody)
+  (declare (ignore cbody))
+  (nlm-share-unshare-common "unshare" arg vers peer))
 
 ;;; little daemons
  

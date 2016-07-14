@@ -397,6 +397,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 					      (opaque-len o))))
 
 (defmacro with-opaque-xdr ((xdr o) &body body)
+  "Binds XDR to an xdr suitable for decoding data
+   from O (which must be an xdr-opqaue)."
   (let ((offset (gensym))
 	(oo (gensym)))
     `(let* ((,oo ,o)
