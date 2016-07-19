@@ -495,6 +495,22 @@ int main(int argc, char **argv) {
 
   fh=lookup_path(clnt, rootfh, testpath);
 
+#if 0
+  /* Ahmon and I used this to debug the problem in spr43071 and the
+   * same problem seen by another customer, where when a file is
+   * deleted we get this error.  It required this hackery because most
+   * NFS clients don't cause the error because when they notice
+   * there's a problem, they probe the file and find it's been
+   * deleted.
+   */
+  {
+      printf("pause to delete file on NFS server host; restart server:");
+      getchar();
+      nfs_read(clnt, fh, blocksize);
+      exit(1);
+  }
+#endif
+
   gettimeofday(&starttime, NULL);
   
   while (1) {
