@@ -133,6 +133,8 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	     (14 (nfsd-rename peer xid xdr cbody))
 	     (15 (nfsd-link peer xid xdr cbody))
 	     (16 (nfsd-readdir3 peer xid xdr cbody))
+;;;;TODO: how to handle stream errors here?  like
+;;;;      "Connection reset by peer" (errno 10054)
 	     (17 (nfsd-readdirplus peer xid xdr cbody))
 	     (18 (nfsd-fsstat peer xid xdr cbody))
 	     (19 (nfsd-fsinfo peer xid xdr cbody))
@@ -361,11 +363,12 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		 (excl::acl-internal-real-time))))
 	 
 	 (sunrpc:with-successful-reply (*nfsdxdr* peer xid sunrpc:*nullverf*)
-	   (with-valid-fh (*nfsdxdr* vers ,fhsyms)
-	     (with-allowed-host-access (vers *nfsdxdr* 
-					     ,host-access-check-fh 
-					     (sunrpc:rpc-peer-addr peer))
-	       (with-nfs-err-handler (*nfsdxdr* vers)
+	   
+	   (with-nfs-err-handler (*nfsdxdr* vers)
+	     (with-valid-fh (*nfsdxdr* vers ,fhsyms)
+	       (with-allowed-host-access (vers *nfsdxdr* 
+					       ,host-access-check-fh 
+					       (sunrpc:rpc-peer-addr peer))
 		 #+nfs-debug
 		 (handler-bind
 		     ((error

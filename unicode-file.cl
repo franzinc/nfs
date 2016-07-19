@@ -911,7 +911,7 @@ struct __stat64 {
 			0
 			dwFlagsAndAttributes)
 	(when (= handle *invalid-handle*)
-	  (excl.osi:perror (excl.osi::win_err_to_errno err) "OpenFilebyId"))
+	  (excl.osi:perror (excl.osi::win_err_to_errno err) "OpenFileById"))
 	
 	handle))))
 
