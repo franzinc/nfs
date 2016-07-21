@@ -20,8 +20,8 @@ commercial NFS Servers for Windows available on the market, and the
 incredible technical difficulties we faced in configuring them on
 Windows.
 
-It runs on Microsoft Windows XP and later (including Windows 8 and
-Server 2003, 2008 and 2012).
+It runs on Microsoft Windows 7 and later (including Windows 8 and
+Server 2008 and 2012).
 
 This source code is licensed under the terms of the [Lisp Lesser GNU
 Public License](http://opensource.franz.com/preamble.html), known as
@@ -37,7 +37,7 @@ software or download an evaluation version from
 [nfsforwindows.com](http://nfsforwindows.com).
 
 To build this software, you need Cygwin (for GNU make) and Allegro
-Common Lisp 9.0 (32-bit, non-SMP).  The installer is written in
+Common Lisp 10.0 (32-bit, non-SMP).  The installer is written in
 [NSIS](http://nsis.sourceforge.net/Main_Page).
 
 To build:
@@ -70,52 +70,65 @@ exported NFS shares.
 
 ### UNRELEASED CHANGES
 
-The changes in this section will appear in the release of Allegro
-NFS
+Changes in this section will appear in the next release of Allegro
+NFS.
 
-* When constructing file mode bits for reporting to an NFS client,
-  Allegro NFS uses the filename extension to determine if the file
-  should have the executable (x) bits set.  Previously only files with
-  extension .exe, .com, or .bat were marked executable.  This list is
-  now adjustable by modifying nfs.cfg and adding an entry for
-  *executable-types*.  This operation should only be performed by
-  advanced users.
+### Version 6.1 [21 Jul, 2016]
 
-* Added support for persistent file handles for files on NTFS volumes.
-  This means that you can restart Allegro NFS or the machine that it
-  is running on and not suffer stale NFS file handle errors on the
-  client.  Non-NTFS files (or inaccessible files on NTFS volumes)
+* Log possible conflicting NFS server running if an existing (aka
+  system) portmapper is detected.
+
+* Fix: adjust the nfsd error handling so that certain errors do not
+  cause the service to exit, and return reasonable errors to the
+  client.
+
+* Fix: adjustments in heap placement for Windows 10.  There should be
+  fewer problems with service startup due to ASLR.
+
+* Fix: increased general client compatibility.
+
+* Fix: improved compatibility with the Windows Services For Unix (SFU)
+  NFS client.
+
+* Fix: don't display configuration window until config has been
+  loaded.  This will help avoid confusion in cases where the NFS
+  server is busy and it takes a while to get a response from it.
+
+* Fix: handle full filesystem errors, returning the proper ENOSPC
+  error code to the client.
+
+* Fix: allow statfs and fsstat procedures on filenames (as opposed to
+  a directories).
+
+### Version 6.0 [27 Mar, 2015]
+
+* Added support for persistent file handles for files on NTFS
+  volumes. This means that you can restart Allegro NFS or the machine
+  that it is running on and not suffer stale NFS file handle errors on
+  the client. Non-NTFS files (or inaccessible files on NTFS volumes)
   still use non-persistent file handles are still subject to stable
   NFS file handle errors after restarts.
 
 * Allow control over how long file attribute are cached through the
-  configuration GUI.  See the "File attribute caching time" setting in
-  the "Global" tab of the Allegro NFS configuration program.
-
-* Fixed some input validation bugs in the Allegro NFS configuration
-  program.
-
-* Fixed mounting a subdirectory of an export.  For example, if you
-  have an export named "/export" which has a subdirectory named
-  "files", then mounting <servername>:/export/files from an NFS client
-  now works properly.
-
-* File and directory changes on the server weren't seen by some
-  clients.  This would make files appear to be static even though they
-  had been modified on the server.
+  configuration GUI. See the "File attribute caching time" setting in
+  the Global tab of the Allegro NFS configuration program.
 
 * Configuration for "Host lists" allows host names in the "New
-  address" field.  When loading the configuration and resolving the
+  address" field. When loading the configuration and resolving the
   host names, users will be warned if the conversion of saved host
   names fails, and the host name will be ignored.
 
-* Some previously invisible files are now seen by clients, such as
-  in the roots of filesystems, "System Volume Information" and
-  "pagefile.sys".
+* When constructing file mode bits for reporting to an NFS client,
+  Allegro NFS uses the filename extension to determine if the file
+  should have the executable (x) bits set. Previously only files with
+  extension .exe, .com, or .bat were marked executable. This list is
+  now adjustable by modifying nfs.cfg and adding an entry for
+  *executable-types*. This operation should only be performed by
+  advanced users.
 
 * File attributes are cached for a maximum of 5 seconds. Prior to this
   change, the expiration for cached file attributes would be extended
-  each time they were accessed.  This could be a problem in the
+  each time they were accessed. This could be a problem in the
   following scenario:
 
   * an NFS client is repeatedly calling stat() on a file to see if its
@@ -131,13 +144,31 @@ NFS
 * Use higher precision timestamps in log messages, enabled via an
   option on the debug tab.
 
-* Change default statfs blocksize from 8192 to 512.  This improves
+* Change default statfs blocksize from 8192 to 512. This improves
   compatibility with some broken NFS clients which do not work
   properly if the blocksize is not 512.
 
 * Minor change to showmount output.
 
-### Version 5.1, 1 Aug, 2011
+* General performance and stability improvements.
+
+* Fix: input validation bugs in the Allegro NFS configuration program.
+
+* Fix: mounting a subdirectory of an export. For example, if you have
+  an export named "/export" which has a subdirectory named "files",
+  then mounting servername:/export/files from an NFS client now works
+  properly.
+
+* Fix: file and directory changes on the server weren't seen by some
+  clients. This would make files appear to be static even though they
+  had been modified on the server.
+
+* Fix: some previously invisible files are now seen by clients, such
+  as in the roots of filesystems, System Volume Information and
+  pagefile.sys.
+
+
+### Version 5.1 [1 Aug, 2011]
 
 * performance improvements
 * minor license changes
@@ -150,7 +181,7 @@ NFS
 * fix: proper locking around exports and logging operations.
 * small modifications to icons.
 
-### Version 5.0, 22 Feb, 2010
+### Version 5.0 [22 Feb, 2010]
 
 * performance improvements
 * better support Windows Vista/7
@@ -174,20 +205,20 @@ NFS
 * improved interoperatibility with several UNIX clients
 * many other small improvements and fixes
 
-### Version 4.5, 20 June, 2007
+### Version 4.5 [20 June, 2007]
 
 * Windows Vista Support
 * Many interoperability fixes and bug fixes
 * Improved locking support
 * NLM and NSM port numbers can now be set manually
 
-### Version 4.4, 29 Aug, 2006
+### Version 4.4 [29 Aug, 2006]
 
 * NFS lock support
 * Bug fixes
 * Enhanced debugging
 
-### Version 4.3, 27 Oct, 2005
+### Version 4.3 [27 Oct, 2005]
 
 * Installs on systems with Windows Data Execution Prevention (DEP) turned on
 * allow specification of mountd port number for dealing with firewall issues
@@ -197,41 +228,41 @@ NFS
 * better performance
 * bug fixes 
 
-### Version 4.0, 10 Aug, 2005
+### Version 4.0 [10 Aug, 2005]
 
 * NFS protocol V3 support
 * large file support
 * better performance 
 * Hard link creation support
 
-### Version 3.0, 22 Apr, 2004
+### Version 3.0 [22 Apr, 2004]
 
 * handle UNC pathnames
 * added "use system portmapper" option 
 * improved performance
 
-### Version 2.0, 24 Feb, 2004
+### Version 2.0 [24 Feb, 2004]
 
 * new configuration utility 
 
-### Version 1.1.4, 3 Jul, 2003
+### Version 1.1.4 [3 Jul, 2003]
 
 * improved interoperability with some clients
 * configuration option for altering mode bits 
 
-### Version 1.1.3, 21 Mar, 2003
+### Version 1.1.3 [21 Mar, 2003]
 
 * bug fixes 
 
-### Version 1.1.1, 23 Jan, 2003
+### Version 1.1.1 [23 Jan, 2003]
 
 * Improvements of handling the NFS services 
 
-### Version 1.0.36, 23 Sep, 2002
+### Version 1.0.36 [23 Sep, 2002]
 
 * bug fixes 
 
-### Version 1.0.33, 27 Feb, 2002
+### Version 1.0.33 [27 Feb, 2002]
 
 * initial release 
 
