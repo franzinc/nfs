@@ -38,7 +38,7 @@ function copy {
 }
 
 for i in $(seq 1 ${1-1}); do
-    [ $i -eq 1 ] || echo ==================== iteration $i
+    echo ==================== iteration $i - $(date)
     cleanup
     makedata $localroot/dir
     copy $localroot/dir ${nfsroot}/dir
@@ -49,14 +49,13 @@ for i in $(seq 1 ${1-1}); do
 	prev=$j
     done
     copy ${nfsroot}/dir${j} ${localroot}/dir${j}
+    echo comparing results
+    if diff $localroot $nfsroot > /dev/null; then
+	echo OK
+    else
+	echo $localroot and $nfsroot are different
+	exit 1
+    fi
 done
-
-echo comparing results
-if diff $localroot $nfsroot > /dev/null; then
-    echo OK
-else
-    echo $localroot and $nfsroot are different
-    exit 1
-fi
 
 cleanup
