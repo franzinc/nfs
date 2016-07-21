@@ -3,7 +3,7 @@
 
 set -eu
 
-nfsdir=/net/hobart256/nfs.test
+nfsdir=/net/thor/nfs.test
 localdir=/home/tmp/layer/nfs.test
 
 tempfile="tempfile.$$"

@@ -792,7 +792,7 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
   
   
     snprintf(buffer, sizeof(buffer), 
-	     "/usr/fi/bin/on %s /usr/bin/diff %s/%s %s/%s/%s.written",
+	     "ssh %s /usr/bin/diff %s/%s %s/%s/%s.written",
 	     nfshost, 
 	     hosttemp, testfile, 
 	     hosttemp, workdirbasename, testfile);
