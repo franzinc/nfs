@@ -30,8 +30,9 @@
   (use-package :gen-nfs))
 
 ;; NOTE: the form of the version *must* be a.b.c.  If you're starting
-;;       a new release, say 6.0, then use 6.0.0.
-(defvar *nfsd-version* "6.1.0")
+;;       a new release, say 6.0, then use 6.0.0.  For betas, use
+;;       something like 6.2.beta.0.
+(defvar *nfsd-version* "6.2.beta.0")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (load (merge-pathnames "commit-id.cl" *load-pathname*))

@@ -69,13 +69,18 @@ An NFS server is already running on this machine.  Aborting.~%")))
       
       proc)))
 
+(defun announce (state)
+  (logit-stamp #+nfs-demo "Allegro NFS Server TRIAL version ~a ~a.~%" 
+	       #-nfs-demo "Allegro NFS Server version ~a ~a.~%" 
+	       *nfsd-long-version*
+	       state))
+
 (defun startem (&rest args)
   (declare (ignore args)
 	   (special nlm:*nlm-gate*))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
-  (logit-stamp "Allegro NFS Server version ~A initializing~%" 
-	       *nfsd-long-version*)
+  (announce "initializing")
   (logit-stamp "commit id: ~a~%" *nfsd-commit-id*)
   (logit-stamp "Built with Allegro CL ~a~%" (lisp-implementation-version))
   (check-nfs-already-running)

@@ -51,9 +51,7 @@
 	  (socket:set-socket-options sock
 				     :receive-buffer-size *socketbuffersize*
 				     :send-buffer-size *socketbuffersize*))
-
-	(logit-stamp "Allegro NFS Server version ~A started.~%" 
-	       *nfsd-long-version*)
+	(announce "started")
 	(if* *nfs-gc-debug*
 	   then (logit-stamp "~&Turning on memory management debugging.~%")
 		(setf (sys:gsgc-switch :print) t)
