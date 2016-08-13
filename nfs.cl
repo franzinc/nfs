@@ -887,24 +887,37 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 
 #|
-struct entry {
-                   unsigned fileid;
-                   filename name;
-                   nfscookie cookie;
-                   entry *nextentry;
-           };
-|#
+     struct entry {
+          unsigned  fileid;
+          filename  name;
+          nfscookie cookie;
+          entry     *nextentry;
+      };
 
-#|
       struct entry3 {
            fileid3      fileid;  (uint64)
            filename3    name;
            cookie3      cookie;  (uint64)
            entry3       *nextentry;
       };
+
+      struct entryplus3 {
+           fileid3      fileid;
+           filename3    name;
+	   cookie3      cookie;
+	   /* Same as entry3 up to this point */
+           post_op_attr name_attributes;
+           post_op_fh3  name_handle;
+           entryplus3   *nextentry;
+      };
+
 |#
 
-;; returns number of bytes added to xdr
+;; returns 
+;; 1) The number of bytes added to xdr
+;; 2) The number of bytes of directory information added.
+;;    This includes the "entry follows" indicator, 
+;;    the fileid, the filename, and the cookie.
 (defun make-direntry-xdr (xdr dirfh filename cookie vers plus)
   (let* ((fh (lookup-fh-in-dir dirfh filename 
 			       :allow-dotnames t))
