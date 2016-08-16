@@ -365,7 +365,8 @@ Section "System tray icon"
 SectionEnd
 
 Section "Run configuration program after install"
-  Exec '"$INSTDIR\configure\configure.exe"'
+  IfSilent +2
+      Exec '"$INSTDIR\configure\configure.exe"'
 SectionEnd
 
 ;--------------------------------
