@@ -60,8 +60,8 @@
 	   else (setf (sys:gsgc-switch :print) nil))	  
 	  
 	(loop
-	  (nfsd-message-handler (sunrpc:rpc-get-message server)
-				(sunrpc:rpc-server-peer server)))))))
+	  (sunrpc:rpc-receive-and-handle-message server
+						 #'nfsd-message-handler))))))
 	    
 
 (defun nfsd-message-handler (xdr peer)

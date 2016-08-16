@@ -252,6 +252,30 @@
   (buffer (make-array #.*rpc-buffer-size* :element-type '(unsigned-byte 8)))
   (peer (make-rpc-peer))) ;; peer associated with the last message received.
 
+(defun cleanup-tcp-client-connection (server stream &key condition)
+  ;; Closes down the tcp stream and removes it from server's tcp client list
+  (when *rpc-debug* 
+    (if* condition
+       then (user::logit-stamp "client abort (~a) ~S~%" condition stream)
+       else (user::logit-stamp "client disconnected from ~S~%" stream)))
+  (ignore-errors (close stream))
+  (ignore-errors (close stream :abort t))
+  (setf (rpc-server-tcpclientlist server)
+    (delete stream (rpc-server-tcpclientlist server))))
+
+(defun rpc-receive-and-handle-message (server handler)
+  ;; Gets an RPC message and calls handler with the message and peer, handling
+  ;; socket-error's in the process and returning (return value undefined).
+  (let ((message (rpc-get-message server)))
+    (handler-bind
+	((socket-error
+	  (lambda (c)
+	    (let ((s (stream-error-stream c)))
+	      (when (member s (rpc-server-tcpclientlist server))
+		(cleanup-tcp-client-connection server s :condition c)
+		(return-from rpc-receive-and-handle-message))))))
+      (funcall handler message (rpc-server-peer server)))))
+
 ;; Returns an xdr
 ;; Also fills in 'peer' slot of 'server'.
 (defun rpc-get-message (server)
@@ -277,12 +301,9 @@
 	    (case (stream-error-identifier c)
 	      (:connection-reset 
 	       (let ((stream (stream-error-stream c)))
-		 (if *rpc-debug* 
-		     (user::logit-stamp "closing error socket ~S~%" stream))
-		 (close stream)
-		 (setf clientlist (delete stream clientlist))
+		 (cleanup-tcp-client-connection server stream :condition c)
 		 nil))
-	      (t 
+	      (t
 	       (error c)))))
 	
 	;;(logit "readylist is ~A~%" readylist)
@@ -329,12 +350,8 @@ Accepting new tcp connection and adding it to the client list.~%"))
 	(dolist (s readylist)
 	  (setf record (read-record s buffer))
 	  (if* (null record)
-	     then (if *rpc-debug* (user::logit-stamp "Client ~s disconnected.~%" s))
-		  (ignore-errors (close s))
-		  (ignore-errors (close s :abort t))
-		  (setf clientlist (delete s clientlist))
-	     else 
-		  (setf (rpc-peer-type peer) :stream)
+	     then (cleanup-tcp-client-connection server s)
+	     else (setf (rpc-peer-type peer) :stream)
 		  (setf (rpc-peer-socket peer) s)
 		  (setf (rpc-peer-addr peer) (socket:remote-host s))
 		  
@@ -344,7 +361,7 @@ Accepting new tcp connection and adding it to the client list.~%"))
 (eval-when (compile load eval)
   (export '(def-rpc-program 
 	    make-rpc-server rpc-server-peer 
-	    rpc-get-message 
+	    rpc-get-message rpc-receive-and-handle-message
 	    with-rpc-sockets with-portmapper-mappings with-valid-call)))
 	    
 	    

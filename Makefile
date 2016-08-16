@@ -145,16 +145,26 @@ demo-dist: dist-demo
 
 exe := $(shell test -d c:/ && echo .exe)
 
-hammernfs$(exe): test/hammernfs.c test/hammernfs-libs/mount_clnt.c \
-                 test/hammernfs-libs/nfs_clnt.c
-	cc -O -o hammernfs$(exe) \
+hammer_deps = \
+	test/hammernfs-libs/mount_xdr.c \
+	test/hammernfs-libs/mount_clnt.c \
+        test/hammernfs-libs/nfs_clnt.c \
+	test/hammernfs-libs/nfs_xdr.c
+
+# $@ is the target and $< is the first dependency.
+define build_test_program
+	cc -O -o $@ \
 	  $(shell uname | grep -q CYGWIN && echo -I/usr/include/tirpc) \
-	  test/hammernfs.c \
-	  test/hammernfs-libs/mount_xdr.c \
-	  test/hammernfs-libs/mount_clnt.c \
-	  test/hammernfs-libs/nfs_clnt.c \
-	  test/hammernfs-libs/nfs_xdr.c \
+	  $< \
+	  $(hammer_deps) \
 	  $(shell uname | grep -q CYGWIN && echo -ltirpc)
+endef
+
+hammernfs$(exe): test/hammernfs.c $(hammer_deps)
+	$(build_test_program)
+
+test-conn-reset$(exe): test/test-conn-reset.c $(hammer_deps)
+	$(build_test_program)
 
 perftest: FORCE
 	test/performance.sh test/performance.log.$(version)
@@ -172,7 +182,7 @@ echo_version: FORCE
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 	rm -f gen-nfs-*.cl mount-*.cl sunrpc-common.cl nlm-*.cl nsm-*.cl 
-	rm -f portmap-*.cl hammernfs
+	rm -f portmap-*.cl hammernfs$(exe) test-conn-reset$(exe) 
 	$(MAKE) -C configure clean
 
 tags: FORCE
