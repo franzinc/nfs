@@ -1,11 +1,18 @@
-#
+###############################################################################
 # NFS makefile (requires Cygwin and GNU make)
 #
 # Rules of note:
+#
 # - make release candidate 2:
 #   $ make all release_suffix=rc2
+#
 # - make demo and non-demo versions:
 #   $ make clean dist dist-demo LISPDIR=/c/acl90.patched
+#
+# - remove tag to build without changing version #:
+#   $ make delete_tag
+#
+###############################################################################
 
 # chosen because it seems to work on thor and for spr42738
 ACL_BUILD_ACLMALLOC_HEAP_START = 0x8ab0000
@@ -57,6 +64,16 @@ tag: FORCE
 	git.sh tag -a -m $(tag_name) $(FORCE) $(tag_name) HEAD
 	@echo NOTE: do this to push the tag:
 	@echo git.sh push origin $(tag_name)
+
+delete_tag: FORCE
+	@for m in .:foo $(MODULES); do \
+	    d=`echo $$m | sed 's/:.*//g'`; \
+	    echo $$d -- delete tag $(tag_name); \
+	    cd $$d; \
+	    git tag -d $(tag_name); \
+	    git push origin :refs/tags/$(tag_name); \
+	    cd $$OLDPWD; \
+	done
 
 build: check_cpp
 	@$(MAKE) $(MFLAGS) do_build
