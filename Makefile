@@ -66,14 +66,8 @@ tag: FORCE
 	@echo git.sh push origin $(tag_name)
 
 delete_tag: FORCE
-	@for m in .:foo $(MODULES); do \
-	    d=`echo $$m | sed 's/:.*//g'`; \
-	    echo $$d -- delete tag $(tag_name); \
-	    cd $$d; \
-	    git tag -d $(tag_name); \
-	    git push origin :refs/tags/$(tag_name); \
-	    cd $$OLDPWD; \
-	done
+	git.sh tag -d $(tag_name)
+	git.sh push origin :refs/tags/$(tag_name)
 
 build: check_cpp
 	@$(MAKE) $(MFLAGS) do_build
