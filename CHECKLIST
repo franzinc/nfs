@@ -1,6 +1,6 @@
 Before a push:
 
-1. Update release-notes.txt
+1. Update README.md
 
 2. Consider bumping the version number in nfs-common.cl
 

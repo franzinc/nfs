@@ -73,6 +73,12 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+* Fix: handle "tcp connection reset" errors, which previously made the
+  server die and require manual restart.  They are now ignored.
+
+* For silent installs (/S given to installer) do not start the
+  configuration program at the end.
+
 ### Version 6.1 [21 Jul, 2016]
 
 * Log possible conflicting NFS server running if an existing (aka
