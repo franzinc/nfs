@@ -19,29 +19,6 @@
 
 ;; Returns a list or array of basenames.
 ;; called by nfs-lookup-dir.
-#+ignore
-(defun augmented-directory (dir as-array)
-  (declare (optimize (speed 3) (safety 0))
-	   (simple-string dir))
-  (if (char/= (schar dir (1- (length dir))) #\\)
-      (setf dir (concatenate 'string dir "\\")))
-  (let ((res (list ".." ".")))
-    (declare (list res))
-    (dolist (entry (directory dir))
-      (push (namestring (basename entry)) res))
-    (setf res (nreverse res))
-    (if* as-array
-       then (let ((arr (make-array (length res)))
-		  (n 0))
-	      (declare (fixnum n))
-	      (dolist (entry res)
-		(setf (aref arr n) entry)
-		(incf n))
-	      arr)
-       else res)))
-
-;; Returns a list or array of basenames.
-;; called by nfs-lookup-dir.
 (defun augmented-directory (dir as-array)
   (declare (optimize (speed 3) (safety 0))
 	   (simple-string dir))

@@ -79,6 +79,9 @@ NFS.
 * For silent installs (/S given to installer) do not start the
   configuration program at the end.
 
+* Directory entries are now returned in the order in which Windows
+  returns them.  Previously, directory listing were reversed.
+
 ### Version 6.1 [21 Jul, 2016]
 
 * Log possible conflicting NFS server running if an existing (aka

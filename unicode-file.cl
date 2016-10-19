@@ -101,7 +101,7 @@
 		  (excl.osi:perror (excl.osi::win_err_to_errno err) "FindNextFile"))))
 	  ;; cleanup
 	  (win:FindClose handle))
-	res))))
+	(nreverse res)))))
 
 ;; Workaround for bug17857
 (ff:def-foreign-call (excl.osi::sys-allocate-pseudofd "allocate_pseudofd")
