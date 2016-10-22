@@ -37,12 +37,12 @@
 (defparameter *attr-cache-lock* (mp:make-process-lock))
 
 (defmacro stat-mode-to-type (mode)
-  `(ecase (logand ,mode #o0170000)
-     (#o0040000
+  `(ecase (logand ,mode *s-ifmt*)
+     (#.*s-ifdir*
       *NFDIR*)
-     (#o0100000
+     (#.*s-ifreg*
       *NFREG*)
-     (#o0120000
+     (#o0120000 ;; no *s-iflnk* defined no Windows
       *NFLNK*)))
 
 (defun nfs-stat (fh)
