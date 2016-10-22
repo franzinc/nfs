@@ -6,7 +6,7 @@
 ;; cookies are expected (by NFS clients, particularly Solaris) to
 ;; be valid forever.
 
-(defparameter *nfs-dircache* (make-hash-table :test #'eq))
+(defparameter *nfs-dircache* (make-hash-table :test #'eq)) ;; Key is fhandle, value is dircache struct
 (defparameter *nfs-dircachelock* (mp:make-process-lock))
 
 (defparameter *dir-id* 0)
@@ -104,19 +104,31 @@
 (defun nfs-lookup-dir (fh create)
   (declare (optimize (speed 3)))
   (mp:with-process-lock (*nfs-dircachelock*)
-    (let ((dc (gethash fh *nfs-dircache*)))
+    (let ((dc (gethash fh *nfs-dircache*))
+	  (debug nil))
+      (when debug
+	(logit "nfs-lookup-dir for ~a~%" (fh-pathname fh)))
+      
       (if* (null dc)
-	 then (if (not create)
-		  (return-from nfs-lookup-dir))
+	 then (when (not create)
+		(when debug
+		  (logit "No cache hit and not in create mode.  Returning nil.~%"))
+		(return-from nfs-lookup-dir))
+	      (when debug
+		(logit "No cache hit.  Preparing a new cache entry.~%"))
 	      (let ((path (fh-pathname fh)))
 		(setf dc (make-dircache :entries (augmented-directory path t)))
 		(setf (gethash fh *nfs-dircache*) dc)
 		(values (dircache-entries dc) dc))
-	 else (if (>= (the fixnum 
-			(- (the fixnum (excl::cl-internal-real-time))
-			   (dircache-mtime dc)))
-		      (the fixnum *nfs-dircache-update-interval*))
-		  (update-dircache (fh-pathname fh) dc))
+	 else (when debug
+		(logit "Cache hit.~%"))
+	      (when (>= (the fixnum 
+			  (- (the fixnum (excl::cl-internal-real-time))
+			     (dircache-mtime dc)))
+			(the fixnum *nfs-dircache-update-interval*))
+		(when debug
+		  (logit "Cached information has expired.  Refreshing.~%"))
+		(update-dircache (fh-pathname fh) dc))
 	      (values (dircache-entries dc) dc)))))
 
 ;; Called by link, rename, mkdir, create(3) procs.

@@ -53,7 +53,7 @@
   (file-id 0 :type file-id-type) ;; like inode number
   export
   parent ;; nil if root
-  children ;; hash of basenames of directory children. values are fh's
+  children ;; hash of basenames of directory children. values are fh's.  NIL if not used yet.
   verifier ;; used by create call w/ exclusive mode.
   alternate-pathnames) ;; for files with known hard links
 
@@ -167,16 +167,28 @@
     (setf (fh-file-id fh) id)))
 
 (defun populate-persistent-fhandle (fh)
-  "Returns NIL if a persistent file handle could not be created for FILENAME"
-  (let* ((vec (fh-vec fh))
+  "If a persistent file handle has found for FILENAME,
+   populates (fh-vec FH) with it, populates (fh-file-id FH),
+   and returns the 64-bit file id.
+
+   If a persistent file handle was not available, returns NIL."
+  (let* ((vec      (fh-vec fh))
 	 (pathname (fh-pathname fh))
-	 (id (put-file-id-into-vec pathname vec 4))) ;; 64-bits
+	 (id       (put-file-id-into-vec pathname vec 4))) ;; 64-bits
     (when id
       (setf (fh-vec-type vec) *fhandle-type-persistent*)
       (setf (fh-file-id fh) id))))
 
 (defun make-fhandle (dirfh filename mode &key root-export)
-  "FILENAME is a basename"
+  "FILENAME must be a basename.
+
+   Returns a new fh struct with the following slots populated:
+     fh-pathname
+     fh-export
+     fh-parent (for non-root fhandles)
+     fh-vec
+     fh-file-id
+  "
   (let* ((fh 
 	  ;; special case for root of exports
 	  (if* root-export
@@ -224,8 +236,21 @@
   (setf (gethash filename (fh-children dirfh)) fh))
 
 ;; Put a fhandle into the hash.. and make sure the 
-;; parent has a child entry.
+;; parent has a child entry.  FILENAME must be a basename.
 (defun insert-fhandle (fh filename)
+  (let ((debug t))
+    (when debug
+      (let ((prior-fh (gethash (fh-vec fh) *fhandles*)))
+	(when prior-fh
+	  ;; FIXME: What else can we do?  We need
+	  ;; to fix up the parent's state
+	  (logit-stamp "
+Replacing mapping for fileid ~a in *fhandles*.
+Was ~a, now ~a"
+		       (fh-file-id fh)
+		       (fh-pathname prior-fh)
+		       (fh-pathname fh))))))
+  
   (setf (gethash (fh-vec fh) *fhandles*) fh)
   (let ((parent (fh-parent fh)))
     (if (null parent)
@@ -378,6 +403,28 @@
 	   (format t " AKA: ~a" (fh-alternate-pathnames fh)))
        (terpri))
    *fhandles*))
+
+(defun validate-fhandle-tree ()
+  (labels (
+	   (validate-fhandle-tree-1 (fh)
+	     (let ((pathname (fh-pathname fh)))
+	       (format t "validate-fhandle-tree-1 ~a~%" pathname)
+	       (if* (probe-file pathname)
+		  then (let ((children (fh-children fh)))
+			 (when children
+			   (maphash #'(lambda (child-basename child-fh) 
+					(declare (ignore child-basename))
+					(validate-fhandle-tree-1 child-fh))
+				     children)))
+		  else (format t "*** ~a no longer exists in filesystem~%" pathname))))
+	   
+	   (validate-export (path fh)
+	     (format t "Export: ~a~%" path)
+	     (validate-fhandle-tree-1 fh))
+	   )
+    
+    (maphash #'validate-export *export-roots*)))
+  
 
 #+ignore
 (defun test ()
