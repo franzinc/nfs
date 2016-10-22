@@ -424,7 +424,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 ;; fh must be a non-stale file handle
 (defmacro with-dirfh ((fh &key op) &body body)
-  (let ((attr (gensym))
+  (let ((attr (gensym "attr"))
 	(failres3 (if* (eq op :link)
 		     then `(progn
 			     (nfs-xdr-post-op-attr *nfsdxdr* nil)
@@ -577,11 +577,6 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
   (sunrpc:with-successful-reply (xdr peer xid sunrpc:*nullverf*)
     ))
 
-;; For v3, the allowable error codes are: NFS3ERR_IO NFS3ERR_STALE
-;; NFS3ERR_BADHANDLE NFS3ERR_SERVERFAULT. In particular, *nfs3err-acces*
-;; is not in the list, so we don't check for read permission here
-;; anymore.  The file itself is not being read so that's okay.
-
 (define-nfs-proc getattr ((fh fhandle))
   (xdr-int *nfsdxdr* #.*nfs-ok*)
   (nfs-xdr-fattr *nfsdxdr* fh vers))
@@ -625,7 +620,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 
 (defun nfs-xdr-fattr (xdr fh vers)
   (let ((attr (lookup-attr fh))
-	(exp (fh-export fh)))
+	(exp  (fh-export   fh)))
     (xdr-int xdr (nfs-attr-type attr)) ;; type
     (xdr-unsigned-int xdr (logior (logand (nfs-attr-mode attr) 
 					  (lognot (nfs-export-umask exp)))

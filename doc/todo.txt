@@ -35,26 +35,3 @@ nsm: How long do we try sending state-change notifications?
 nsm: How long do we try notify sending callbacks?
 nlm: How long do we try sending NLM_GRANTED messages? Forever?
 
-xdr and xdr users: Find all places where signed versus unsigned does
-not matter and give preference to signed.  Really only need to look in
-nfs.cl where performance is important.  It looks like I tended to use
-xdr-int most of the time.  Verify that using xdr-int to store an
-unsigned value doesn't present any problems (can't imagine why it
-would.. but verify). nfs-xdr-fattr is probably a good candidate for
-tweaking.
-
-Possible feature: Add a mode where file handle information is
-maintained on-disk (perhaps using allegrocache) so that the server can
-be restarted without resulting in stale filehandles.  Clearly this
-would have a performance impact, however, it's not clear yet how much
-of an impact there would be.  The only times that it would impact are
-when a haven't-seen-yet file is accessed or when a file is deleted.
-The database will also grow indefinitely.  Some process to clean out
-obsolete entries will be needed.
-
-Related to the prior entry:  Just keep the export root file handles
-stored on disk.  The on-disk file would only have to be updated when
-exports are added or removed. This wouldn't prevent a stale file
-handle situation for any files, but it would allow the primary mount
-point to remain stable.  This might help some clients.
-

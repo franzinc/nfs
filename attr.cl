@@ -14,16 +14,16 @@
 (defconstant *NFFIFO* 7)
 
 (defstruct nfs-attr
-  type
+  type      ;; See defconstants above
   mode
   nlinks
   uid
   gid
   size
   blocksize ;; v2 only
-  used ;; v3.  used disk space in bytes (may be less than filesize in case of sparse files)
-  rdev ;; we don't support this.. so always unused.
-  blocks ;; v2 only
+  used      ;; v3.  used disk space in bytes (may be less than filesize in case of sparse files)
+  rdev      ;; we don't support this.. so always unused (i.e., zero)
+  blocks    ;; v2 only
   fsid
   fileid
   atime ;; stored as universal time
@@ -37,12 +37,12 @@
 (defparameter *attr-cache-lock* (mp:make-process-lock))
 
 (defmacro stat-mode-to-type (mode)
-  `(ecase (logand ,mode #o0170000)
-     (#o0040000
+  `(ecase (logand ,mode *s-ifmt*)
+     (#.*s-ifdir*
       *NFDIR*)
-     (#o0100000
+     (#.*s-ifreg*
       *NFREG*)
-     (#o0120000
+     (#o0120000 ;; no *s-iflnk* defined on Windows
       *NFLNK*)))
 
 (defun nfs-stat (fh)
@@ -71,26 +71,34 @@
 
 (defstruct nfs-attr-cache 
   attr
-  expiration
+  expiration ;; internal-real-time
   )
 
 (defun lookup-attr (fh)
   (mp:with-process-lock (*attr-cache-lock*)
-    (let ((attr-cache (gethash fh *nfs-attr-cache*)))
+    (let ((attr-cache (gethash fh *nfs-attr-cache*))
+	  (debug nil))
+      (when debug
+	(logit "Looking attributes for ~a~%" (fh-pathname fh)))
       (if* attr-cache
 	 then ;; We have a cached entry.  Check its expiration
 	      (let ((now (excl::cl-internal-real-time)))
 		(if* (>= now (nfs-attr-cache-expiration attr-cache))
 		   then ;; It expired.  Refresh the attributes and return.
+			(when debug
+			  (logit "Prior cached attributes have expired.  Collecting fresh data.~%"))
 			(let ((attr (nfs-stat fh)))
 			  (setf (nfs-attr-cache-attr attr-cache) attr)
 			  (setf (nfs-attr-cache-expiration attr-cache) (+ now *attr-cache-reap-time*))
 			  ;; Good to go
 			  attr)
 		   else ;; Not expired.  Use the cached attributes
-			;;(logit "Using cached attrs")
+			(when debug
+			  (logit "Using cached attrs~%"))
 			(nfs-attr-cache-attr attr-cache)))
 	 else ;; No cached entry.  Make one.
+	      (when debug
+		(logit "No cached attributes found.  Collecting fresh data.~%"))
 	      (let ((attr (nfs-stat fh)))
 		(setf (gethash fh *nfs-attr-cache*) 
 		  (make-nfs-attr-cache 

@@ -429,16 +429,24 @@ struct __stat64 {
 
 (defconstant FILE_FLAG_BACKUP_SEMANTICS #x02000000)
 
-;; Second value is nanoseconds
 (defun filetime-to-unix-time (filetime-ptr)
+  "Reads the FILETIME at FILETIME-PTR and
+   converts it to Unix time.  Two values
+   are returned:
+    1) seconds
+    2) nanoseconds"
   (declare (optimize speed))
-  (let* ((hundred-ns-per-sec 10000000)
+  (let* ((ticks-per-sec 10000000)
 	 (secs-from-windows-epoch-to-unix-epoch 11644473600)
-	 (raw (logior (ash (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwHighDateTime) 32)
-		      (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwLowDateTime))))
-    (multiple-value-bind (secs-since-1601 remaining-hundres-ns)
-	(truncate raw hundred-ns-per-sec)
-      (values (- secs-since-1601 secs-from-windows-epoch-to-unix-epoch) (* remaining-hundres-ns 100)))))
+	 (ticks (logior (ash (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwHighDateTime) 32)
+			(ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwLowDateTime))))
+    (multiple-value-bind (secs-since-1601 remaining-ticks)
+	(truncate ticks ticks-per-sec)
+      (values 
+       ;; Unix seconds
+       (- secs-since-1601 secs-from-windows-epoch-to-unix-epoch) 
+       ;; nanoseconds.  Each tick is 100ns
+       (* remaining-ticks 100)))))
 
 (defmacro filetime-to-universal-time (filetime-ptr)
   `(unix-to-universal-time (filetime-to-unix-time ,filetime-ptr)))
@@ -529,6 +537,13 @@ struct __stat64 {
 	      (stat-via-find-first-file filename)
 	 else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFileAttributesExW")))))
 
+
+;; Returns true if FILENAME names an existing stat-able directory.
+;; An error will be thrown if FILENAME does not exist (or for other unexpected
+;; trouble)
+(defun unicode-directory-p (filename)
+  (let ((mode (unicode-stat filename)))
+    (= (logand mode *s-ifmt*) *s-ifdir*)))
 
 #+ignore
 (defun test ()
@@ -948,7 +963,7 @@ struct __stat64 {
 
 ;; File handle interface
 (defun put-file-id-into-vec (filename vec offset)
-  "If successful, returns the file id.  
+  "If successful, returns the file id (which is a 64-bit number).
    If we couldn't collect the file id due to permissions, return nil.
    If we couldn't determine the volume guid, return nil.
    All other problems (such as file not found) throw an error"
