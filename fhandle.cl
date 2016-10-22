@@ -387,7 +387,7 @@ Was ~a, now ~a"
       ;; FIXME:  This doesn't check for hard links that may have been
       ;; moved to another directory (which will break things).  The whole 
       ;; file handle mechanism needs to be redone to handle them properly.
-      ;; see the TODO file. 
+      ;; see the doc/todo.txt file.
       (update-fhandle-pathname fh (fh-pathname todir) tofilename oldpath
 			       fromfilename))))
 			       
