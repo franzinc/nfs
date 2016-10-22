@@ -238,19 +238,34 @@
 ;; Put a fhandle into the hash.. and make sure the 
 ;; parent has a child entry.  FILENAME must be a basename.
 (defun insert-fhandle (fh filename)
-  (let ((debug t))
-    (when debug
-      (let ((prior-fh (gethash (fh-vec fh) *fhandles*)))
-	(when prior-fh
-	  ;; FIXME: What else can we do?  We need
-	  ;; to fix up the parent's state
-	  (logit-stamp "
-Replacing mapping for fileid ~a in *fhandles*.
-Was ~a, now ~a"
-		       (fh-file-id fh)
-		       (fh-pathname prior-fh)
-		       (fh-pathname fh))))))
-  
+  (let ((prior-fh (gethash (fh-vec fh) *fhandles*))
+	(debug nil))
+    (when prior-fh
+      ;; We reach here if there is already an existing entry in *fhandles*
+      ;; for the file-id of FH.  Scenarios which could result in
+      ;; this state: 
+      ;; * A file or directory was renamed/moved outside of Allegro NFS
+      ;; * A file id was recycled.  This seems to be a low probability event.
+      ;; * A new hard link is discovered.  In this case the removal of the
+      ;;   prior entry from the parent fh is not the wrong thing to do.
+      ;;   However, I don't think it's a big deal.  In the worst case, alternating
+      ;;   access to each of the hard link names will result in repeated adjustment
+      ;;   of the file handle database.
+      ;; * ??
+      
+      (when debug
+	(logit-stamp "~%Replacing mapping for fileid ~a in *fhandles*.~%Was ~a, now ~a~%"
+		     (fh-file-id fh)
+		     (fh-pathname prior-fh)
+		     (fh-pathname fh)))
+      
+      ;; Remove knowledge of the old basename from the parent
+      ;; since we know that it is out of date.
+      (remove-fhandle prior-fh (basename (fh-pathname prior-fh)))
+      ;; If prior-fh refers to a directory, invalidate-fhandles will recursively
+      ;; remove information about its children.
+      (invalidate-fhandles prior-fh)))
+
   (setf (gethash (fh-vec fh) *fhandles*) fh)
   (let ((parent (fh-parent fh)))
     (if (null parent)
