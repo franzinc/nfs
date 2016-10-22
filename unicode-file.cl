@@ -538,6 +538,13 @@ struct __stat64 {
 	 else (excl.osi:perror (excl.osi::win_err_to_errno err) "GetFileAttributesExW")))))
 
 
+;; Returns true if FILENAME names an existing stat-able directory.
+;; An error will be thrown if FILENAME does not exist (or for other unexpected
+;; trouble)
+(defun unicode-directory-p (filename)
+  (let ((mode (unicode-stat filename)))
+    (= (logand mode *s-ifmt*) *s-ifdir*)))
+
 #+ignore
 (defun test ()
   (labels ((test-old (path)
