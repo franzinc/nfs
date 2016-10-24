@@ -893,11 +893,26 @@ void usage(char *prg) {
     printf("\t[-c num-files-to-create-in-dir-test ]\n");
     printf("\t[-l local-test-dir] [-f test-filename] NFSHOST MOUNTPOINT\n");
     printf("\n");
+    printf("This program tests an NFS server's behavior by making standard\n");
+    printf("filesystem-related system calls.\n");
+    printf("\n");
+    printf("    MOUNTPOINT must be:\n");
+    printf("          the path to either an already-mounted NFS mount (or submount)\n");
+    printf("         OR\n");
+    printf("          an automountable path (e.g., /net/NFSHOST/export/...)\n");
+    printf("      Test files will be created within this directory\n");
+    printf("\n");
     printf("    NFSHOST is used by the write test (to log into using \"on\").\n");
-    printf("    MOUNTPOINT must be a (possibly automounted) NFS mounted directory to use for testing.\n");
+    printf("      This must be the hostname or address of the host running the NFS\n");
+    printf("      server corresponding to MOUNTPOINT\n");
+    printf("\n");
     printf("    tmpdir-on-nfshost defaults to '%s' and is used for the write test.\n", DEFAULT_HOSTTEMP);
+    printf("\n");
     printf("    local-test-dir defaults to the current working directory.\n");
+    printf("\n");
     printf("    test-filename defaults to '%s' and is used for the read and write tests.\n", DEFAULT_TESTFILE);
+    printf("      This file is expected to exist in MOUNTPOINT prior to test execution.\n");
+    printf("\n");
     printf("    -c defaults to 1000\n");
     exit(1);
 }
@@ -953,6 +968,7 @@ int main(int argc, char **argv) {
 
     nfshost=argv[optind++];
     nfsdir=argv[optind++];
+    /* FIXME: Verify that nfsdir is indeed beneath an NFS mount point */
 
     /* Begin */
 
