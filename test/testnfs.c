@@ -739,6 +739,7 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
 		char *workdirbasename) {
     char infilename[1024], outfilename[1024], buffer[64*1024];
     int infd, outfd, written, got, res;
+    char *nfsport, nfsport_var[1024];
   
     printf("testing write\n");
   
@@ -789,10 +790,16 @@ void test_write(char *workdir, char *nfshost, char *hosttemp,
 	       strerror(errno));
 	exit(1);
     }
-  
+
+    snprintf(nfsport_var, sizeof(nfsport_var), "ONALL_SSH_PORT_%s", nfshost);
+    nfsport = getenv(nfsport_var);
+    if (nfsport == NULL) {
+	nfsport = "";
+    }
   
     snprintf(buffer, sizeof(buffer), 
-	     "ssh %s /usr/bin/diff %s/%s %s/%s/%s.written",
+	     "ssh -p %s %s /usr/bin/diff %s/%s %s/%s/%s.written",
+	     nfsport,
 	     nfshost, 
 	     hosttemp, testfile, 
 	     hosttemp, workdirbasename, testfile);
@@ -902,7 +909,7 @@ void usage(char *prg) {
     printf("          an automountable path (e.g., /net/NFSHOST/export/...)\n");
     printf("      Test files will be created within this directory\n");
     printf("\n");
-    printf("    NFSHOST is used by the write test (to log into using \"on\").\n");
+    printf("    NFSHOST is used by the write test (to log into using \"ssh\").\n");
     printf("      This must be the hostname or address of the host running the NFS\n");
     printf("      server corresponding to MOUNTPOINT\n");
     printf("\n");
@@ -914,6 +921,11 @@ void usage(char *prg) {
     printf("      This file is expected to exist in MOUNTPOINT prior to test execution.\n");
     printf("\n");
     printf("    -c defaults to 1000\n");
+    printf("\n");
+    printf("    Note: sshd must be running on the target server and the environment\n");
+    printf("          variable ONALL_SSH_PORT_<NFSHOST>, if it exists, must be the port\n");
+    printf("          number sshd is listening on the server.  If the variable is not defined\n");
+    printf("          the default ssh port is used.\n");
     exit(1);
 }
 

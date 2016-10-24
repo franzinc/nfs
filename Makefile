@@ -32,7 +32,7 @@ major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
 
 default: build
 
-# use `dists' because ``dist dist-demo'' does not work.. see comment below
+# use `dists' because `dist dist-demo' does not work.. see comment below
 # near `dists' for why.
 all: clean dists
 
@@ -118,14 +118,19 @@ installer-common: FORCE
 	cp -pr configure/configure nfs
 	mkdir -p dists
 
+EXE     = dists/setup-nfs-$(version).exe
+DEMOEXE = dists/setup-nfs-$(version)-demo.exe
+
 installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) /DVERSION2=$(version) nfs.nsi
+	sha256sum $(EXE) > $(EXE).sha256sum
 
 installer-demo: installer-common
 	$(MAKENSIS) /V1 /DNFSDEMO=true \
 		/DVERSION="$(version) Demo" \
 		/DVERSION2=$(version)-demo \
 		nfs.nsi
+	sha256sum $(DEMOEXE) > $(DEMOEXE).sha256sum
 
 # Each build runs in a separate make because there are some
 # shared dependencies.. and make will merge them .. and we don't

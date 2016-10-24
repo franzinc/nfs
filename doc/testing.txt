@@ -15,21 +15,20 @@ multiple clients
 *********************
 `testnfs' setup:
 
- * windows: hobart256:
-   - ond must be running
-   - make a directory e:/nfs.test and put a copy of some large
+ * windows: thor:
+   - sshd must be running
+   - make a directory c:/tmp/nfs.test and put a copy of some large
      file there and call it `nfstestfile'
    - NFS share e:/nfs.test as `nfs.test'
  * linux: freon:
-   - on must be installed in /usr/fi/bin/
    - make sure /home/tmp/layer/nfs.test exists and put a copy of the
      same `nfstestfile' there (via some means other than NFS)
    - make `testnfs'
 
 Run the test:
 
-    $ ./testnfs -l /home/tmp/layer/nfs.test -t /e/nfs.test hobart256 \
-      		/net/hobart256/nfs.test
+    $ ./testnfs -l /home/tmp/layer/nfs.test -t /c/tmp/nfs.test thor \
+      		/net/thor/nfs.test
 
 The above causes the NFS share to be mounted, so take care when making
 changes on the Windows side.

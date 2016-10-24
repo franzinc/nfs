@@ -82,6 +82,11 @@ NFS.
 * Directory entries are now returned in the order in which Windows
   returns them.  Previously, directory listing were reversed.
 
+* The server can now detect when files or directories are renamed
+  externally (i.e., not by an NFS client) and update its cache
+  accordingly.  Previously it could get into a confused state if files
+  or directories were renamed externally.
+
 ### Version 6.1 [21 Jul, 2016]
 
 * Log possible conflicting NFS server running if an existing (aka
