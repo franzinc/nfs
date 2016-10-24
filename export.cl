@@ -12,7 +12,12 @@
 ;; couldn't use "export" or "exp"
 (defstruct nfs-export
   id
-  name
+  
+  ;; Canonicalized name.  This will either be the string "/", or a
+  ;; string that begins with a slash and which does not have a
+  ;; trailing slash.
+  name 
+
   path
   uid
   gid
@@ -21,7 +26,7 @@
   hosts-allow
   rw-users
   ro-users
-  match)
+  )
 
 (defun prepare-exports ()
   (mp:with-process-lock (*exports-lock*)
@@ -46,10 +51,6 @@
 	    t
        else
 	    (remove-duplicates res :test #'equalp))))
-
-(defun build-export-match (name)
-  "Builds a regular expression for use."
-  (compile-re (format nil "^~A(/.*)?$" name)))
 
 (defun define-export (&key name path (uid 9999) (gid 9999)
 			   (umask 0) (set-mode-bits 0)
@@ -76,7 +77,7 @@
 		      :hosts-allow (expand-access-list hosts-allow host-lists)
 		      :rw-users (expand-access-list rw-users user-lists)
 		      :ro-users (expand-access-list ro-users user-lists)
-		      :match (build-export-match canonical-name))))))
+		      )))))
       (logit-stamp "Export with name '~A' isn't an acceptable name, flush your configuration and reconfigure!"
 		   name))))
 
@@ -130,19 +131,57 @@
     (dolist (exp *old-exports*)
       (invalidate-export-fhandles exp))))
 
+;; Assumptions:
+;; * The caller has verified that trailing-slashified EXPORT-NAME
+;;   is a prefix of trailing-slashified REQUESTED-PATH.
+(defun compute-tail-path (export-name requested-path)
+  "EXPORT-NAME and REQUESTED-PATH must be canonicalized names
+ 
+   If REQUESTED-PATH is equal to EXPORT-NAME, returns NIL.  This
+   indicates that there is no attempt to mount a directory within 
+   the export.
+
+   If REQUESTED-PATH is a subpath of EXPORT-NAME, returns a 
+   string containing the subpath without a leading slash (and,
+   since REQUESTED-PATH is a canonical path, without a trailing
+   slash."
+  (let* ((export-name-len    (length export-name))
+	 (requested-path-len (length requested-path)))
+    (when (> requested-path-len export-name-len)
+      (if* (= export-name-len 1)
+	 then ;; export name must be "/".  Sanity check.
+	      (assert (string= export-name "/"))
+	      (subseq requested-path 1)
+	 else
+	      (subseq requested-path (1+ export-name-len))))))
+
+;; Called by mount::mountproc-mnt-common, :operator
 (defun locate-nearest-export-by-nfs-path (path)
-  (mp:with-process-lock (*exports-lock*)
-    (if (null *exports*)
-	(return-from locate-nearest-export-by-nfs-path nil))
-    (let (exp)
-      (dotimes (n (length *exports*))
-	(setf exp (svref *exports* n))
-	(multiple-value-bind (ok match tail) 
-	    (match-re (nfs-export-match exp) path)
-	  (when (and ok match)
-	    (return-from locate-nearest-export-by-nfs-path 
-	      (values exp
-		      (or tail "")))))))))
+  "PATH is provided by the NFS client when requesting
+   a file handle during a MOUNT request. 
+ 
+   If PATH cannot be canonicalized, NIL is returned.
+
+   Returs NIL if PATH does not correspond to any
+   defined export.
+  "
+  (when (setf path (ignore-errors (canonicalize-name path)))
+    ;; We scan the sorted exports using a trailing slash so that we know that
+    ;; we're making comparisons at path-component boundaries.
+    (let ((slashified-path (trailing-slashify path)))
+      (mp:with-process-lock (*exports-lock*)
+	(if (null *exports*)
+	    (return-from locate-nearest-export-by-nfs-path nil))
+
+	;; *exports* is sorted so that the longest export names are first
+	(loop for exp in-sequence *exports*
+	    do (let* ((export-name (nfs-export-name exp))
+		      (slashified-export-name (trailing-slashify export-name)))
+		 (when (prefixp slashified-export-name slashified-path)
+		   ;; Found the best export.  Collect information about any
+		   ;; subdirectory of the mount that was requested.
+		   (return-from locate-nearest-export-by-nfs-path
+		     (values exp (compute-tail-path export-name path))))))))))
 
 (defun extract-path-drive-and-tail (path)
   (multiple-value-bind (matched whole drive tail)
@@ -233,6 +272,7 @@
 	    (error "(real-path-prefix-p ~s ~s) returned ~s but expected ~s"
 		   path prefix got expected-result)))))))
 
+;; Called by recover-persistent-fh, :operator
 (defun locate-nearest-export-by-real-path (path)
   (let (best-export best-tail)
     (mp:with-process-lock (*exports-lock*)

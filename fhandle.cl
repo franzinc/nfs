@@ -190,7 +190,7 @@
      fh-file-id
   "
   (let* ((fh 
-	  ;; special case for root of exports
+	  ;; special case for root of exports.
 	  (if* root-export
 	     then
 		  (make-fh :pathname filename
@@ -207,11 +207,20 @@
 	    
     fh))
 
-;; Used by mountd
-;; 'tail' is guaranteed to have no leading or trailing slash
+;;;Called by:
+;;;recover-persistent-fh, :operator
+;;;mount::mountproc-mnt-common, :operator
 (defun get-fhandle-for-path (tail exp)
+  "TAIL must either be NIL, in which the file handle of EXP is returned,
+   or TAIL must be a string representing a subpath below EXP.  TAIL 
+   must not have leading or trailing slashes.
+
+   Returns the file handle associated with the specified subpath
+   of EXP.  Returns NIL if no such file or directory is found."
+   
   (let ((dirfh (get-export-fhandle exp)))
-    (when (string/= tail "")
+    (when tail
+      ;; Split TAIL on slash or backslash.
       (dolist (comp (split-re "[\\\\/]" tail))
 	(let ((fh (nfs-probe-file dirfh comp)))
 	  (if* (null fh)
@@ -222,7 +231,7 @@
 (defun get-export-fhandle (exp)
   ;; See if it has already been assigned.
   (let* ((path (nfs-export-path exp))
-	 (fh (gethash path *export-roots*)))
+	 (fh   (gethash path *export-roots*)))
     (if* fh
        then fh
        else ;; first use.
@@ -237,36 +246,39 @@
 
 ;; Put a fhandle into the hash.. and make sure the 
 ;; parent has a child entry.  FILENAME must be a basename.
-(defun insert-fhandle (fh filename)
-  (let ((prior-fh (gethash (fh-vec fh) *fhandles*))
-	(debug nil))
-    (when prior-fh
-      ;; We reach here if there is already an existing entry in *fhandles*
-      ;; for the file-id of FH.  Scenarios which could result in
-      ;; this state: 
-      ;; * A file or directory was renamed/moved outside of Allegro NFS
-      ;; * A file id was recycled.  This seems to be a low probability event.
-      ;; * A new hard link is discovered.  In this case the removal of the
-      ;;   prior entry from the parent fh is not the wrong thing to do.
-      ;;   However, I don't think it's a big deal.  In the worst case, alternating
-      ;;   access to each of the hard link names will result in repeated adjustment
-      ;;   of the file handle database.
-      ;; * ??
+(defun insert-fhandle (fh filename rename)
+  (when (not rename)
+    (let ((prior-fh (gethash (fh-vec fh) *fhandles*))
+	  (debug nil))
+      (when prior-fh
+	;; We reach here if there is already an existing entry in *fhandles*
+	;; for the file-id of FH.  Scenarios which could result in
+	;; this state: 
+	;; * A file or directory was renamed/moved outside of Allegro NFS.
+	;; * A file id was recycled.  This seems to be a low probability event.
+	;; * A new hard link is discovered.  In this case the removal of the
+	;;   prior entry from the parent fh is not the wrong thing to do.
+	;;   However, I don't think it's a big deal.  In the worst case, alternating
+	;;   access to each of the hard link names will result in repeated adjustment
+	;;   of the file handle database.
+	;; * ??
       
-      (when debug
-	(logit-stamp "~%Replacing mapping for fileid ~a in *fhandles*.~%Was ~a, now ~a~%"
-		     (fh-file-id fh)
-		     (fh-pathname prior-fh)
-		     (fh-pathname fh)))
+	(when debug
+	  (logit-stamp "~%Replacing mapping for fileid ~a in *fhandles*.~%Was ~a, now ~a~%"
+		       (fh-file-id fh)
+		       (fh-pathname prior-fh)
+		       (fh-pathname fh)))
       
-      ;; Remove knowledge of the old basename from the parent
-      ;; since we know that it is out of date.
-      (remove-fhandle prior-fh (basename (fh-pathname prior-fh)))
-      ;; If prior-fh refers to a directory, invalidate-fhandles will recursively
-      ;; remove information about its children.
-      (invalidate-fhandles prior-fh)))
-
-  (setf (gethash (fh-vec fh) *fhandles*) fh)
+	;; Remove knowledge of the old basename from the parent
+	;; since we know that it is out of date.
+	(remove-fhandle prior-fh (basename (fh-pathname prior-fh)))
+	;; If prior-fh refers to a directory, invalidate-fhandles will recursively
+	;; remove information about its children.
+	(invalidate-fhandles prior-fh)))
+    
+    (setf (gethash (fh-vec fh) *fhandles*) fh))
+  ;; end (when (not rename).. )
+  
   (let ((parent (fh-parent fh)))
     (if (null parent)
 	(error "insert-fhandle: ~S has no parent" fh))
@@ -310,7 +322,7 @@
       (format t "lookup-fh-in-dir(~a,~a) making new fh.~%"
 	      dirfh filename)
       
-      (insert-fhandle (make-fhandle dirfh filename :lookup) filename))))
+      (insert-fhandle (make-fhandle dirfh filename :lookup) filename nil))))
 
 ;; Called by:
 ;; remove-fhandle, rename-fhandle, nfsd-link
@@ -397,7 +409,7 @@
       ;; update our parent slot
       (setf (fh-parent fh) todir)
       ;; add to destination parent.
-      (insert-fhandle fh tofilename)
+      (insert-fhandle fh tofilename t)
       
       ;; FIXME:  This doesn't check for hard links that may have been
       ;; moved to another directory (which will break things).  The whole 

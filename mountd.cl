@@ -80,12 +80,25 @@
 (defun mountproc3-null (arg vers peer cbody)
   (mountproc-null arg vers peer cbody))
 
+;; Note: DIRPATH is provided by the NFS client so we need to be clear
+;; about what we accept and what it means.
+;;
+;; Requirements:
+;; * DIRPATH cannot be a blank string.  This means that we cannot allow blank
+;;   export names.   I think this is a reasonable restriction.
+;; * DIRPATH is not required to begin with a slash.  
+;; * DIRPATH may or may not have a trailing slash.  If a trailing slash is supplied,
+;;   it will be ignored.  This means that export names are not allowed to 
+;;   have trailing slashes (FIXME: ensure that this is enforced).
+
 (defun mountproc-mnt-common (dirpath vers peer)
+  "Returns the file handle (fh struct) corresponding to DIRFH if 
+   successful.  Otherwise returns an NFS error code"
+  (if *mountd-debug* 
+      (user::logit-stamp "MNT~d: ~a: MOUNT ~a "
+			 vers (sunrpc:peer-dotted peer) dirpath))
   (multiple-value-bind (exp tail) 
       (user::locate-nearest-export-by-nfs-path dirpath)
-    (if *mountd-debug* 
-	(user::logit-stamp "MNT~d: ~a: MOUNT ~a "
-			   vers (sunrpc:peer-dotted peer) dirpath))
     (if* (null exp)
        then (if *mountd-debug* (user::logit "==> Denied (no such export).~%"))
 	    gen-nfs:*nfserr-noent*
