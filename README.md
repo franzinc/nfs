@@ -73,6 +73,8 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+### Version 6.2 [TBD]
+
 * Fix: handle "tcp connection reset" errors, which previously made the
   server die and require manual restart.  They are now ignored.
 
