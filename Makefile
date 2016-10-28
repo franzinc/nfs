@@ -154,6 +154,15 @@ dist-demo: build-demo installer-demo
 # Alias
 demo-dist: dist-demo
 
+DEST = ../nfs-outgoing/$(tag_name)
+
+publish: FORCE
+	mkdir -p $(DEST)
+	cp -p $(EXE)               $(DEST)
+	cp -p $(EXE).sha256sum     $(DEST)
+	cp -p $(DEMOEXE)           $(DEST)
+	cp -p $(DEMOEXE).sha256sum $(DEST)
+
 ###############################################################################
 # testing
 
