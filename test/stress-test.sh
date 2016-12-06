@@ -1,7 +1,7 @@
 #!/bin/bash
 # stress test the server
 # usage: $0 [number-of-iterations]
-# one iteration takes about 1m5s on freon/hobart256 
+# one iteration takes about 1m on freon/thor
 
 set -eu
 

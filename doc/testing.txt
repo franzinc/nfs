@@ -87,6 +87,6 @@ First time:
 Second (and later) time:
   $ test/performance.sh test/performance.log.5.1
 To see the results, run:
-  $ /c/acl90/mlisp -L test/performance.cl
+  $ /c/acl100.patched/mlisp -L test/performance.cl
 Make sure what files are in use in the call to `doit' at the end of
 the test/performance.cl script.
