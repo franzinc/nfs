@@ -73,7 +73,11 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
-### Version 6.2 [TBD]
+### Version 6.2 [7 December, 2016]
+
+* Fix: use an Allegro CL build that fixes a GC leak, which could
+  result in the server process growing until it runs out of space.
+  This bug was only present in version 6.1. 
 
 * Fix: handle "tcp connection reset" errors, which previously made the
   server die and require manual restart.  They are now ignored.
