@@ -263,6 +263,14 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	   (if (= ,vers 3)
 	       (nfs-xdr-wcc-data ,xdr nil nil))))
 
+;; Returns a timestamp as a float.  Note that this value may very well
+;; be negative!  This is only intended to be used to compare relative
+;; times.
+(defun get-high-res-time ()
+  (multiple-value-bind (secs usecs)
+      (excl::acl-internal-real-time)
+    (+ secs (* usecs #.(expt 10.0 -6)))))
+
 (eval-when (compile load eval)
   (if (/= 1000 internal-time-units-per-second)
       (error "internal-time-units-per-second is not 1000.  define-nfs-proc macro will need to be adjusted since it assumes millisecond resolution")))
@@ -346,20 +354,18 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	 "define-nfs-proc:  There must be at least one fhandle variable"))
     `(defun ,funcname (peer xid params cbody)
        (let* ((vers (sunrpc:call-body-vers cbody))
-	      procedure-start-time-secs procedure-start-time-usecs
+	      procedure-start-time
 	      debug-this-procedure
 	      ,@argdefs)
 	 (when (nfs-debug-filter-on ,debugtype)
 	   (setf debug-this-procedure t)
 	   (logit-stamp "NFSv~d: ~a: ~a(" 
-		  vers
-		  (sunrpc:peer-dotted peer)
-		  (quote ,name))
+			vers
+			(sunrpc:peer-dotted peer)
+			(quote ,name))
 	   ,@debugs
 	   (if *nfs-debug-timings*
-	       (multiple-value-setq (procedure-start-time-secs
-				     procedure-start-time-usecs)
-		 (excl::acl-internal-real-time))))
+	       (setf procedure-start-time (get-high-res-time))))
 	 
 	 (sunrpc:with-successful-reply (*nfsdxdr* peer xid sunrpc:*nullverf*)
 	   
@@ -394,17 +400,15 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 				    :count t :all t)))))))))
 		   ,@body)
 		 #-nfs-debug ,@body
+		
 		 (when debug-this-procedure
-		   (if *nfs-debug-timings*
-		       (multiple-value-bind (secs usecs)
-			   (excl::acl-internal-real-time)
-			 (logit " ==> ~d.~3,'0d secs~%" 
-				(- secs procedure-start-time-secs)
-				(truncate (- usecs procedure-start-time-usecs)
-					  1000)))
-		     (logit "~%")))))))))))
-
-		   
+		   (when *nfs-debug-timings*
+		     (let* ((end-time (get-high-res-time))
+			    (elapsed-time (- end-time procedure-start-time)))
+		       (logit " ==> ~,3f secs" elapsed-time)))
+		   ;; Terminate general debug output
+		   (logit "~%"))))))))))
+  
 
 (defmacro with-permission ((fh type &key op) &body body)
   (let ((func (ecase type
