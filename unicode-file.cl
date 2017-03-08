@@ -146,13 +146,13 @@
     (multiple-value-bind (fd err)
 	(syscall-wopen filename 
 		       ;; flags
-		       (logior excl::*o-binary*
-			       (case direction
-				 (:input excl::*o-rdonly*)
-				 (:output excl::*o-wronly*)
-				 (:io excl::*o-rdwr*))
-			       (if create excl::*o-creat* 0)
-			       (if exclusive excl::*o-excl* 0))
+		       (logior excl.osi:*o-binary*
+			       (ecase direction
+				 (:input excl.osi:*o-rdonly*)
+				 (:output excl.osi:*o-wronly*)
+				 (:io excl.osi:*o-rdwr*))
+			       (if create excl.osi:*o-creat* 0)
+			       (if exclusive excl.osi:*o-excl* 0))
 		       #o666)
       (if* (>= fd 0)
 	 then (let ((handle (excl.osi::allocate-pseudofd fd)))
@@ -332,7 +332,7 @@ struct __stat64 {
 
 (defun unicode-utime (filespec atime mtime)
   (if (and (null atime) (null mtime))
-      (error "One of atime or mtime must be supplied"))
+      (error "At least one of atime or mtime must be supplied"))
   (multiple-value-bind (mode nlink uid gid size file-atime file-mtime)
       (unicode-stat filespec)
     (declare (ignore mode nlink uid gid size))

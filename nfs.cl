@@ -56,6 +56,7 @@
 	   then (logit-stamp "~&Turning on memory management debugging.~%")
 		(setf (sys:gsgc-switch :print) t)
 		(setf (sys:gsgc-switch :stats) t)
+		;; This is the default setting.
 		(setf *global-gc-behavior* :auto-and-warn)
 	   else (setf (sys:gsgc-switch :print) nil))	  
 	  
@@ -1291,27 +1292,27 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 ;; Used by setattr and create.
 ;; The only attributes which we support are atime, mtime and size.
 (defun set-file-attributes (fh sattr)
-  (let ((p (fh-pathname fh)))
+  (let ((pathname     (fh-pathname fh))
+	(current-attr (lookup-attr fh)))
     ;; only works on regular files.
-    (let ((current-attr (lookup-attr fh)))
-      (when (= (nfs-attr-type current-attr) #.*nfreg*)
-	  
-	(let ((newsize (sattr-size sattr))
-	      (atime (sattr-atime sattr))
-	      (mtime (sattr-mtime sattr)))
+    (when (= (nfs-attr-type current-attr) #.*nfreg*)
+
+      (let ((newsize (sattr-size sattr))
+	    (atime   (sattr-atime sattr))
+	    (mtime   (sattr-mtime sattr)))
 	    
-	  (when newsize
-	    (unicode-truncate p newsize)
-	    (set-cached-file-size fh newsize)
-	    (update-atime-and-mtime fh))
+	(when newsize
+	  (unicode-truncate pathname newsize)
+	  (set-cached-file-size fh newsize)
+	  (update-atime-and-mtime fh))
 	    
-	  (when (or atime mtime)
-	    (unicode-utime p atime mtime))
+	(when (or atime mtime)
+	  (unicode-utime pathname atime mtime))
 	  
-	  (if atime
-	      (setf (nfs-attr-atime current-attr) atime))
-	  (if mtime
-	      (setf (nfs-attr-mtime current-attr) mtime)))))))
+	(if atime
+	    (setf (nfs-attr-atime current-attr) atime))
+	(if mtime
+	    (setf (nfs-attr-mtime current-attr) mtime))))))
       
 ;; build-only.  
 ;; size, mtime, ctime

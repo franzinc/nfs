@@ -146,6 +146,7 @@ An NFS server is already running on this machine.  Aborting.~%")))
 (defvar *service-name* "nfs")
 
 (defun main (&rest args)
+  ;; Silence global gc warning.
   (setf *global-gc-behavior* :auto)
   
   (flet ((tnserver ()
