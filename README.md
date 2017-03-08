@@ -73,6 +73,11 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+* Fix: readdir*() calls no longer takes a really long time on large
+  directories.
+
+* Fix: no longer show negative fractional seconds in debug output.
+
 ### Version 6.2 [7 December, 2016]
 
 * Fix: use an Allegro CL build that fixes a GC leak, which could
