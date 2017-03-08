@@ -27,7 +27,7 @@
 (in-package :portmap)
 
 (eval-when (compile load eval)
-  (export '(*pmap-gate* portmapper ping-portmapper)))
+  (export '(portmapper ping-portmapper)))
 
 (sunrpc:def-rpc-program (PMAP 100000 :port *pmap-port*)
   (
@@ -71,7 +71,6 @@
    )
   ))
 
-(defparameter *pmap-gate* (mp:make-gate nil))
 (defparameter *mappings* nil)
 
 (defun PMAP-init ()
@@ -83,9 +82,7 @@
 			  :vers vers 
 			  :prot proto
 			  :port *pmap-port*) 
-	    *mappings*)))
-
-  (mp:open-gate *pmap-gate*))
+	    *mappings*))))
 
 (defun ping-portmapper ()
   (sunrpc:with-rpc-client (cli "127.0.0.1" #.*pmap-prog* #.*pmap-vers* :udp
@@ -100,17 +97,20 @@
       (null err))))
       
 
-(defun portmapper ()
+;; Called by user::startem
+(defun portmapper (start-gate)
   (when (eq *use-system-portmapper* :auto)
     (setf *use-system-portmapper* nil)
     (when (ping-portmapper)
       (user::logit-stamp "PMAP: Using system portmapper. ** A conflicting NFS server may be running**~%")
       (setf *use-system-portmapper* t)
-      (mp:open-gate *pmap-gate*)))
+      ;; Indicate readiness to caller
+      (mp:open-gate start-gate)))
   
   (when (not *use-system-portmapper*)
-    (PMAP)))
-
+    ;; Start local portmapper
+    (PMAP start-gate))) ;; Won't return
+  
 
 ;;;;;;;;; server procedures
 

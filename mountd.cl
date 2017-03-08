@@ -56,11 +56,7 @@
      ))
 
 
-(defparameter *mountd-gate* (mp:make-gate nil))
 (defparameter *mounts* nil)
-
-(defun MNT-init ()
-  (mp:open-gate *mountd-gate*))
 
 ;;; Override the automatically generated xdr-fhandle* functions.
 (without-redefinition-warnings 
@@ -245,6 +241,5 @@
 ;;;;;;;;;;;;;;;;;;;;
 
 (eval-when (compile load eval)
-  (export '(*mountd-debug* *mountd-port-number* *mountd-gate*
-	    MNT)))
+  (export '(*mountd-debug* *mountd-port-number* MNT)))
 	    

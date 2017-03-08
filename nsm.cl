@@ -70,7 +70,6 @@
 (defparameter *nsm-state-file* "sys:nsm-state")
 (defparameter *nsm-callback-retry-interval* 10) ;; seconds
 (defparameter *nsm-notify-retry-interval* 10) ;; seconds
-(defparameter *nsm-gate* (mp:make-gate nil))
 (defvar *nsm-state-lock* (mp:make-process-lock))
 
 ;;;;;;;;;
@@ -81,8 +80,8 @@
     #'sm-callback-retry-loop)
   (nsm-load-state) 
   (nsm-advance-state)
-  (nsm-notify-peers) ;; Let folks know that we're back.
-  (mp:open-gate *nsm-gate*))
+  ;; Let folks know that we're back.
+  (nsm-notify-peers)) 
 
 (defun nsm-save-state ()
   (mp:with-process-lock (*nsm-state-lock*)
@@ -406,4 +405,4 @@ NSM notifying ~a of new state" (nsm-monitor-host entry))
     (sleep *nsm-notify-retry-interval*)))
 
 (eval-when (compile load eval)
-  (export '(*nsm-gate* NSM)))
+  (export '(NSM)))

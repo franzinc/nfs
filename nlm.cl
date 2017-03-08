@@ -95,7 +95,6 @@
 
 ;;;;;;
 
-(defparameter *nlm-gate* (mp:make-gate nil))
 (defparameter *nlm-retry-interval* 2) ;; seconds
 (defparameter *nlm-grant-notify-interval* 30) ;; seconds
 
@@ -109,8 +108,7 @@
 
 (defun NLM-init ()
   (mp:process-run-function "nlm retry loop" #'nlm-lock-retry-loop)
-  (mp:process-run-function "nlm notify loop" #'nlm-grant-notify-loop)
-  (mp:open-gate *nlm-gate*))
+  (mp:process-run-function "nlm notify loop" #'nlm-grant-notify-loop))
 
 ;; Helpers
 
@@ -959,4 +957,4 @@ NLM: Unexpected error while calling NSM UNMON: ~a~%" c)))
 		      :test #'socket:ipaddr-equalp))))))))
 
 (eval-when (compile load eval)
-  (export '(*nlm-gate* NLM)))
+  (export '(NLM)))

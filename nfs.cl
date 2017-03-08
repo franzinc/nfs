@@ -35,7 +35,8 @@
 (defparameter *socketbuffersize* (* 128 1024))
 (defparameter *nfsd-start-time* nil)
 
-(defun nfsd ()
+;; Called by startem
+(defun nfsd (start-gate)
   (setf *nfsd-start-time* (get-universal-time))
 
   (sunrpc:with-rpc-sockets ("NFS" usock tsock :port #.*nfs-port*)
@@ -59,7 +60,10 @@
 		;; This is the default setting.
 		(setf *global-gc-behavior* :auto-and-warn)
 	   else (setf (sys:gsgc-switch :print) nil))	  
-	  
+
+	;; Notify caller that we've started
+	(mp:open-gate start-gate)
+	
 	(loop
 	  (sunrpc:rpc-receive-and-handle-message server
 						 #'nfsd-message-handler))))))

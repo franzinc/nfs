@@ -49,9 +49,20 @@
       (bailout "~
 An NFS server is already running on this machine.  Aborting.~%")))
 
-(defun start-subprocess (name function &key start-gate)
-  "Returns the subprocess object"
-  (flet ((subprocess-wrapper ()
+;; Called by startem
+(defun start-subprocess (name function)
+  "Runs FUNCTION in a new thread (named NAME).  
+
+   The call to FUNCTION in the new thread is wrapped with
+   an error handler which will log and backtrace uncaught errors
+   before terminating the thread.
+
+   FUNCTION will be called with a single argument: a gate to
+   be opened by FUNCTION when it has completed its initialization.
+
+   Returns the subprocess object"
+
+  (flet ((subprocess-wrapper (start-gate)
 	   (handler-bind 
 	       ((error #'(lambda (c)
 			   (logit-stamp "~%Unhandled condition in thread ~a: ~a~%" 
@@ -60,12 +71,12 @@ An NFS server is already running on this machine.  Aborting.~%")))
 			   (logit-stamp "Backtrace:~%~a~%"
 					(with-output-to-string (s)
 					  (top-level.debug:zoom s :count t :length 10))))))
-	     (funcall function))))
+	     (funcall function start-gate))))
     
-    (let ((proc (mp:process-run-function name #'subprocess-wrapper)))
-      (when start-gate
-	(mp:process-wait (format nil "Waiting for ~a to start" name)
-			 #'mp:gate-open-p start-gate))
+    (let* ((start-gate (mp:make-gate nil))
+	   (proc (mp:process-run-function name #'subprocess-wrapper start-gate)))
+      (mp:process-wait (format nil "Waiting for ~a to start" name)
+		       #'mp:gate-open-p start-gate)
       
       proc)))
 
@@ -75,9 +86,9 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	       *nfsd-long-version*
 	       state))
 
+;; Called by main and debugmain
 (defun startem (&rest args)
-  (declare (ignore args)
-	   (special nlm:*nlm-gate*))
+  (declare (ignore args))
   ;;#+nfs-debug (trace stat)
   (setup-logging)
   (announce "initializing")
@@ -86,20 +97,20 @@ An NFS server is already running on this machine.  Aborting.~%")))
   (check-nfs-already-running)
 
   (setf *pmap-process* 
-    (start-subprocess "portmapper" #'portmap:portmapper :start-gate portmap:*pmap-gate*))
+    (start-subprocess "portmapper" #'portmap:portmapper))
 
   (setf *mountd-process* 
-    (start-subprocess "mountd" #'mount:MNT :start-gate mount:*mountd-gate*))
+    (start-subprocess "mountd" #'mount:MNT))
   
   (setf *nsm-process* 
-    (start-subprocess "nsm" #'nsm:NSM :start-gate nsm:*nsm-gate*))
+    (start-subprocess "nsm" #'nsm:NSM))
 
   (setf *nlm-process* 
-    (start-subprocess "nlm" #'nlm:NLM :start-gate nlm:*nlm-gate*))
+    (start-subprocess "nlm" #'nlm:NLM))
 
   (setf *nfsd-process* 
     (start-subprocess "nfsd" #'nfsd)))
-
+  
 (defvar *shutting-down* (mp:make-gate nil))
 
 (defun stopem ()

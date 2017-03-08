@@ -166,6 +166,9 @@
 				     :udpsock ,usock)))
        (if (fboundp ',init-func)
 	   (funcall ',init-func))
+
+       ;; Indicate successful initialization
+       (mp:open-gate start-gate) ;; start-gate is bound by def-rpc-program
        
        (loop
 	 (block nil
@@ -236,7 +239,7 @@
       (setf all-versions (sort all-versions #'<))
       (setf proc-versions (nreverse proc-versions))
       
-      `(defun ,prgname ()
+      `(defun ,prgname (start-gate)
 	 (declare (optimize (speed 3)))
 	 (def-rpc-program-1 (,program ,prognum ,all-versions ,usock ,tsock
 				      :port ,port)
