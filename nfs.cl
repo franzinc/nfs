@@ -807,6 +807,10 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 ;; totalbytesadded starts at 8 because in the minimal case, we need to
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
+;; FIXME: Document what dirmax and max are.
+;; 'max' is from the 'count' arg to readdir.  
+;; Apparently it is the max size of the readdirresok object.
+
 (defun add-direntries (xdr dirfh dirmax max startindex vers verf plus)
   (declare (optimize (speed 3)))
   (multiple-value-bind (dirvec dc)
@@ -875,6 +879,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	  (if (eq debug :verbose) (logit " [added]~%")))
 	  
 	(incf index))
+      ;; end while
 	
       (xdr-int xdr 0) ;; no more entries
       (xdr-bool xdr complete)

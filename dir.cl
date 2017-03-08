@@ -14,7 +14,12 @@
 (defstruct dircache 
   (entries (make-array 0) :type simple-vector)
   (mtime (excl::cl-internal-real-time) :type fixnum)
+
+  ;; This is a list of indices of dircache-entries which are 
+  ;; available for reuse.  It is added to by update-dircache and
+  ;; nfs-remove-file-from-dir and reduced by add-to-dircache. 
   (free-slots nil :type list)
+  
   (id (incf *dir-id*)))
 
 ;; Returns a list or array of basenames.
@@ -34,7 +39,6 @@
 		(incf n))
 	      arr)
        else res)))
-
 
 (defun add-to-dircache-tail (dc files)
   (declare (optimize (speed 3) (safety 0))
@@ -72,30 +76,74 @@
 		  (add-to-dircache-tail dc (cons file files))
 		  (return)))))))
 
-;; Inefficient
-(defun update-dircache (path dc)
-  (declare (optimize (speed 3) (safety 0)))
-  #+ignore
-  (format t "update-dircache.~%")
-  (let ((entries (dircache-entries dc))
-	(new-list (augmented-directory path nil)))
-    (declare (list new-list))
-    (dotimes (n (length entries))
-      (let ((entry (aref entries n)))
-	(if* (and entry (not (member entry new-list :test #'equalp)))
-	   then (setf (aref entries n) nil)
+
+;; Look for entries in the DC which are not in CURRENT-FILENAMES.
+;; These are files which disappeared since the last time we looked at
+;; this directory.  The return value is undefined.
+(defun update-dircache-remove-missing-files (dc current-filenames)
+  (declare (optimize speed (safety 0)))
+  
+  (let ((cached-entries         (dircache-entries dc))
+	(current-filenames-hash (make-hash-table 
+				 :test #'equalp 
+				 :size (length current-filenames)
+				 :values nil)))
+    ;; Populate the hash table of current filenames
+    (dolist (filename current-filenames)
+      (puthash-key filename current-filenames-hash))
+    
+    ;; Iterate over cached entries and look for ones that are not 
+    ;; in current-filenames.
+    (dotimes (n (length cached-entries))
+      (let ((entry (aref cached-entries n)))
+	(if* (and entry (not (gethash entry current-filenames-hash)))
+	   then (setf (aref cached-entries n) nil)
 		#+ignore
 		(format t " removed ~a from slot ~a~%"  entry n)
-		(push n (dircache-free-slots dc)))))
-    ;; We've removed deleted entries.  Now see what we need to add.
-    (let (new)
-      (dolist (entry new-list)
-	(if (not (find entry entries :test #'equalp))
-	    (push entry new)))
-      (if new
-	  (add-to-dircache dc new))))
-  (setf (dircache-mtime dc) (excl::cl-internal-real-time)))
-  
+		(push n (dircache-free-slots dc)))))))
+
+;; Look for and cache filenames from CURRENT-FILENAMES which are
+;; not cached in DC.  The return value is undefined.
+(defun update-dircache-add-missing-files (dc current-filenames)
+  (declare (optimize speed (safety 0)))
+
+  (let* ((cached-entries      (dircache-entries dc))
+	 (cached-entries-hash (make-hash-table 
+			       :test #'equalp 
+			       :size (length cached-entries)
+			       :values nil))
+	 new-filenames)
+    ;; Populate the hash table of cached filenames
+    (loop for entry in-sequence cached-entries
+	do (puthash-key entry cached-entries-hash))
+    
+    ;; Iterate over current filenames looking for 
+    ;; any which have not yet been cached.  
+    (dolist (filename current-filenames)
+      (when (not (gethash filename cached-entries-hash))
+	;; No cache hit.  Add it to the list of files
+	;; to add to the cache.
+	(push filename new-filenames)))
+
+    (when new-filenames
+      ;; Now add the new files to the cache
+      (add-to-dircache dc new-filenames))))
+
+;; Updates dircache DC by removing cached entries which no longer
+;; exist in the directory and adding new cached entries for files
+;; which showed up in the directory since the last update.
+(defun update-dircache (path dc)
+  (declare (optimize speed (safety 0)))
+  #+ignore
+   (format t "update-dircache.~%")
+
+   (let ((current-filenames (augmented-directory path nil)))
+	  
+     (update-dircache-remove-missing-files dc current-filenames)
+     (update-dircache-add-missing-files    dc current-filenames)
+
+     ;; Update timestamp
+     (setf (dircache-mtime dc) (excl::cl-internal-real-time))))
 
 ;; Called by:
 ;; nfs-add-file-to-dir, :operator
