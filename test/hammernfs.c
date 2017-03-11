@@ -44,6 +44,9 @@ CLIENT *clnt_create_with_retry(char *host, unsigned long program,
       
       return clnt;
     }
+
+    printf("%s: clnt_create failed.  rpc_createerr.cf_stat: %d, rpc_createerr.cf_error.re_errno: %d\n",
+	   __func__, rpc_createerr.cf_stat, rpc_createerr.cf_error.re_errno);
     
     if (rpc_createerr.cf_stat == RPC_SYSTEMERROR && rpc_createerr.cf_error.re_errno == EADDRINUSE) {
       printf("%s: Try #%d: %s\n", __func__, tries+1, clnt_spcreateerror("clnt_create"));
