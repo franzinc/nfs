@@ -58,5 +58,7 @@ for ver in 2 3; do
     done
 done
 
-# So we can commit
-[ "$logfile" ] && cvt -f -d $logfile
+# If cvt exists, convert it so we can commit the file,
+# otherwise, it can be copied from Windows to Linux and
+# committed there.
+[ "$logfile" ] && type -p cvt > /dev/null && cvt -f -d $logfile

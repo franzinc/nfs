@@ -13,7 +13,8 @@
   transport
   duration
   read-bytes
-  rate)
+  rate
+  reads)
 
 (defun read-data-groups (data-file &aux form (res '()))
   (with-open-file (s data-file)
@@ -85,9 +86,9 @@
 
 (doit
  ;; this doesn't change and is committed into the repo
- "test/performance.log.5.1.baseline"
+ "test/performance.log.6.2.baseline"
  ;; this changes each time performance.sh is run (via command line arg)
- "test/performance.log.5.1")
+ "test/performance.log.6.beta.0")
 
 #+ignore
 (doit "test/performance.log.5.1.baseline"
@@ -96,4 +97,4 @@
 	       '(#\newline)
 	       (excl.osi:command-output "make --silent echo_version"
 					:whole t))))
-#+ignore (exit 0 :quiet t)
+(exit 0 :quiet t)
