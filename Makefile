@@ -15,7 +15,7 @@
 ###############################################################################
 
 # chosen because it seems to work on thor and for spr42738
-ACL_BUILD_ACLMALLOC_HEAP_START = 0x8ab0000
+#ACL_BUILD_ACLMALLOC_HEAP_START = 0x8ab0000
 
 DO_MAKEFILE_LOCAL := $(shell if test -f Makefile.local; then echo yes; fi)
 
@@ -23,7 +23,21 @@ ifeq ($(DO_MAKEFILE_LOCAL),yes)
 include Makefile.local
 endif
 
-LISPDIR ?= /c/acl100.patched
+NEWSDKDIR = /c/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/bin
+NEWSDK = $(shell if test -d "$(NEWSDKDIR)"; then echo yes; else echo no; fi)
+ifeq ($(NEWSDK),yes)
+
+SIGNTOOL = "$(NEWSDKDIR)/signtool.exe"
+
+CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2016-08-11.p12
+CERTOK = $(shell if test -f "$(CERT)"; then echo yes; else echo no; fi)
+ifeq ($(CERTOK),yes)
+SIGNTOOL += sign /v /f $(CERT)
+endif
+
+endif
+
+LISPDIR ?= /c/acl10.1.patched
 LISPEXE = $(LISPDIR)/mlisp
 MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
 
@@ -81,6 +95,12 @@ check_cpp: FORCE
 build-demo: FORCE
 	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
+ifdef ACL_BUILD_ACLMALLOC_HEAP_START
+env = env ACL_BUILD_ACLMALLOC_HEAP_START=$(ACL_BUILD_ACLMALLOC_HEAP_START)
+else
+env = 
+endif
+
 do_build: prereqs rpc commit-id.cl FORCE
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp build.out
@@ -93,11 +113,14 @@ endif
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
-	env ACL_BUILD_ACLMALLOC_HEAP_START=$(ACL_BUILD_ACLMALLOC_HEAP_START) \
-	$(LISPEXE) +B +cn +s b.tmp -batch
+	$(env) $(LISPEXE) +B +cn +s b.tmp -batch
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
-	$(MAKE) -C configure
+	rm -fr nfs/system-dlls
+	if test ! -f nfs/vcredist_x86.exe; then \
+	    cp -p "$(LISPDIR)/vcredist_x86.exe" nfs/; \
+	fi
+	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
 rpc: FORCE
 	echo '(load (compile-file-if-needed "rpcgen"))' > b.tmp
@@ -123,6 +146,9 @@ DEMOEXE = dists/setup-nfs-$(version)-demo.exe
 
 installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) /DVERSION2=$(version) nfs.nsi
+ifdef SIGNTOOL
+	$(SIGNTOOL) $(EXE)
+endif
 	sha256sum $(EXE) > $(EXE).sha256sum
 
 installer-demo: installer-common
@@ -130,6 +156,9 @@ installer-demo: installer-common
 		/DVERSION="$(version) Demo" \
 		/DVERSION2=$(version)-demo \
 		nfs.nsi
+ifdef SIGNTOOL
+	$(SIGNTOOL) $(DEMOEXE)
+endif
 	sha256sum $(DEMOEXE) > $(DEMOEXE).sha256sum
 
 # Each build runs in a separate make because there are some

@@ -19,9 +19,9 @@ endif
 
 # Worst directory name ever
 ifndef MT
-NEWSDK = $(shell if test -d "/c/Program Files/Microsoft SDKs/Windows/v6.0A/bin"; then echo yes; else echo no; fi)
+NEWSDK = $(shell if test -d "/c/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/bin"; then echo yes; else echo no; fi)
 ifeq ($(NEWSDK),yes)
-MT="/c/Program Files/Microsoft SDKs/Windows/v6.0A/bin/mt.exe"
+MT="/c/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/bin/mt.exe"
 else
 MT="/c/Program Files/Microsoft Platform SDK for Windows Server 2003 R2/Bin/mt.exe"
 endif

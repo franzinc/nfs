@@ -1,4 +1,4 @@
-; $Id: nfs.nsi,v 1.19 2007/05/08 14:12:48 dancy Exp $
+;; Allegro NFS NSIS installer script
 
 ;; Disable compression when developing (severely speeds up the debug
 ;; cycle)
@@ -7,6 +7,7 @@ SetCompressor /SOLID lzma
 
 !include WinMessages.nsh
 !include servicelib.nsh
+!include LogicLib.nsh
 
 ;------------------------------------------------------------------------------
 
@@ -234,7 +235,7 @@ UninstPage instfiles
 
 ;--------------------------------
 
-; The stuff to install
+; The main, required install section
 Section "${VERBOSE_PROD}"
 
   SectionIn RO
@@ -294,7 +295,6 @@ DefaultConfig:
 HasExistingConfig:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
   ; Write the installation path into the registry
   WriteRegStr HKLM "${REGKEY}" "Install_Dir" "$INSTDIR"
 
@@ -314,7 +314,6 @@ HasExistingConfig:
   noDEP:
   Pop $1
 
-
 !define UNINSTMAIN "Software\Microsoft\Windows\CurrentVersion\Uninstall"
 !define UNINSTKEY "${UNINSTMAIN}\${SHORT_PROD}"
   
@@ -324,6 +323,16 @@ HasExistingConfig:
   WriteRegDWORD HKLM "${UNINSTKEY}" "NoModify" 1
   WriteRegDWORD HKLM "${UNINSTKEY}" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
+
+  ; MSVC runtime support for ACL
+  ifFileExists $SYSDIR\vcruntime140.dll vcinstalled 0
+    DetailPrint "Running vcredist_x86.exe"
+    Execwait '"$INSTDIR/vcredist_x86.exe" /passive' $0
+    DetailPrint "vcredist installer returned: $0"
+    ${If} $0 <> 0
+       MessageBox MB_OK "VCREDIST failed ($0).  Please report this to Franz Inc. at support@franz.com."
+    ${Endif}
+ vcinstalled:
 
   ExecWait '"$INSTDIR\nfs.exe" /install /quiet'  
 SectionEnd
