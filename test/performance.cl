@@ -88,7 +88,7 @@
  ;; this doesn't change and is committed into the repo
  "test/performance.log.6.2.baseline"
  ;; this changes each time performance.sh is run (via command line arg)
- "test/performance.log.6.beta.0")
+ "test/performance.log.6.3.beta.1")
 
 #+ignore
 (doit "test/performance.log.5.1.baseline"
