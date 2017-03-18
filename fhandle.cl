@@ -177,7 +177,10 @@
 	 (id       (put-file-id-into-vec pathname vec 4))) ;; 64-bits
     (when id
       (setf (fh-vec-type vec) *fhandle-type-persistent*)
-      (setf (fh-file-id fh) id))))
+      (setf (fh-file-id fh)
+	(if* *enable-32bit-file-id-truncate*
+	   then (logand #xffffffff id)
+	   else id)))))
 
 (defun make-fhandle (dirfh filename mode &key root-export)
   "FILENAME must be a basename.

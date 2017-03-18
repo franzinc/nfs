@@ -100,6 +100,7 @@
     ;; parameters
     (push `(user::*executable-types* ,user::*executable-types*) config)
     (push `(user::*disable-persistent-fhandles* ,user::*disable-persistent-fhandles*) config)
+    (push `(user::*enable-32bit-file-id-truncate* ,user::*enable-32bit-file-id-truncate*) config)
     (push `(portmap:*portmap-debug* ,portmap:*portmap-debug*) config)
     (push `(portmap:*use-system-portmapper* ,portmap:*use-system-portmapper*) config)
     (push `(mount:*mountd-debug* ,mount:*mountd-debug*) config)
@@ -168,6 +169,8 @@
     mount:*showmount-disabled*)
   (setf (value (my-find-component :disable-persistent-fhandles-checkbox form))
     user::*disable-persistent-fhandles*)
+  (setf (value (my-find-component :enable-32bit-file-id-truncate-checkbox form))
+    user::*enable-32bit-file-id-truncate*)
   (setf (value (my-find-component :log-rotation-file-size form))
     (format nil "~D" user::*log-rotation-file-size*))
   (setf (value (my-find-component :log-rotation-file-count form))
@@ -1182,5 +1185,13 @@ This is path that remote clients will use to connect." "/export" "OK" "Cancel" n
                                                                   old-value)
   (declare (ignorable old-value))
   (setf user::*disable-persistent-fhandles* new-value)
+  (refresh-apply-button (parent widget))
+  t) ; Accept the new value
+
+(defun configform-enable-32bit-file-id-truncate-checkbox-on-change (widget
+                                                                  new-value
+                                                                  old-value)
+  (declare (ignorable old-value))
+  (setf user::*enable-32bit-file-id-truncate* new-value)
   (refresh-apply-button (parent widget))
   t) ; Accept the new value

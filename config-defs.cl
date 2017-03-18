@@ -53,6 +53,8 @@
 
 (defvar *disable-persistent-fhandles* nil)
 
+(defvar *enable-32bit-file-id-truncate* nil)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PORTMAP
 

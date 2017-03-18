@@ -440,6 +440,11 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        'configform-disable-persistent-fhandles-checkbox-on-change
                        :tab-control (list :tab-control :global) :title
                        "Disable persistent file handles" :top 210 :width 186)
+        (make-instance 'check-box :font (make-font-ex nil "Tahoma / Default" 11) :left
+                       286 :name :enable-32bit-file-id-truncate-checkbox :on-change
+                       'configform-enable-32bit-file-id-truncate-checkbox-on-change
+                       :tab-control (list :tab-control :global) :title
+                       "Truncate file-ids to 32-bits for clients" :top 232 :width 209)
         (make-instance 'static-text :font (make-font-ex nil "Tahoma / ANSI" 11) :left 26
                        :name :static-text-log-rotation :tab-control
                        (list :tab-control :log) :top 43 :value
@@ -501,7 +506,8 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :dircache-update-interval
                                               :attr-cache-reap-time :static-text-20
                                               :static-text-21 :static-text-25
-                                              :static-text-26))
+                                              :static-text-26
+                                              :enable-32bit-file-id-truncate-checkbox))
                              (make-instance 'tab-info :id :log :label "Logging" :widgets
                                             '(:log-rotation-file-count
                                               :log-rotation-file-size

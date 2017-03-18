@@ -73,6 +73,10 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+* Add configuration option for badly behaved clients that cannot
+  handle 64-bit file-ids; when turned on, file-ids will be truncated
+  to 32-bits.
+
 * Fix: readdir*() calls no longer takes a really long time on large
   directories.
 
