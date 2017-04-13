@@ -89,24 +89,74 @@
       (with-open-file (f tmpfile :direction :output
 		       :if-exists :supersede)
 	(write (list *nsm-state* *nsm-monitored-hosts*) :stream f)
+	;; Ensure that everything is flushed to the file before we 
+	;; call fsync.
+	(finish-output f)
 	(excl.osi:fsync f))
-      (macrolet ((trans (thing)
-		   `(namestring (translate-logical-pathname ,thing))))
-	(user::my-rename (trans tmpfile) (trans *nsm-state-file*))))))
+      ;; New state file has been prepared.  Move it into place.
+      (user::my-rename (translate-logical-pathname tmpfile)
+		       (translate-logical-pathname *nsm-state-file*)))))
+
+;; Reads the NSM state file and returns two values:
+;; 1) The 'state' (an integer.  See *nsm-state* early in this file)
+;; 2) A list of nsm-monitor structs.
+;; If the NSM state file does not exist, returns nil.
+;; This function will signal an error if there are problems reading
+;; the state file.
+(defun read-nsm-state-file-1 ()
+  (with-open-file (f *nsm-state-file* :if-does-not-exist nil)
+    (when f
+      (destructuring-bind (state monitored-hosts)
+	  (read f)
+	;; Make sure everything looks legit
+	(check-type state integer)
+	(check-type monitored-hosts list)
+	(dolist (mon monitored-hosts)
+	  (assert (typep mon 'nsm-monitor)))
+	;; Looks good.
+	
+	(values state monitored-hosts)))))
+
+;; Reads the NSM state file and returns two values:
+;; 1) The 'state' (an integer.  See *nsm-state* early in this file)
+;; 2) A list of nsm-monitor structs.
+;; If there are problems reading the state file, a notification and
+;; hexdump will be logged, the broken file will be moved out of the
+;; way, and initial values will be returned.
+(defun read-nsm-state-file ()
+  (multiple-value-bind (state monitored-hosts)
+      (handler-case (read-nsm-state-file-1)
+	(error (c)
+	  (let ((hexdump-size 100) ;; bytes
+		(filename (translate-logical-pathname *nsm-state-file*))
+		(broken-filename (merge-pathnames nsm::*nsm-state-file* (make-pathname :type "broken")))
+		(*print-right-margin* 200))
+	    (user::logit-stamp "While reading ~a, caught error: ~a~%"
+			       filename
+			       c)
+	    (user::logit-stamp "Hexdump of the first ~a bytes of the file:~%~a~%"
+			       hexdump-size
+			       (user::hexdump-file filename hexdump-size :stream nil))
+	    (user::logit-stamp "Renaming ~a to ~a and starting fresh.~%"
+			       filename (translate-logical-pathname broken-filename))
+	    ;; my-rename will overwrite an existing destination file.
+	    (user::my-rename filename broken-filename)
+	    nil)))
+    (if* state
+       then (values state monitored-hosts)
+       else ;; Something wasn't right (missing or corrupt state file).
+	    ;; Return initial values.
+	    (values -1 nil))))
 
 (defun nsm-load-state ()
   (mp:with-process-lock (*nsm-state-lock*)
     (multiple-value-setq (*nsm-state* *nsm-monitored-hosts*)
-      (if* (probe-file *nsm-state-file*)
-	 then (with-open-file (f *nsm-state-file*)
-		(let ((res (read f)))
-		  (values (first res) (second res))))
-	 else (values -1 nil)))
+      (read-nsm-state-file))
     (dolist (mon *nsm-monitored-hosts*)
       (let ((priv (nsm-monitor-priv mon)))
 	(if priv
 	    (setf (nsm-monitor-priv mon)
-	      (coerce priv '(simple-array (unsigned-byte 8) (*)))))))))
+	      (coerce priv 'user::ausb8)))))))
       
 
 (defun nsm-advance-state ()

@@ -95,6 +95,34 @@
     (incf dest-offset)
     (incf src-offset))
   dest)
-  
-  
 
+;; Generates a hexdump of the first MAX-BYTES of FILENAME out to
+;; STREAM.  The hexdump is terminated with a newline if TERPRI is true.
+;; The return value is undefined.
+(defun hexdump-file-to-stream (filename max-bytes stream terpri)
+  (with-open-file (f filename)
+    (let* ((buf (make-ausb8 max-bytes))
+	   (got (read-sequence buf f)))
+      (dotimes (n got)
+	(format stream "~2,'0x " (aref buf n)))
+      (when terpri
+	(terpri stream)))))
+
+;; Generates a hexdump of the first MAX-BYTES of FILENAME out to
+;; STREAM, which defaults to *standard-output*.  If STREAM is nil, a
+;; string containing the hexdump will be returned.  If STREAM is not
+;; nil, the returned value is undefined.  TERPRI is used to determine
+;; whether or not a newline is added to the end of the hexdump.
+;; TERPRI defaults to true unless STREAM is nil, in which case it
+;; defaults to false.
+(defun hexdump-file (filename max-bytes &key (stream *standard-output*) 
+					     (terpri t terpri-supplied-p))
+  (if* stream
+     then (hexdump-file-to-stream filename max-bytes stream terpri)
+     else (with-output-to-string (stream)
+	    (hexdump-file-to-stream filename max-bytes stream
+				    (if* terpri-supplied-p
+				       then terpri
+				       else ;; Default to no newline
+					    ;; for string output.
+					    nil)))))
