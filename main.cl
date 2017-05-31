@@ -134,7 +134,9 @@ An NFS server is already running on this machine.  Aborting.~%")))
 	     
   (mp:open-gate *shutting-down*)
   ;; Allow `mainloop' process to see the open gate.
-  (sleep 1))
+  (sleep 1)
+  
+  (logit-stamp "Stopped NFS server"))
 
 (defun mainloop ()
   (console-control :close :hide)

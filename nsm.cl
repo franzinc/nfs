@@ -129,7 +129,7 @@
 	(error (c)
 	  (let ((hexdump-size 100) ;; bytes
 		(filename (translate-logical-pathname *nsm-state-file*))
-		(broken-filename (merge-pathnames nsm::*nsm-state-file* (make-pathname :type "broken")))
+		(broken-filename (translate-logical-pathname (merge-pathnames nsm::*nsm-state-file* (make-pathname :type "broken"))))
 		(*print-right-margin* 200))
 	    (user::logit-stamp "While reading ~a, caught error: ~a~%"
 			       filename
@@ -138,7 +138,7 @@
 			       hexdump-size
 			       (user::hexdump-file filename hexdump-size :stream nil))
 	    (user::logit-stamp "Renaming ~a to ~a and starting fresh.~%"
-			       filename (translate-logical-pathname broken-filename))
+			       filename broken-filename)
 	    ;; my-rename will overwrite an existing destination file.
 	    (user::my-rename filename broken-filename)
 	    nil)))

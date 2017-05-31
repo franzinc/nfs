@@ -145,6 +145,8 @@
 
 (defconstant MOVEFILE_REPLACE_EXISTING 1)
 
+;; This function will accept pathnames but it will not translate
+;; logical pathnames.  The caller is responsible for that.
 (defun my-rename (from to &key unicode)
   (if (pathnamep from)
       (setf from (namestring from)))
