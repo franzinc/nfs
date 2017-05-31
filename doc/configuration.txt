@@ -7,11 +7,22 @@ Exports define a directory tree that will be made accessible to NFS
 clients.  Exports have several important parameters:
   
  * name: The 'name' of an export is the string that clients use to
-   identify the export.  While just about any string is allowed, it is
-   recommended that you use a string that doesn't contain any spaces
-   or other characters that have special meaning in a Unix shell.
-   Also, export names customarily begin with a slash (/), but this is
-   not a requirement.
+   identify the export.  Export names can be of any length and can
+   contain any characters.  However, these rules must be followed:
+    
+     * An export name must begin with a slash (/).
+     * An export name must not end with a slash except in the
+       case where the export name is simply a single slash.
+   
+   It is recommended that you use a string that doesn't contain any
+   spaces or other characters that have special meaning in a Unix
+   shell. 
+
+   Examples of valid export names:
+
+     /  
+     /data
+     /x/y/z
 
  * path: This is the local directory that will be shared by the
    export.  It can also be a UNC share (e.g., \\host\share).
