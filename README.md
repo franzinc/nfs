@@ -77,6 +77,9 @@ NFS.
   handle 64-bit file-ids; when turned on, file-ids will be truncated
   to 32-bits.
 
+* Fix: if the "nsm-state" file becomes corrupted, then handle this
+  more gracefully by reseting its contents.
+
 * Fix: readdir*() calls no longer takes a really long time on large
   directories.
 
