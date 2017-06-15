@@ -154,7 +154,19 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		      (sunrpc:peer-dotted peer)))
 	   (sunrpc:send-prog-mismatch-reply peer xid sunrpc:*nullverf* 2 3)
 	   (return-from nfsd-message-handler)))))))
-       
+
+(defun log-backtrace-to-nfs-errlog (c)
+  (with-open-file (f "sys:nfs-errlog.txt"
+		   :direction :output
+		   :if-does-not-exist :create
+		   :if-exists :append)
+    (format f "~a: Allegro NFS version ~a (commit ~a)~%" 
+	    (excl.osi:ctime)
+	    *nfsd-version*
+	    *nfsd-commit-id*)
+    (format f "Unexpected error: ~a~%" c)
+    (top-level.debug:zoom f :count t)))
+
 (defun get-error-code-from-condition (c)
   "Handles syscall-error and errno-stream-error"
   (typecase c
@@ -217,13 +229,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 		 (go ,out)))
 	      (error 
 	       (lambda (,c)
-		 ;; Generate a backtrace
-		 (ignore-errors 
-		  (with-open-file (f "sys:nfs-errlog.txt"
-				   :direction :output
-				   :if-does-not-exist :create
-				   :if-exists :append)
-		    (top-level.debug:zoom f :count t)))
+		 (ignore-errors (log-backtrace-to-nfs-errlog ,c))
 		 (setf (xdr:xdr-pos ,xdr) ,savepossym)
 		 (logit-stamp "Handling unexpected error: ~a~%" ,c)
 		 (xdr-int ,xdr #.*nfserr-io*)
