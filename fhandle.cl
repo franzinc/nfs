@@ -247,8 +247,8 @@
   (incf (fh-refs fh))
   (setf (gethash filename (fh-children dirfh)) fh))
 
-;; Put a fhandle into the hash.. and make sure the 
-;; parent has a child entry.  FILENAME must be a basename.
+;; Insert file handle FH into the *fhandles* hash and make sure the
+;; parent has a child entry for it.  FILENAME must be a basename.
 (defun insert-fhandle (fh filename rename)
   (when (not rename)
     (let ((prior-fh (gethash (fh-vec fh) *fhandles*))
@@ -260,7 +260,7 @@
 	;; * A file or directory was renamed/moved outside of Allegro NFS.
 	;; * A file id was recycled.  This seems to be a low probability event.
 	;; * A new hard link is discovered.  In this case the removal of the
-	;;   prior entry from the parent fh is not the wrong thing to do.
+	;;   prior entry from the parent fh is the wrong thing to do.
 	;;   However, I don't think it's a big deal.  In the worst case, alternating
 	;;   access to each of the hard link names will result in repeated adjustment
 	;;   of the file handle database.
