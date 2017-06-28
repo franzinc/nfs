@@ -167,39 +167,49 @@ LicenseData license-paid.txt
  
 Function IsWin9x
 
-Push $R0
-Push $R1
+  Push $R0
+  Push $R1
 
-ClearErrors
+  ClearErrors
 
-ReadRegStr $R0 HKLM \
-"SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+  ReadRegStr $R0 HKLM \
+  "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
 
-IfErrors 0 lbl_winnt
+  IfErrors 0 lbl_winnt
+    ; we are not NT
+    StrCpy $R0 "true"
+    Goto lbl_done
 
-; we are not NT
-StrCpy $R0 "true"
-Goto lbl_done
+ lbl_winnt:
+  StrCpy $R0 "false"
 
-lbl_winnt:
+ lbl_done:
+  Pop $R1
+  Exch $R0
 
-StrCpy $R0 "false"
-
-lbl_done:
-
-Pop $R1
-Exch $R0
- 
 FunctionEnd
 
 ;--------------------------------
+; definitions for Registry access
 
+!define HKEY_LOCAL_MACHINE       0x80000002
+
+!define KEY_QUERY_VALUE          0x0001
+!define KEY_ENUMERATE_SUB_KEYS   0x0008
+
+!define REG_MULTI_SZ             7
+
+!define RegOpenKeyEx     "Advapi32::RegOpenKeyEx(i, t, i, i, *i) i"
+!define RegQueryValueEx  "Advapi32::RegQueryValueEx(i, t, i, *i, i, *i) i"
+!define RegCloseKey      "Advapi32::RegCloseKey(i) i"
+
+;--------------------------------
 Function .onInit
 
   Call IsWin9x
   Pop $R0   ; at this point $R0 is "true" or "false"
   StrCmp $R0 "true" 0 IsWinNT
-     MessageBox MB_OK \
+     MessageBox MB_OK|MB_ICONSTOP \
         'Allegro NFS Server does not work on Windows 9x.'
      Abort
  IsWinNT:
@@ -207,7 +217,7 @@ Function .onInit
   Call IsUserAdmin
   Pop $R0   ; at this point $R0 is "true" or "false"
   StrCmp $R0 "false" 0 IsAdmin
-     MessageBox MB_OK \
+     MessageBox MB_OK|MB_ICONSTOP \
         'You must be a member of the Administrators group to install.'
      Abort
  IsAdmin:
@@ -216,8 +226,64 @@ Function .onInit
   Pop $R0
  
   StrCmp $R0 0 +3
-    MessageBox MB_OK|MB_ICONEXCLAMATION "The installer is already running."
+    MessageBox MB_OK|MB_ICONSTOP "The installer is already running."
     Abort
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ; Check to see if there are any file renames on reboot are pending,
+  ; and if they are then abort the installation.
+
+  ; Make sure our registry access isn't redirected because we're a 32-bit
+  ; installer.  We need to see the unredirected registry.
+  SetRegView 64
+
+  ; Will hold the handle to the "Session Manager" key:
+  StrCpy $0 ""
+  ; Will hold the PendingFileRenameOperations registry value type code
+  ; (e.g. REG_SZ, REG_MULTI_SZ, etc):
+  StrCpy $1 ""
+  ; Will hold the size of the  PendingFileRenameOperations registry value:
+  StrCpy $2 ""
+  ; Used to hold the return value of registry system calls:
+  StrCpy $3 ""
+  ; From http://nsis.sourceforge.net/System_plug-in_readme
+  ; "The System plug-in will not be able to process the callback calls
+  ; right if it's unloaded" ... so we set it to `alwaysoff' and back to
+  ; `manual' at the end.
+  SetPluginUnload alwaysoff
+
+  System::Call "${RegOpenKeyEx}(${HKEY_LOCAL_MACHINE}, \
+    'SYSTEM\CurrentControlSet\Control\Session Manager', \
+    0, ${KEY_QUERY_VALUE}|${KEY_ENUMERATE_SUB_KEYS}, .r0) .r3"
+
+  StrCmp $3 0 checkValue
+    ;MessageBox MB_OK "DEBUG: Can't open registry key! ($3)"
+    Goto installGreenLight
+
+checkValue:
+  System::Call "${RegQueryValueEx}(r0, 'PendingFileRenameOperations', \
+    0, .r1, 0, .r2) .r3"
+  StrCmp $3 0 checkType
+    ;MessageBox MB_OK "DEBUG: Can't query registry value size! ($3)"
+    Goto installGreenLight
+
+checkType:
+  StrCmp $1 ${REG_MULTI_SZ} rebootNeeded
+    ;MessageBox MB_OK "DEBUG: Registry value not REG_MULTI_SZ! ($3)"
+    Goto installGreenLight
+
+rebootNeeded:
+  MessageBox MB_OK|MB_ICONSTOP "A reboot is needed before the installation can proceed"
+  Abort
+ 
+installGreenLight:
+  StrCmp $0 0 noCloseRegKey
+    System::Call "${RegCloseKey}(r0)"
+noCloseRegKey:
+  ; Restore state changed above:
+  SetPluginUnload manual
+  ; Set back to the 32-bit view:
+  SetRegView 32
 
 FunctionEnd
 
@@ -274,7 +340,7 @@ Section "${VERBOSE_PROD}"
 	System::Call 'kernel32::CopyFile(t r0, t r1, b r2) l'
 	Pop $0 ; pops a bool.  if overwrite is off and there is a file then error will be 1
 	StrCmp $0 "true" 0 HasExistingConfig
-     	    MessageBox MB_OK 'Error creating nfs.cfg [1]'
+     	    MessageBox MB_OK|MB_ICONSTOP 'Error creating nfs.cfg [1]'
      	    Abort
 
 CheckFor32Bit:
@@ -285,7 +351,7 @@ CheckFor32Bit:
 	System::Call 'kernel32::CopyFile(t r0, t r1, b r2) l'
 	Pop $0 ; pops a bool.  if overwrite is off and there is a file then error will be 1
 	StrCmp $0 "true" 0 HasExistingConfig
-     	    MessageBox MB_OK 'Error creating nfs.cfg [2]'
+     	    MessageBox MB_OK|MB_ICONSTOP 'Error creating nfs.cfg [2]'
      	    Abort
 	Goto HasExistingConfig
 
@@ -391,6 +457,8 @@ FunctionEnd
 Section Uninstall
   SetShellVarContext all 
 
+  ClearErrors
+  
   ;;Call un.StopConsole
   Call un.StopAndDeleteService
 
@@ -401,8 +469,8 @@ Section Uninstall
   DeleteRegValue HKLM "${APPCOMPATLAYERS}" "$INSTDIR\configure\configure.exe"
 
   DetailPrint "Removing files and uninstaller..."
-  Rmdir /r "$INSTDIR\system-dlls"
-  ; would have used rmdir /r $INSTDIR but the config
+  RMDir /r "$INSTDIR\system-dlls"
+  ; would have used RMDir /r $INSTDIR but the config
   ; file is there too and we might want to preserve it.  Bleh
   Delete /rebootok "$INSTDIR\files.bu"
   Delete /rebootok "$INSTDIR\*.txt"
@@ -412,25 +480,37 @@ Section Uninstall
   Delete /rebootok "$INSTDIR\*.lic"
   Delete /rebootok "$INSTDIR\nfs.cfg.default"
   Delete /rebootok "$INSTDIR\nsm-state"
-  Rmdir /r "$INSTDIR\configure"
-  Rmdir /r "$INSTDIR\locales"
+  RMDir /r "$INSTDIR\configure"
+  RMDir /r "$INSTDIR\locales"
 
-  IfFileExists "$INSTDIR\nfs.cfg" 0 no_nfs_cfg
+  IfFileExists "$INSTDIR\nfs.cfg" 0 leave_nfs_cfg
     MessageBox MB_YESNO|MB_ICONQUESTION \
    "Would you like to preserve $INSTDIR\nfs.cfg?" \
-     IDYES no_nfs_cfg IDNO remove_nfs_cfg
+     IDYES leave_nfs_cfg IDNO remove_nfs_cfg
  
  remove_nfs_cfg:
     Delete /rebootok "$INSTDIR\nfs.cfg"
+    ; User said they don't want nfs.cfg, so we can blow away the main
+    ; program directory, too.  We don't specify /rebootok, since we don't
+    ; care if the directory is not removed if they added their own files
+    ; to the directory.
+    RMDir "$INSTDIR" 
 
- no_nfs_cfg:	
+ leave_nfs_cfg:	
 
-  ; may not work if nfs.cfg was preserved.
-  rmdir "$INSTDIR" 
-
-  ; Remove directories used
   RMDir /r "${SMDIR}"
-  RMDir /rebootok "$INSTDIR"
+  ; DO NOT remove "$INSTDIR" here!  It will fail to remove the directory
+  ; because "nfs.cfg" is still there, and this causes the reboot flag
+  ; to be set, since we give /rebootok.
+;;; DEBUG: uncomment the following to force a "reboot needed" situation
+  ;;; RMDir /rebootok "$INSTDIR"
 
   Delete /rebootok "$SMSTARTUP\${SHORT_PROD} Console.lnk"
+
+  IfRebootFlag 0 noreboot
+  MessageBox MB_YESNO|MB_ICONQUESTION "A reboot is required to finish the uninstall. Reboot now?" IDNO noreboot
+  Reboot
+  # the above will never return
+ noreboot:
+
 SectionEnd

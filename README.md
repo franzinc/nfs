@@ -85,6 +85,10 @@ NFS.
 
 * Fix: no longer show negative fractional seconds in debug output.
 
+* Fix: install: detect when a reboot is pending and abort.
+
+* Fix: uninstall: detect when a reboot is needed and offer to reboot.
+
 ### Version 6.2 [7 December, 2016]
 
 * Fix: use an Allegro CL build that fixes a GC leak, which could
