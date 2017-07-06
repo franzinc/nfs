@@ -190,6 +190,82 @@ Function IsWin9x
 FunctionEnd
 
 ;--------------------------------
+; from: http://nsis.sourceforge.net/StrLoc
+
+!define StrLoc "!insertmacro StrLoc"
+ 
+!macro StrLoc ResultVar String SubString StartPoint
+  Push "${String}"
+  Push "${SubString}"
+  Push "${StartPoint}"
+  Call StrLoc
+  Pop "${ResultVar}"
+!macroend
+ 
+Function StrLoc
+/*After this point:
+  ------------------------------------------
+   $R0 = StartPoint (input)
+   $R1 = SubString (input)
+   $R2 = String (input)
+   $R3 = SubStringLen (temp)
+   $R4 = StrLen (temp)
+   $R5 = StartCharPos (temp)
+   $R6 = TempStr (temp)*/
+ 
+  ;Get input from user
+  Exch $R0
+  Exch
+  Exch $R1
+  Exch 2
+  Exch $R2
+  Push $R3
+  Push $R4
+  Push $R5
+  Push $R6
+ 
+  ;Get "String" and "SubString" length
+  StrLen $R3 $R1
+  StrLen $R4 $R2
+  ;Start "StartCharPos" counter
+  StrCpy $R5 0
+ 
+  ;Loop until "SubString" is found or "String" reaches its end
+  ${Do}
+    ;Remove everything before and after the searched part ("TempStr")
+    StrCpy $R6 $R2 $R3 $R5
+ 
+    ;Compare "TempStr" with "SubString"
+    ${If} $R6 == $R1
+      ${If} $R0 == `<`
+        IntOp $R6 $R3 + $R5
+        IntOp $R0 $R4 - $R6
+      ${Else}
+        StrCpy $R0 $R5
+      ${EndIf}
+      ${ExitDo}
+    ${EndIf}
+    ;If not "SubString", this could be "String"'s end
+    ${If} $R5 >= $R4
+      StrCpy $R0 ``
+      ${ExitDo}
+    ${EndIf}
+    ;If not, continue the loop
+    IntOp $R5 $R5 + 1
+  ${Loop}
+ 
+  ;Return output to user
+  Pop $R6
+  Pop $R5
+  Pop $R4
+  Pop $R3
+  Pop $R2
+  Exch
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+;--------------------------------
 ; definitions for Registry access
 
 !define HKEY_LOCAL_MACHINE       0x80000002
@@ -231,7 +307,10 @@ Function .onInit
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ; Check to see if there are any file renames on reboot are pending,
-  ; and if they are then abort the installation.
+  ; and if they are then abort the installation.  The code from this section
+  ; is based on the very complete, but hard to understand example, here:
+  ;   http://nsis.sourceforge.net/REG_MULTI_SZ_Reader
+  ; by kichik.
 
   ; Make sure our registry access isn't redirected because we're a 32-bit
   ; installer.  We need to see the unredirected registry.
@@ -246,6 +325,7 @@ Function .onInit
   StrCpy $2 ""
   ; Used to hold the return value of registry system calls:
   StrCpy $3 ""
+
   ; From http://nsis.sourceforge.net/System_plug-in_readme
   ; "The System plug-in will not be able to process the callback calls
   ; right if it's unloaded" ... so we set it to `alwaysoff' and back to
@@ -268,14 +348,96 @@ checkValue:
     Goto installGreenLight
 
 checkType:
-  StrCmp $1 ${REG_MULTI_SZ} rebootNeeded
+  StrCmp $1 ${REG_MULTI_SZ} checkmultisz
     ;MessageBox MB_OK "DEBUG: Registry value not REG_MULTI_SZ! ($3)"
     Goto installGreenLight
 
-rebootNeeded:
-  MessageBox MB_OK|MB_ICONSTOP "A reboot is needed before the installation can proceed"
-  Abort
+checkmultisz:
+  StrCmp $2 0 0 multiszalloc
+    MessageBox MB_OK "DEBUG: Registry value empty! ($3)"
+    Goto installGreenLight
  
+multiszalloc:
+  System::Alloc $2
+  Pop $1
+  ; $1 is the address of the allocation of $2 bytes
+ 
+  StrCmp $1 0 0 multiszget
+    MessageBox MB_OK "Internal error: System:Alloc returned 0"
+    Abort
+ 
+multiszget:
+  System::Call "${RegQueryValueEx}(r0, 'PendingFileRenameOperations', \
+    0, n, r1, r2) .r3"
+  ; $3 has the return value from RegQueryValueEx
+ 
+  StrCmp $3 0 multiszprocess
+    MessageBox MB_OK|MB_ICONSTOP "Can't query registry value data! ($3)"
+    Abort
+
+  ; Important variables
+  ;   $1 :: the value data from PendingFileRenameOperations
+  ;   $2 :: the number of bytes of data in $1
+  ; all other registers are scratch, at this point.
+
+multiszprocess:
+  ; $4 gets the address of the string data
+  StrCpy $4 $1
+
+  ; $6 is the end of the memory block we allocated above
+  IntOp $6 $4 + $2
+ 
+  ;REG_MULTI_SZ is double null terminated, change the size so the loop
+  ;does not have to worry about it
+!ifdef NSIS_UNICODE 
+  IntOp $6 $6 - 2
+!else
+  IntOp $6 $6 - 1
+!endif
+ 
+  loop:
+     ; The following seems to take the string in $4, which was from
+     ; the System::Call above, and makes it an NSIS string, putting the
+     ; result in $3.
+     System::Call "*$4(&t${NSIS_MAX_STRLEN} .r3)"
+     StrLen $5 $3
+     ; Account for null char
+     IntOp $7 $5 + 1
+!ifdef NSIS_UNICODE    
+     ; convert characters to bytes--in the non-UNICODE case, we already
+     ; have bytes
+     IntOp $7 $7 * 2
+!endif
+     ; Advance to the next string, or the "end" of the strings (tested below)
+     IntOp $4 $4 + $7
+
+     ; A zero length name here means the previous iteration was a delete,
+     ; so we skip to the next iteration.
+     IntCmp $5 0 nextloop
+
+     ; $3 is a string representing a file which will be removed on the next
+     ; reboot.  Since we're running in the .onInit section, we don't know
+     ; what the user will use for the installation directory.  However,
+     ; even if we did, we don't know what they used *last* time, or if any
+     ; of the files we'll see were due to Allegro NFS.  For this reason,
+     ; just look for the string "nfs" and "allegro", both case insensitively.
+     MessageBox MB_OK "DEBUG: filename: $3"
+
+     ; args: "ResultVar" "String" "SubString" "StartPoint"
+     ; "StartPoint" of ">" means "start of string"
+     ${StrLoc} $5 $3 "nfs" ">"
+     StrCmp $5 "" nextloop
+     ${StrLoc} $5 $3 "allegro" ">"
+     StrCmp $5 "" nextloop
+
+     MessageBox MB_OK|MB_ICONSTOP "A reboot is needed before the installation can proceed!"
+     Abort
+ 
+   nextloop:
+     IntCmp $4 $6 0 loop
+
+  System::Free $1
+
 installGreenLight:
   StrCmp $0 0 noCloseRegKey
     System::Call "${RegCloseKey}(r0)"
@@ -453,6 +615,11 @@ Function un.onUninstSuccess
     ExecShell "open" "http://nfsforwindows.com/uninstall"
 FunctionEnd
 !endif
+
+Function un.onRebootFailed
+   MessageBox MB_OK|MB_ICONSTOP \
+     "Reboot failed. Please reboot manually." /SD IDOK
+FunctionEnd
 
 Section Uninstall
   SetShellVarContext all 
