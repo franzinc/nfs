@@ -73,6 +73,10 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+TBD
+
+### Version 6.3 [TBD July, 2017]
+
 * Add configuration option for badly behaved clients that cannot
   handle 64-bit file-ids; when turned on, file-ids will be truncated
   to 32-bits.
