@@ -354,7 +354,7 @@ checkType:
 
 checkmultisz:
   StrCmp $2 0 0 multiszalloc
-    MessageBox MB_OK "DEBUG: Registry value empty! ($3)"
+    ;MessageBox MB_OK "DEBUG: Registry value empty! ($3)"
     Goto installGreenLight
  
 multiszalloc:
@@ -421,7 +421,7 @@ multiszprocess:
      ; even if we did, we don't know what they used *last* time, or if any
      ; of the files we'll see were due to Allegro NFS.  For this reason,
      ; just look for the string "nfs" and "allegro", both case insensitively.
-     MessageBox MB_OK "DEBUG: filename: $3"
+     ;MessageBox MB_OK "DEBUG: filename: $3"
 
      ; args: "ResultVar" "String" "SubString" "StartPoint"
      ; "StartPoint" of ">" means "start of string"
