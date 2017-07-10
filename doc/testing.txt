@@ -10,7 +10,7 @@ The types of correctness testing we do:
     reads it back and compares it to the original
 
 Future: once NFS is SMP capable, the stress tests should include
-multiple clients
+multiple clients.
 
 *********************
 `testnfs' setup:
@@ -67,26 +67,35 @@ idea, so something like
 ** Performance
 *******************************************************************************
 
-Overview:
-  `hammernfs' is used to test NFS performance.  Using the `nfstestfile'
-  from the above, you can do
+The following setup produces more stable results than anything found
+so far:
+ - VMware Fusion on a Mac Pro
+   - aNFS server: Windows 7 x64 Enterprise
+   - test client: Ubuntu 16.04
+The test client cannot be run on Windows, because the test program
+fails (it seems to be a	bug in Cygwin).
 
-      $ ./hammernfs localhost:/nfs.test/nfstestfile
+The following script, test/performance.sh, runs `hammernfs' in many
+different combinations of block size (from 512 to 8192), NFS protocol
+versions (2 & 3) and transport layers (tcp & udp).
 
-  The script test/performance.sh runs hammernfs in many different
-  combinations of block size, NFS protocol version (2, 3) and transport
-  layer (tcp, udp).
+Setup: put a 30M file into the NFS share "nfs.test" and:
 
-Setup:
-   - make a directory, say e:/nfs.test, and put a copy of some large
-     file there and call it `nfstestfile'
-   - NFS share e:/nfs.test as `nfs.test'
+  $ test/performance.sh results/$version
 
-First time:
-  $ test/performance.sh test/performance.log.5.1.baseline
-Second (and later) time:
-  $ test/performance.sh test/performance.log.5.1
-To see the results, run:
-  $ /c/acl100.patched/mlisp -L test/performance.cl
-Make sure what files are in use in the call to `doit' at the end of
-the test/performance.cl script.
+where $version is something like 6.3.0.rc1, etc.
+
+Then, do "make results" to see how it stacks up against previous
+versions.
+
+If multiple versions are tested, then do this when one version is
+finished testing:
+
+ - uninstall old version
+ - reboot
+ - install new version
+ - start task manager, performance tab and wait until the machine
+   settles, then minimize the task manager
+
+Now, run the tests on the client.  NOTE: the client machine is not
+rebooted between runs.

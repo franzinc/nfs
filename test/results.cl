@@ -1,3 +1,8 @@
+#! /fi/cl/10.1/bin/mlisp -#C
+
+(eval-when (compile eval load)
+  (require :shell)
+  (use-package :excl.shell))
 
 (in-package :user)
 
@@ -44,7 +49,7 @@
       (/ (reduce #'+ (mapcar #'datum-rate group))
 	 len))))
 
-(defun doit (ref new)
+(defun print-stats (ref new)
   (flet ((%change (ref new)
 	   (let* ((diff (- new ref))
 		  (%change (* 100.0 (/ (abs diff) ref))))
@@ -84,17 +89,21 @@
 	      new-rate
 	      (%change ref-rate new-rate)))))
 
-(doit
- ;; this doesn't change and is committed into the repo
- "test/performance.log.6.2.baseline"
- ;; this changes each time performance.sh is run (via command line arg)
- "test/performance.log.6.3.beta.1")
-
 #+ignore
-(doit "test/performance.log.5.1.baseline"
-      (format nil "test/performance.log.~a"
-	      (string-trim
-	       '(#\newline)
-	       (excl.osi:command-output "make --silent echo_version"
-					:whole t))))
-(exit 0 :quiet t)
+(print-stats
+ "5.1"					; reference results
+ "6.3.0.rc1"				; test results
+ )
+
+(sys:with-command-line-arguments ("v" verbose) (rest)
+  (declare (ignore verbose))
+  (when (not (eql 2 (length rest)))
+    (die "expected only 2 arguments"))
+  (let* ((ref (merge-pathnames (first rest) "results/"))
+	 (new (merge-pathnames (second rest) "results/")))
+    (or (probe-file ref) (error-die "~a does not exist." ref))
+    (or (probe-file new) (error-die "~a does not exist." new))
+    (format t ";; ~a to ~a performance comparison:~%~%"
+	    (first rest)
+	    (second rest))
+    (print-stats ref new)))

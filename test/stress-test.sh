@@ -5,7 +5,7 @@
 
 set -eu
 
-nfsdir=/net/thor/nfs.test
+nfsdir=/net/thunder/nfs.test
 localdir=/home/tmp/layer/nfs.test
 
 function makedata {

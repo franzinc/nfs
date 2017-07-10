@@ -227,6 +227,14 @@ perftest: FORCE
 testnfs: test/testnfs.c
 	cc -O -o testnfs test/testnfs.c
 
+results: FORCE
+	@prev=; for v in $$(cd results; echo *); do \
+	    if [ "$$prev" ]; then \
+		test/results.cl $$prev $$v; \
+	    fi; \
+	    prev=$$v; \
+	done
+
 ###############################################################################
 # misc
 
