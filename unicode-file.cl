@@ -75,6 +75,12 @@
 
 (defconstant *error-no-more-files* 18)
 
+(defun dword-pair-to-integer (high low)
+  ;; Takes high and low 32-bit dwords and returns the corresponding integer
+  (declare (optimize speed (safety 0))
+	   ((unsigned-byte 32) high low))
+  (logior (ash high 32) low))
+
 ;; Not the same as the CL directory call.  Only returns basenames, and it
 ;; includes the . and .. names.
 (defun unicode-directory (dir)
@@ -174,77 +180,6 @@
 	 (when (streamp ,var)
 	   (close ,var :abort ,abort))))))
 
-(ff:def-foreign-type dev_t :unsigned-int)
-(ff:def-foreign-type ino_t :unsigned-short)
-(ff:def-foreign-type int64 
-    (:struct
-     (low :unsigned-int)
-     (high :unsigned-int)))
-(ff:def-foreign-type time64_t int64)
-     
-#|
-struct __stat64 {
-        _dev_t st_dev;
-        _ino_t st_ino;
-        unsigned short st_mode;
-        short st_nlink;
-        short st_uid;
-        short st_gid;
-        _dev_t st_rdev;
-        __int64 st_size;
-        __time64_t st_atime;
-        __time64_t st_mtime;
-        __time64_t st_ctime;
-        };
-|#
-
-(ff:def-foreign-type stat64
-    (:struct
-     (dev dev_t)			; 0 4
-     (ino ino_t)			; 4 2
-     (mode :unsigned-short)		; 6 2
-     (nlink :short)			; 8 2
-     (uid :short)			; 10 2
-     (gid :short)			; 12 2
-					; 2 bytes of alignment pad
-     (rdev dev_t)			; 16 4
-     (pad1 :int)			; 20 4
-     (size int64)			; 24
-     (atime time64_t)
-     (mtime time64_t)
-     (ctime time64_t)))
-
-(ff:def-foreign-call (wstat64 "_wstat64") 
-    ((path (* :void)) 
-     (buffer (* stat64)))
-  :strings-convert nil
-  :error-value :errno)
-
-;; Returns values used by Allegro NFS:
-:: mode nlink uid gid size atime mtime ctime
-(defun old-unicode-stat (filename) 
-  (declare (optimize speed))
-  (ff:with-static-fobject (sb 'stat64 :allocation :foreign-static-gc)
-    (multiple-value-bind (status errno)
-	(wstat64 filename sb)
-      (if (not (zerop status))
-	  (excl.osi:perror errno "stat64"))
-      (macrolet ((slot (&rest rest)
-		   `(ff:fslot-value-typed 'stat64 :foreign-static-gc sb ,@rest)))
-	(macrolet ((timeslot (name)
-		     `(excl.osi:unix-to-universal-time (slot ,name :low))))
-	  (let ((mode (slot 'mode)))
-	    (if (symlink-p filename)
-		(setf mode #o0120777))
-	    (values mode (slot 'nlink) (slot 'uid) (slot 'gid) 
-		    (logior (slot 'size 'low) (ash (slot 'size 'high) 32))
-		    (timeslot 'atime)
-		    (timeslot 'mtime)
-		    ;; bug21964: use the mtime as the ctime since the ctime
-		    ;; isn't what we thought was it (create time instead of
-		    ;; inode change time as it's supposed to be).
-		    (timeslot 'mtime))))))))
-
 (ff:def-foreign-call (GetFileAttributes "GetFileAttributesW")
     ((lpFileName (* :void)))
   :returning :int
@@ -265,13 +200,15 @@ struct __stat64 {
 		 (aref *symlink-header* n)))
 	(return))))
 
-(defun symlink-p (filename &optional attrs)
+;; Called by unix-mode-from-file-attributes, :operator
+(defun symlink-p (filename attrs file-length)
   (declare (optimize speed))
-  (let ((res (or attrs (GetFileAttributes filename))))
-    (when (and (not (eq res INVALID_FILE_ATTRIBUTES))
-	       (not (zerop (logand res FILE_ATTRIBUTE_SYSTEM)))
-	       (zerop (logand res FILE_ATTRIBUTE_DIRECTORY))
-	       (evenp (file-length filename)))
+  (let ((attrs (or attrs (GetFileAttributes filename)))
+	(file-length (or file-length (file-length filename))))
+    (when (and (not (eq attrs INVALID_FILE_ATTRIBUTES))
+	       (not (zerop (logand attrs FILE_ATTRIBUTE_SYSTEM)))
+	       (zerop (logand attrs FILE_ATTRIBUTE_DIRECTORY))
+	       (evenp file-length))
       (let ((buf (make-ausb8 8)))
 	(declare (optimize (safety 0))
 		 (dynamic-extent buf))
@@ -280,9 +217,11 @@ struct __stat64 {
 	(handler-bind 
 	    ((syscall-error
 	      (lambda (e)
-		(when (eq (syscall-error-errno e) *eacces*)
-		  (return-from symlink-p nil)))))
-	  (with-open-file (f filename)
+		(let ((errno (syscall-error-errno e)))
+		  (when (eq errno *eacces*)
+		    ;;(format t "symlink-p returning nil due to errno ~a~%" errno)
+		    (return-from symlink-p nil))))))
+	  (with-unicode-open (f filename)
 	    (if (and (eq 8 (read-vector buf f))
 		     (symlink-header-p buf))
 		t)))))))
@@ -438,8 +377,10 @@ struct __stat64 {
   (declare (optimize speed))
   (let* ((ticks-per-sec 10000000)
 	 (secs-from-windows-epoch-to-unix-epoch 11644473600)
-	 (ticks (logior (ash (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwHighDateTime) 32)
-			(ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwLowDateTime))))
+	 (ticks (dword-pair-to-integer 
+		 (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwHighDateTime)
+		 (ff:fslot-value-typed 'win:filetime :c filetime-ptr 'dwLowDateTime))))
+			
     (multiple-value-bind (secs-since-1601 remaining-ticks)
 	(truncate ticks ticks-per-sec)
       (values 
@@ -459,9 +400,12 @@ struct __stat64 {
   :error-value :os-specific
   :strings-convert nil)
 
-(defun unix-mode-from-file-attributes (filename attrs)
+;;;Called by
+;;;stat-via-find-first-file, :operator
+;;;unicode-stat, :operator
+(defun unix-mode-from-file-attributes (filename attrs file-length)
   (declare (optimize speed))
-  (if* (symlink-p filename attrs)
+  (if* (symlink-p filename attrs file-length)
      then #o0120777
      else ;; Windows documentation claims:
 	  ;; Setting a folder to read-only makes all the files in the
@@ -479,11 +423,6 @@ struct __stat64 {
 	    
 	    (logior type perms))))
 
-(defun unix-mode-from-file-information (filename info)
-  (declare (optimize speed))
-  (unix-mode-from-file-attributes filename 
-				  (ff:fslot-value-typed 'by-handle-file-information :foreign info 'dwFileAttributes)))
-
 (defun stat-via-find-first-file (filename)
   (ff:with-stack-fobject (data 'win32-find-data-w)
     (multiple-value-bind (handle err)
@@ -494,20 +433,27 @@ struct __stat64 {
       
       (macrolet ((access-slot (&rest names)
 		   `(ff:fslot-value-typed 'win32-find-data-w :foreign data ,@names)))
-	(values
-	 ;; If we had to resort to using stat-via-find-first-file, then the file wasn't 
-	 ;; accessible using normal mechanisms, which means that attempts to read/write it
-	 ;; in the future definitely won't work, so we reflect that in the mode bits.
-	 (logandc2 (unix-mode-from-file-attributes filename (access-slot 'dwFileAttributes)) #o777)
-	 1 ;; nlinks
-	 0 ;; uid
-	 0 ;; gid
-	 (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
-	 (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
-	 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
-	 ;; Return same info as mtime for ctime
-	 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
-	 )))))
+	
+	(let ((file-length (dword-pair-to-integer (access-slot 'nFileSizeHigh)
+						  (access-slot 'nFileSizeLow))))
+						  
+	  (values
+	   ;; If we had to resort to using stat-via-find-first-file, then the file wasn't 
+	   ;; accessible using normal mechanisms, which means that attempts to read/write it
+	   ;; in the future definitely won't work, so we reflect that in the mode bits.
+	   (logandc2 (unix-mode-from-file-attributes filename 
+						     (access-slot 'dwFileAttributes)
+						     file-length)
+		     #o777)
+	   1 ;; nlinks
+	   0 ;; uid
+	   0 ;; gid
+	   file-length ;; size
+	   (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
+	   (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
+	   ;; Return same info as mtime for ctime
+	   (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
+	   ))))))
 
 (defconstant ERROR_SHARING_VIOLATION 32)
 
@@ -521,17 +467,21 @@ struct __stat64 {
       (if* success
 	 then (macrolet ((access-slot (&rest names)
 			   `(ff:fslot-value-typed 'win:win32_file_attribute_data :foreign info ,@names)))
-		(values
-		 (unix-mode-from-file-attributes filename (access-slot 'win::dwFileAttributes))
-		 1 ;; nlinks
-		 0 ;; uid
-		 0 ;; gid
-		 (logior (ash (access-slot 'nFileSizeHigh) 32) (access-slot 'nFileSizeLow)) ;; size
-		 (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
-		 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
-		 ;; Return same info as mtime for ctime
-		 (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
-		 ))
+		(let ((file-length (dword-pair-to-integer (access-slot 'nFileSizeHigh)
+							  (access-slot 'nFileSizeLow))))
+		  (values
+		   (unix-mode-from-file-attributes filename 
+						   (access-slot 'win::dwFileAttributes)
+						   file-length)
+		   1 ;; nlinks
+		   0 ;; uid
+		   0 ;; gid
+		   file-length ;; size
+		   (filetime-to-universal-time (access-slot 'ftLastAccessTime))  ;; atime
+		   (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; mtime
+		   ;; Return same info as mtime for ctime
+		   (filetime-to-universal-time (access-slot 'ftLastWriteTime)) ;; ctime
+		   )))
        elseif (= err  ERROR_SHARING_VIOLATION)
 	 then ;; Try alternate approach
 	      (stat-via-find-first-file filename)
@@ -545,25 +495,6 @@ struct __stat64 {
   (let ((mode (unicode-stat filename)))
     (= (logand mode *s-ifmt*) *s-ifdir*)))
 
-#+ignore
-(defun test ()
-  (labels ((test-old (path)
-	     (let ((values (multiple-value-list (old-unicode-stat path))))
-	       (format t "Old ~a: ~a~%" path values)))
-	   (test-new (path)
-	     (let ((values (multiple-value-list (unicode-stat path))))
-	       (format t "New ~a: ~a~%" path values))))
-    (test-old "c:/")
-    (test-new "c:/")
-    (test-old "c:/System Volume Information")
-    (test-new "c:/System Volume Information")
-    (test-old "c:/pagefile.sys")
-    (test-new "c:/pagefile.sys")
-    (test-old "c:/temp/victim")
-    (test-new "c:/temp/victim")
-    ))
-
-
 (ff:def-foreign-type large-integer
     (:struct
      (LowPart win:dword) ;; unsigned long
@@ -576,9 +507,9 @@ struct __stat64 {
      (HighPart win:dword)))
 
 (defun get-ularge-integer (uli)
-  (logior
-   (ff:fslot-value-typed 'ularge-integer :foreign uli 'LowPart)
-   (ash (ff:fslot-value-typed 'ularge-integer :foreign uli 'HighPart) 32)))
+  (dword-pair-to-integer 
+   (ff:fslot-value-typed 'ularge-integer :foreign uli 'HighPart)
+   (ff:fslot-value-typed 'ularge-integer :foreign uli 'LowPart)))
 
 (ff:def-foreign-call GetDiskFreeSpaceExW
     ;; Must be a directory! Can't be a file (unlike Unix statfs).
@@ -846,7 +777,7 @@ struct __stat64 {
       
 	(macrolet ((access-slot (&rest names)
 		     `(ff:fslot-value-typed 'by-handle-file-information :foreign info ,@names)))
-	  (prog1 (logior (ash (access-slot 'nFileIndexHigh) 32) (access-slot 'nFileIndexLow))
+	  (prog1 (dword-pair-to-integer (access-slot 'nFileIndexHigh) (access-slot 'nFileIndexLow))
 	    (win:CloseHandle handle)))))))
 
 
