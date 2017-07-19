@@ -5,8 +5,8 @@
 
 set -eu
 
-nfsdir=/net/thunder/nfs.test
-localdir=/home/tmp/layer/nfs.test
+localdir=$1; shift
+nfsdir=$1; shift
 
 function makedata {
 # make 100mb of data in $1

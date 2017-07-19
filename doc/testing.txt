@@ -4,19 +4,14 @@ Correctness and performance testing are detailed here.
 ** Correctness
 *******************************************************************************
 
-The types of correctness testing we do:
-  * testnfs :: a C program that runs a set of tests against a server
-  * write/read script test :: a script that writes a bunch of stuff,
-    reads it back and compares it to the original
+ freon$ make runtests
 
-Future: once NFS is SMP capable, the stress tests should include
-multiple clients.
+setup:
 
-*********************
-`testnfs' setup:
-
- * windows: thor:
-   - sshd must be running
+ * See the variables near the `runtests' rule in Makefile, make sure
+   they are all correct
+ * windows: thunder:
+   - sshd must be running (and ONALL_SSH_PORT_thunder set properly)
    - make a directory c:/tmp/nfs.test and put a copy of some large
      file there and call it `nfstestfile'
    - NFS share e:/nfs.test as `nfs.test'
@@ -24,44 +19,6 @@ multiple clients.
    - make sure /home/tmp/layer/nfs.test exists and put a copy of the
      same `nfstestfile' there (via some means other than NFS)
    - make `testnfs'
-
-Run the test:
-
-    $ ./testnfs -l /home/tmp/layer/nfs.test -t /c/tmp/nfs.test thor \
-      		/net/thor/nfs.test
-
-The above causes the NFS share to be mounted, so take care when making
-changes on the Windows side.
-
-*********************
-`bigfile-test.sh' setup:
-
- * make sure `nfsdir' and `localdir' definitions are correct -- they
-   should be on unbacked up partitions
-
-Run the test:
-
-    $ test/bigfile-test.sh
-
-`ERROR' will be printed and the program will exit with a non-zero exit
-status in the case of failure.
-
-*********************
-`stress-test.sh' setup:
-
- * make sure `nfsdir' and `localdir' definitions are correct -- they
-   should be on unbacked up partitions
-
-Run the test:
-
-    $ test/stress-test.sh number-of-iterations
-
-In the case of failure an error message should be printed.
-
-One interation takes about 1m.  Running for a few hours is a good
-idea, so something like 
-
-    $ test/stress-test.sh 240
 
 *******************************************************************************
 ** Performance

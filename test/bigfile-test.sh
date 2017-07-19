@@ -3,8 +3,8 @@
 
 set -eu
 
-nfsdir=/net/thor/nfs.test
-localdir=/home/tmp/layer/nfs.test
+localdir=$1
+nfsdir=$2
 
 tempfile="tempfile.$$"
 

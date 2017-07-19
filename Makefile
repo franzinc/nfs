@@ -235,6 +235,21 @@ results: FORCE
 	    prev=$$v; \
 	done
 
+LOCAL_TEST_DIR = /home/tmp/layer/nfs.test
+REMOTE_TEST_DIR = /c/tmp/nfs.test
+TEST_HOST = thunder
+TEST_NFSPATH = /net/thunder/nfs.test
+
+# Each test gets progressively longer
+runtests: testnfs
+	test/misc-tests.sh $(TEST_HOST) /net/$(TEST_HOST)/c
+	./testnfs -l $(LOCAL_TEST_DIR) -t $(REMOTE_TEST_DIR) \
+		$(TEST_HOST) $(TEST_NFSPATH)
+	test/bigfile-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 
+# this takes a couple of hours to run--consider upping the count and
+# running overnight
+	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 240
+
 ###############################################################################
 # misc
 
