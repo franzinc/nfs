@@ -75,7 +75,12 @@ NFS.
 
 TBD
 
-### Version 6.3 [TBD July, 2017]
+### Version 6.3.1 [TBD July, 2017]
+
+* Fix: correct a regression which resulted in empty directory listings
+  for directories containing special files (such as pagefile.sys).
+
+### Version 6.3 [12 July, 2017]
 
 * Add configuration option for badly behaved clients that cannot
   handle 64-bit file-ids; when turned on, file-ids will be truncated
