@@ -93,7 +93,7 @@
     
     (generate-executable
      "nfs" 
-     (append '(:sock :acldns :seq2 :foreign :efmacs :autozoom
+     (append '(:sock :acldns :seq2 :foreign :efmacs :autozoom :disasm
 	       #+nfs-profiling :prof
 	       #+nfs-profiling :pe ;; needed for prof:show-flat-profile
 	       #+nfs-debug :trace)
