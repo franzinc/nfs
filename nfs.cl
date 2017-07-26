@@ -795,6 +795,8 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 ;;      NFS3ERR_BADHANDLE
 ;;      NFS3ERR_SERVERFAULT
 
+;; RFC183: "count" is the maximum size of the
+;; READDIR3resok structure, including all XDR overhead.
 (define-nfs-proc readdir3 ((dirfh fhandle) 
 			   (cookie uint64) 
 			   (cookieverf uint64)
@@ -804,6 +806,15 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
       (add-direntries *nfsdxdr* dirfh count count cookie 3 cookieverf nil)
       (update-attr-atime dirfh))))
 
+;;; RFC1813: 
+;;;      dircount
+;;;         The maximum number of bytes of directory information
+;;;         returned. This number should not include the size of
+;;;         the attributes and file handle portions of the result.
+;;;
+;;;      maxcount
+;;;         The maximum size of the READDIRPLUS3resok structure, in
+;;;         bytes. The size must include all XDR overhead.
 (define-nfs-proc readdirplus ((dirfh fhandle)
 			      (cookie uint64)
 			      (cookieverf uint64)
@@ -817,12 +828,19 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 ;; totalbytesadded starts at 8 because in the minimal case, we need to
 ;; be able to add the final 0 discriminant.. and the eof indicator
 
-;; FIXME: Document what dirmax and max are.
-;; 'max' is from the 'count' arg to readdir.  
-;; Apparently it is the max size of the readdirresok object.
-
-(defun add-direntries (xdr dirfh dirmax max startindex vers verf plus)
+;; DIRMAX is the maximum number of bytes of directory information
+;; to return (not including attributes and file handle info).
+;; MAXCOUNT is the maximum size of the READDIRPLUS3resok structure, including
+;; XDR overhead.
+(defun add-direntries (xdr dirfh dirmax maxcount startindex vers verf plus)
   (declare (optimize (speed 3)))
+  
+  ;; rfe15117: Some NFS clients using UDP may request a result size
+  ;; that is larger than the max UDP packet size, so trim MAXCOUNT to
+  ;; avoid issues.
+  (let ((udp-limit (- *max-udp-datagram-size* (sunrpc:get-successful-reply-overhead))))
+    (setf maxcount (min maxcount udp-limit)))
+  
   (multiple-value-bind (dirvec dc)
       (nfs-lookup-dir dirfh t)
     (declare (simple-vector dirvec))
@@ -857,8 +875,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
       (xdr-int xdr #.*nfs-ok*)
 	
       ;; readdirresok begins here.  This is what is subject to the
-      ;; 'count' limit ('max', in this function)
-	
+      ;; 'count' (v2) or 'maxcount' (v3) limit.
       (when (= vers 3)
 	(incf totalbytesadded 
 	      (with-xdr-compute-bytes-added (xdr)
@@ -877,7 +894,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	  (incf totalbytesadded bytesadded)
 	  (incf dirbytesadded innerbytesadded)
 	  
-	  (when (or (> totalbytesadded max)
+	  (when (or (> totalbytesadded maxcount)
 		    (> dirbytesadded dirmax))
 	    (if (eq debug :verbose) 
 		(logit " [not added due to size overflow]~%"))
@@ -940,6 +957,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
       (logit "~D: ~A fileid=~A next=~A" 
 	     (1- cookie) filename fileid cookie))
     (values
+     ;; First return value is the result of xdr:with-xdr-compute-bytes-added.
      (xdr:with-xdr-compute-bytes-added (xdr)
        (setf inner-bytes-added
 	 (xdr:with-xdr-compute-bytes-added (xdr)
@@ -954,6 +972,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
        (when plus
 	 (nfs-xdr-post-op-attr xdr fh)
 	 (nfs-xdr-post-op-fh xdr fh)))
+     ;; Second return value
      inner-bytes-added)))
 
 ;; Like lookup-fh-in-dir but returns nil if no such file or directory.

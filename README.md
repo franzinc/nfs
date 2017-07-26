@@ -75,6 +75,13 @@ NFS.
 
 TBD
 
+### Version 6.3.2 [TBD July, 2017]
+
+* Fix: It was possible for NFS clients to issue a readdir call with a
+  requested max response size which is too large to fit into a UDP
+  datagram.  Such requests are now handled without creating a
+  too-large response.
+
 ### Version 6.3.1 [TBD July, 2017]
 
 * Fix: correct a regression which resulted in empty directory listings

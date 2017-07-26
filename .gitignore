@@ -32,4 +32,5 @@
 /portmap-server.cl
 /sunrpc-common.cl
 /testnfs
+/test-big-readdir-udp
 /TAGS

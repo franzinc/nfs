@@ -203,7 +203,8 @@ hammer_deps = \
 	test/hammernfs-libs/mount_xdr.c \
 	test/hammernfs-libs/mount_clnt.c \
         test/hammernfs-libs/nfs_clnt.c \
-	test/hammernfs-libs/nfs_xdr.c
+	test/hammernfs-libs/nfs_xdr.c \
+	test/nfs-common.c
 
 # $@ is the target and $< is the first dependency.
 define build_test_program
@@ -218,6 +219,9 @@ hammernfs$(exe): test/hammernfs.c $(hammer_deps)
 	$(build_test_program)
 
 test-conn-reset$(exe): test/test-conn-reset.c $(hammer_deps)
+	$(build_test_program)
+
+test-big-readdir-udp$(exe): test/test-big-readdir-udp.c $(hammer_deps)
 	$(build_test_program)
 
 perftest: FORCE
@@ -259,7 +263,7 @@ echo_version: FORCE
 clean: FORCE
 	rm -rf *.out *.fasl */*.fasl *.zip *.tmp nfs *~ .*~
 	rm -f gen-nfs-*.cl mount-*.cl sunrpc-common.cl nlm-*.cl nsm-*.cl 
-	rm -f portmap-*.cl hammernfs$(exe) test-conn-reset$(exe) 
+	rm -f portmap-*.cl hammernfs$(exe) test-conn-reset$(exe) test-big-readdir-udp$(exe)
 	$(MAKE) -C configure clean
 
 tags: FORCE

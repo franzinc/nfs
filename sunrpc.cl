@@ -231,6 +231,12 @@
     (write-vector vec sock :end len)
     (finish-output sock)))
 
+(defparameter *nullauth* (make-opaque-auth :flavor *auth-null* 
+					   :body #()))
+
+(defparameter *nullverf* (make-opaque-auth :flavor *auth-null* 
+					   :body #()))
+
 (defmacro with-rpc-reply ((xdr peer xid) &body body)
   (let ((xdrbuf (gensym))
 	(tcp (gensym))
@@ -306,6 +312,19 @@
      (xdr-int ,xdr #.*success*)
      ,@body))
 
+;; Assumes UDP.  Returns the number of xdr bytes required for
+;; a successful reply.
+(defun compute-successful-reply-overhead ()
+  (with-successful-reply (xdr (make-rpc-peer) 0 *nullverf*)
+    (return-from compute-successful-reply-overhead
+      (xdr-pos xdr))))
+
+(defparameter *successful-reply-overhead* nil)
+
+(defun get-successful-reply-overhead ()
+  (or *successful-reply-overhead*
+      (setf *successful-reply-overhead* (compute-successful-reply-overhead))))
+
 ;;;; client stuff
 
 (defun rpc-connect-to-peer (host port proto)
@@ -357,12 +376,6 @@
   vers
   xdr
   auth)
-
-(defparameter *nullauth* (make-opaque-auth :flavor *auth-null* 
-					   :body #()))
-
-(defparameter *nullverf* (make-opaque-auth :flavor *auth-null* 
-					   :body #()))
 
 (defun rpc-client-create (host prog vers proto &key port uid gid gids)
   (let ((port (or port (portmap-getport host prog vers proto)))
@@ -499,7 +512,9 @@
 	    rpc-peer-addr with-successful-reply
 	    protocol-to-string with-rpc-client callrpc
 	    *nullverf* peer-dotted local-peer-p
-	    rpc-client-create))
+	    rpc-client-create
+	    get-successful-reply-overhead
+	    ))
   (provide 'sunrpc))
 
 

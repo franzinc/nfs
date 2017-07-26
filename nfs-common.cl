@@ -32,13 +32,17 @@
 ;; NOTE: the form of the version *must* be a.b.c.  If you're starting
 ;;       a new release, say 6.0, then use 6.0.0.  For betas, use
 ;;       something like 6.2.beta.0.
-(defvar *nfsd-version* "6.3.1")
+(defvar *nfsd-version* "6.3.2")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (load (merge-pathnames "commit-id.cl" *load-pathname*))
 
+;; max (65535), minus 8 bytes for UDP header, minus 20 bytes for IPv4 header.
+;; XREF: https://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
+(defconstant *max-udp-datagram-size* (- 65535 8 20)) ;; = 65507
+
 ;; Filesystem allocation unit size.  Only used by statfs procedure.
-;;   See discussion in spr39245 for why this was changed from 8192.
+;; See discussion in spr39245 for why this was changed from 8192.
 (defconstant *blocksize* 512)
 
 (defconstant *nfs-debug-read*        #x00000001)
