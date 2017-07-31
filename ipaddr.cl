@@ -82,6 +82,7 @@
       (error "Invalid mask length: ~A" value))
   (- #xffffffff (1- (expt 2 (- 32 value)))))
 
+#+ignore
 (defun test (net)
   (declare (optimize speed (safety 0) (debug 0)))
   (let ((addr (socket:dotted-to-ipaddr "1.2.3.4")))

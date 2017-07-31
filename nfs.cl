@@ -1206,15 +1206,22 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 	    (let* ((newpath 
 		    (add-filename-to-dirname (fh-pathname destdirfh) destfilename :create))
 		   (pre-op-attrs (get-pre-op-attrs destdirfh)))
+	      
+	      ;; Perform the actual hard link operation
 	      (unicode-link (fh-pathname fh) newpath)
+
+	      ;; Update file handle information
 	      (update-alternate-pathnames fh :add destfilename)
 	      (link-fh-in-dir fh destdirfh destfilename)
+
+	      ;; Update other info
 	      (update-atime-and-mtime destdirfh)
-	      (nfs-add-file-to-dir destfilename destdirfh)
+	      (nfs-add-file-to-dir destfilename destdirfh) ;; update dircache
 	      (incf-cached-nlinks fh)
 	      ;; need to incf nlinks for the original file handle (which should
 	      ;; affect all links).  One easy thing would be to just 
 	      ;; de-cache fh attrs.. but that's excessive.
+
 	      (xdr-int *nfsdxdr* #.*nfs-ok*)
 	      (when (= vers 3)
 		(nfs-xdr-post-op-attr *nfsdxdr* fh)
