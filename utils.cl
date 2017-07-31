@@ -83,6 +83,30 @@
     
     res))
 
+;; AABBCCDDEEFFGG -> 
+;; GGFFEEDDCCBBAA
+(defun bswap64 (value)
+  (declare (optimize speed (safety 0))
+	   (usb64 value))
+  (let ((output 0)
+	(shift 64))
+    (declare (usb64 output))
+    (dotimes (n 8)
+      (decf shift 8)
+      (setf output 
+	(logior output (ash (logand value #xff) shift)))
+      (setf value (ash value -8)))
+    
+    output))
+
+#+ignore
+(defun test-bswap64 ()
+  (assert (= (bswap64 #x0102030405060708) #x0807060504030201))
+  (assert (= (bswap64 #x0807060504030201) #x0102030405060708))
+  t)
+
+(defun hex (value)
+  (format t "~x~%" value))
 
 ;; FIXME: Make a more efficient version if we detect that 
 ;; dest-offset, src-offset and len are each a multiple of 4.

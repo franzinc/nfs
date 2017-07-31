@@ -75,12 +75,17 @@ NFS.
 
 TBD
 
-### Version 6.3.2 [TBD July, 2017]
+### Version 6.3.2 [TBD August, 2017]
 
 * Fix: It was possible for NFS clients to issue a readdir call with a
   requested max response size which is too large to fit into a UDP
   datagram.  Such requests are now handled without creating a
   too-large response.
+
+* Compatibility enhancement: Some NFS clients (for example, the
+  Windows 7 NFS client) can return a byte-swapped cookie verifier in
+  readdir requests.  Allegro NFS now detects and handles clients that
+  behave in this way.
 
 ### Version 6.3.1 [TBD July, 2017]
 

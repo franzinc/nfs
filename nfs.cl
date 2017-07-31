@@ -866,7 +866,9 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
       ;; HP-UX doesn't do the cookie verifier properly so don't
       ;; complain if we get a verifier of 0.
       (when (and (= vers 3) (/= startindex 0) (/= verf 0)
-		 (/= verf (dircache-id dc)))
+		 (/= verf (dircache-id dc))
+		 ;; [rfe15123] Handle reversed readdir cookie verifier
+		 (/= (bswap64 verf) (dircache-id dc)))
 	(when debug (logit " Bad cookie~%"))
 	(xdr-int xdr #.*nfs3err-bad-cookie*)
 	(nfs-xdr-post-op-attr xdr dirfh)
