@@ -36,14 +36,29 @@ The following script, test/performance.sh, runs `hammernfs' in many
 different combinations of block size (from 512 to 8192), NFS protocol
 versions (2 & 3) and transport layers (tcp & udp).
 
-Setup: put a 30M file into the NFS share "nfs.test" and:
+Setup:
 
-  $ test/performance.sh results/$version
+Server:
 
-where $version is something like 6.3.0.rc1, etc.
+ * put a 30M file into the NFS share "nfs.test", which must have write
+   access to the root of the nfs.test share.  There is usually one in
+   freon:/home/tmp/layer/nfs.test/.
 
-Then, do "make results" to see how it stacks up against previous
-versions.
+ * start the task manager and minimize it, and wait for the system to
+   settle into a true idle.  Sometimes after starting the VM, Windows
+   will go crazy for a while doing who knows what.
+
+Client:
+
+ * "make hammernfs" and then "scp -rq" this nfs repo directory over to
+   the client.
+
+ * find the IP of the server, and do
+
+   $ test/performance.sh 192.132.95.228:/nfs.test/nfstestfile 6.3.2.rc1
+
+ * copy the results file back here, git add it, and do "make results"
+   to see how it stacks up against previous versions.
 
 If multiple versions are tested, then do this when one version is
 finished testing:

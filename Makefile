@@ -250,9 +250,9 @@ runtests: testnfs
 	./testnfs -l $(LOCAL_TEST_DIR) -t $(REMOTE_TEST_DIR) \
 		$(TEST_HOST) $(TEST_NFSPATH)
 	test/bigfile-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 
-# this takes a couple of hours to run--consider upping the count and
-# running overnight
-	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 240
+# 240 iterations takes ~5.5 hours.
+# 600 iterations takes ~13.5 hours.
+	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 600
 
 ###############################################################################
 # misc
