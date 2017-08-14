@@ -247,6 +247,12 @@ REMOTE_TEST_DIR = /c/tmp/nfs.test
 TEST_HOST = thunder
 TEST_NFSPATH = /net/thunder/nfs.test
 
+###### times for various iterations:
+#   1 iteration  takes ~75 seconds.
+# 240 iterations takes ~5.5 hours.
+# 600 iterations takes ~13 hours.
+STRESS_ITERATIONS = 600
+
 # Each test gets progressively longer
 runtests: testnfs test-nfs-low
 	./test-nfs-low $(TEST_HOST):/c
@@ -254,9 +260,8 @@ runtests: testnfs test-nfs-low
 	./testnfs -l $(LOCAL_TEST_DIR) -t $(REMOTE_TEST_DIR) \
 		$(TEST_HOST) $(TEST_NFSPATH)
 	test/bigfile-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 
-# 240 iterations takes ~5.5 hours.
-# 600 iterations takes ~13.5 hours.
-	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 600
+	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) \
+		$(STRESS_ITERATIONS)
 
 ###############################################################################
 # misc
