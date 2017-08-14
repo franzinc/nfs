@@ -75,6 +75,11 @@ NFS.
 
 TBD
 
+### Version 6.3.3 [TBD August, 2017]
+
+* Fix: The nfsd thread could crash if a persistent file handle with a
+  no-longer-existent volume guid was seen.
+
 ### Version 6.3.2 [9 August, 2017]
 
 * Fix: It was possible for NFS clients to issue a readdir call with a

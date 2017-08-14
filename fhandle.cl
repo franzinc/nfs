@@ -630,8 +630,10 @@
   (when *nfs-debug* (logit-stamp  "uncached persistent file handle seen.~%"))
   (handler-bind ((syscall-error
 		  (lambda (c)
-		    (when (= *einval* (excl::syscall-error-errno c))
-		      (return-from recover-persistent-fh :stale)))))
+		    (let ((errno (syscall-error-errno c)))
+		      (when (or (eql errno *einval*)
+				(eql errno *enoent*))
+			(return-from recover-persistent-fh :stale))))))
     (let ((pathname (file-id-vec-to-path vec 4)))
       (when *nfs-debug* (logit-stamp "Looks to be: ~a~%" pathname))
       (multiple-value-bind (exp tail)

@@ -928,6 +928,8 @@
 ;; If the file is subsequently deleted from the recycle bin, OpenFileById will
 ;; error w/ (translated) errno *einval*.  Higher level code will need to catch this
 ;; and translate that to a stale file handle error.
+;; If the volume in question no longer exists, this function will throw an error with
+;; errno *enoent*.
 (defun file-id-vec-to-path (vec offset)
   (declare (optimize speed (safety 0))
 	   (fixnum offset))
