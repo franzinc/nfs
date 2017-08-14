@@ -224,6 +224,9 @@ test-conn-reset$(exe): test/test-conn-reset.c $(hammer_deps)
 test-big-readdir-udp$(exe): test/test-big-readdir-udp.c $(hammer_deps)
 	$(build_test_program)
 
+test-nfs-low$(exe): test/test-nfs-low.c $(hammer_deps)
+	$(build_test_program)
+
 perftest: FORCE
 	test/performance.sh test/performance.log.$(version)
 	$(LISPEXE) -L test/performance.cl
@@ -245,7 +248,8 @@ TEST_HOST = thunder
 TEST_NFSPATH = /net/thunder/nfs.test
 
 # Each test gets progressively longer
-runtests: testnfs
+runtests: testnfs test-nfs-low
+	./test-nfs-low $(TEST_HOST):/c
 	test/misc-tests.sh $(TEST_HOST) /net/$(TEST_HOST)/c
 	./testnfs -l $(LOCAL_TEST_DIR) -t $(REMOTE_TEST_DIR) \
 		$(TEST_HOST) $(TEST_NFSPATH)

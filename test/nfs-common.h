@@ -4,8 +4,12 @@
 struct file_handle {
   int vers;
   int len;
-  char data[FHSIZE3];
+  unsigned char data[FHSIZE3];
 };
+
+void print_fh(struct file_handle *fh);
+
+struct file_handle *copy_file_handle(struct file_handle *fh);
 
 CLIENT *clnt_create_with_retry(char *host, unsigned long program, 
 			       unsigned long version, char *proto);

@@ -63,41 +63,16 @@ void test_readdir3 (CLIENT *clnt, struct file_handle *fh) {
 }
 
 int main(int argc, char **argv) {
-  char myhostname[255], *host, *path, *complaint;
-  int uid = 0;
-  int gid = 0;
   int vers = 3;
   CLIENT *clnt;
-  AUTH *auth;
-  struct file_handle *rootfh, *fh;  
+  struct file_handle *rootfh;
 
   if (argc != 2) {
     printf("Usage: %s host:/path/to/directory-with-many-files\n", argv[0]);
     exit(1);
   }
 
-  if (!split_host_and_path(argv[1], &host, &path, &complaint)) {
-    printf("%s\n", complaint);
-    exit(1);
-  }
-
-  if (gethostname(myhostname, sizeof(myhostname)) != 0) {
-    perror("gethostname");
-    exit(1);
-  }
-  
-  auth=authunix_create(myhostname, uid, gid, 0, NULL);
-  assert(auth);
-
-  rootfh=get_export_fh(vers, host, path, auth);
-
-  clnt=clnt_create_with_retry(host, NFS_PROGRAM, vers, "udp");
-  if (!clnt) {
-    clnt_pcreateerror("clnt_create failed");
-    exit(1);
-  }
-
-  clnt->cl_auth=auth;
+  setup_client(argv[1], vers, "udp", &clnt, &rootfh);
 
   test_readdir3(clnt, rootfh);
 

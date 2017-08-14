@@ -33,4 +33,5 @@
 /sunrpc-common.cl
 /testnfs
 /test-big-readdir-udp
+/test-nfs-low
 /TAGS

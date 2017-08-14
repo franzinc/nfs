@@ -19,6 +19,19 @@ void print_fh(struct file_handle *fh) {
   }
 }
 
+struct file_handle *copy_file_handle(struct file_handle *fh) {
+  struct file_handle *new = malloc(sizeof(struct file_handle));
+  if (new == NULL) {
+    perror("malloc");
+    exit(1);
+  }
+  
+  memcpy(new, fh, sizeof(struct file_handle));
+  
+  return new;
+}
+
+
 /* Attempts to work around Windows + RDP disconnect strangeness */
 CLIENT *clnt_create_with_retry(char *host, unsigned long program, 
 			    unsigned long version, char *proto) {
@@ -394,4 +407,42 @@ int split_host_and_path(char *string, char **host, char **path, char **complaint
   }
   
   return 1;
+}
+
+void setup_client(char *host_and_path, 
+		  int vers, 
+		  char *proto,
+		  /* outputs */
+		  CLIENT **client,
+		  struct file_handle **rootfh) {
+  char myhostname[255], *host, *path, *complaint;
+  int uid = 0;
+  int gid = 0;
+  AUTH *auth;
+  CLIENT *c;
+  
+  if (!split_host_and_path(host_and_path, &host, &path, &complaint)) {
+    printf("%s\n", complaint);
+    exit(1);
+  }
+  
+  if (gethostname(myhostname, sizeof(myhostname)) != 0) {
+    perror("gethostname");
+    exit(1);
+  }
+  
+  auth=authunix_create(myhostname, uid, gid, 0, NULL);
+  assert(auth);
+  
+  *rootfh=get_export_fh(vers, host, path, auth);
+  
+  c=clnt_create_with_retry(host, NFS_PROGRAM, vers, proto);
+  if (c == NULL) {
+    clnt_pcreateerror("clnt_create failed");
+    exit(1);
+  }
+  
+  c->cl_auth=auth;
+  
+  *client=c;
 }
