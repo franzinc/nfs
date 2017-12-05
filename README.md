@@ -75,7 +75,7 @@ NFS.
 
 TBD
 
-### Version 6.3.3 [TBD August, 2017]
+### Version 6.3.3 [30 August, 2017]
 
 * Fix: The nfsd thread could crash if a persistent file handle with a
   no-longer-existent volume guid was seen.
