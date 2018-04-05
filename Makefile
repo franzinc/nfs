@@ -10,7 +10,7 @@
 #   $ make clean dist dist-demo LISPDIR=/c/acl90.patched
 #
 # - remove tag to build without changing version #:
-#   $ make delete_tag
+#   $ make delete_tag release_suffix=rc1
 #
 ###############################################################################
 
