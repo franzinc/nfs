@@ -271,6 +271,6 @@ clean: FORCE
 	$(MAKE) -C configure clean
 
 tags: FORCE
-	find . -name "*.[ch]" | xargs etags
+	find . -name "*.cl" | xargs etags
 
 FORCE:
