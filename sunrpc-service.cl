@@ -268,15 +268,29 @@
 
 (defun rpc-receive-and-handle-message (server handler)
   ;; Gets an RPC message and calls handler with the message and peer, handling
-  ;; socket-error's in the process and returning (return value undefined).
+  ;; errno-stream-errors in the process.  The return value is undefined.
   (let ((message (rpc-get-message server)))
     (handler-bind
-	((socket-error
+	((errno-stream-error ;; This should cover socket-error as well
 	  (lambda (c)
 	    (let ((s (stream-error-stream c)))
+              
 	      (when (member s (rpc-server-tcpclientlist server))
+                ;; Assume some problem sending a response to a TCP client.
+                ;; Drop the connection and consider the error handled.
 		(cleanup-tcp-client-connection server s :condition c)
-		(return-from rpc-receive-and-handle-message))))))
+		(return-from rpc-receive-and-handle-message))
+              
+              (when (eq s (rpc-server-udpsock server))
+                ;; Assume some problem sending a response to a UDP client.
+                ;; Log and move on.
+                (let ((peer (rpc-server-peer server)))
+                  (user::logit-stamp "Failed to send response to ~a:~a. ~a~%"
+                                     (peer-dotted peer)
+                                     (rpc-peer-port peer)
+                                     c))
+                (return-from rpc-receive-and-handle-message))
+              ))))
       (funcall handler message (rpc-server-peer server)))))
 
 ;; Returns an xdr
