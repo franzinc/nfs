@@ -44,7 +44,7 @@
 					    '(2 3)
 					    #.*nfs-port*
 					    #.*nfs-port*)
-      (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper)
+      (initialize-reaper-process)
       (mp:process-run-function "attr cache reaper" #'attr-cache-reaper)
       (let ((server (sunrpc:make-rpc-server :udpsock usock :tcpsock tsock)))
 	

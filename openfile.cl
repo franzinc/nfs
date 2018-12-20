@@ -1,7 +1,5 @@
 (in-package :user)
 
-(defparameter *openfilereaptime* 2) ;; seconds
-
 ;; keys are file handles.
 (defparameter *open-file-cache* (make-hash-table :test #'eq))
 (defparameter *open-file-cache-lock* (mp:make-process-lock))
@@ -40,10 +38,12 @@
 	(format t "Opened for ~a ~a~%" direction (fh-pathname fh))
 	(put-open-file fh of))
       ;; common
-      
+
       (if* (and (not (eq direction (openfile-direction of)))
 		(eq direction :output))
-	 then ;; Escalate open type.
+	 then ;; Escalate from read-only to read-write for open type,
+	      ;; because we don't want to open read-write unless we have
+	      ;; to.
 	      #+ignore
 	      (progn
 		(format t "Escalating open type for ~a~%" (fh-pathname fh))
@@ -51,31 +51,35 @@
 	      (close (openfile-stream of))
 	      ;; Remove from hash in case the the reopen fails.
 	      (remhash fh *open-file-cache*)
-	      #+ignore
-	      (format t "Reopening for output...~%")
+	      #+ignore (format t "Reopening for output...~%")
 	      ;; This could possibly result in an error.
 	      (setf (openfile-stream of)
 		(unicode-open (fh-pathname fh) :direction :io
 		      :if-exists :open
 		      :if-does-not-exist :create))
 	      (put-open-file fh of)
-	      #+ignore
-	      (format t "Escalation complete.~%"))
+	      #+ignore (format t "Escalation complete.~%"))
       
       (setf (openfile-lastaccess of) (excl::cl-internal-real-time))
       (values (openfile-stream of) of))))
 
-(defmacro with-nfs-open-file ((var fh direction &key of) &body body) 
-  (if (null of)
-      (setf of (gensym)))
-  `(multiple-value-bind (,var ,of)
-       (get-open-file ,fh ,direction)
-     (declare (ignore-if-unused ,var))
-     (mp:with-process-lock ((openfile-lock ,of))
-       (incf (the fixnum (openfile-refcount ,of)))
-       (unwind-protect
-	   (progn ,@body)
-	 (decf (the fixnum (openfile-refcount ,of)))))))
+(defmacro with-nfs-open-file ((var fh direction &key (of (gensym)))
+			      &body body)
+  (let* ((g-fh (gensym))
+	 (g-direction (gensym)))
+    `(let* ((,g-fh ,fh)
+	    (,g-direction ,direction))
+       (multiple-value-bind (,var ,of)
+	   (get-open-file ,g-fh ,g-direction)
+	 (declare (ignore-if-unused ,var))
+	 (mp:with-process-lock ((openfile-lock ,of))
+	   (incf (the fixnum (openfile-refcount ,of)))
+	   (unwind-protect (progn ,@body)
+	     (decf (the fixnum (openfile-refcount ,of)))
+	     (when (and (= 0 (the fixnum (openfile-refcount ,of)))
+			(= 0 *open-file-reap-time*))
+	       (mp:with-process-lock (*open-file-cache-lock*)
+		 (reap-open-file ,g-fh ,of)))))))))
 
 ;; Called by:
 ;; nfsd-rename, :operator
@@ -88,12 +92,12 @@
 	    (return-from close-open-file :still-open))
 	(reap-open-file fh of)))))
 
-;; Should be called with *open-file-cache-lock* held.
+;; NOTE: callers are responsible for calling this function only when
+;;       they hold the *open-file-cache-lock* lock.
 (defun reap-open-file (fh of)
-  (if (not (zerop (openfile-refcount of)))
-      (error "reap-open-file called when refcount is non-zero"))
-  #+ignore
-  (format t "Closing ~a~%" (fh-pathname fh))
+  (when (not (zerop (openfile-refcount of)))
+    (error "reap-open-file called when refcount is non-zero"))
+  #+ignore (format t "Closing ~a~%" (fh-pathname fh))
   (close (openfile-stream of))
   (remhash fh *open-file-cache*))
 
@@ -101,7 +105,7 @@
 (defun reap-open-files ()
   (mp:with-process-lock (*open-file-cache-lock*)
     (let ((now (excl::cl-internal-real-time))
-	  (reaptime *openfilereaptime*))
+	  (reaptime *open-file-reap-time*))
       (maphash
        #'(lambda (fh of)
 	   (when (and (>= now (+ reaptime (openfile-lastaccess of)))
@@ -109,7 +113,16 @@
 	     (reap-open-file fh of)))
        *open-file-cache*))))
 
+(defun initialize-reaper-process ()
+  (mp:process-run-function "open file reaper" #'nfsd-open-file-reaper))
+
 (defun nfsd-open-file-reaper ()
   (loop
-    (sleep (max *openfilereaptime* 1))
-    (reap-open-files)))
+    (if* (= 0 *open-file-reap-time*)
+       then ;; The idea is, that if *open-file-reap-time* is 0, the only
+	    ;; way we can do real work in this loop is if the configuration
+	    ;; program changes the value, and checking it once a minute
+	    ;; seems reasonable, in this case.
+	    (sleep 60)
+       else (sleep (max *open-file-reap-time* 1))
+	    (reap-open-files))))

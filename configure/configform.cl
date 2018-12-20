@@ -130,6 +130,7 @@
     (push `(user::*nfs-debug-timings* ,user::*nfs-debug-timings*) config)
     (push `(user::*nfs-set-mtime-on-write* ,user::*nfs-set-mtime-on-write*)
 	  config)
+    (push `(user::*open-file-reap-time* ,user::*open-file-reap-time*) config)
     
     config))
 

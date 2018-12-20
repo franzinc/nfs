@@ -1,0 +1,1073 @@
+;;; performance tests, client host is: ubuntu, Wed Feb 6 10:37:39 PST 2019
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000113  ;; seconds
+:reads 104131
+:read-bytes 53315072
+:rate 867.756699 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000340  ;; seconds
+:reads 99929
+:read-bytes 51163648
+:rate 832.736948 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000353  ;; seconds
+:reads 98886
+:read-bytes 50629632
+:rate 824.045152 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000061  ;; seconds
+:reads 99007
+:read-bytes 50691584
+:rate 825.057495 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000266  ;; seconds
+:reads 96776
+:read-bytes 49549312
+:rate 806.463091 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000480  ;; seconds
+:reads 103721
+:read-bytes 53105152
+:rate 864.334752 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000107  ;; seconds
+:reads 104626
+:read-bytes 53568512
+:rate 871.881778 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000108  ;; seconds
+:reads 100524
+:read-bytes 51468288
+:rate 837.698492 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000577  ;; seconds
+:reads 99940
+:read-bytes 51169280
+:rate 832.825324 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000463  ;; seconds
+:reads 104185
+:read-bytes 53342720
+:rate 868.201634 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000319  ;; seconds
+:reads 102553
+:read-bytes 210028544
+:rate 3418.415159 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000311  ;; seconds
+:reads 99848
+:read-bytes 204488704
+:rate 3328.249415 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000197  ;; seconds
+:reads 96690
+:read-bytes 198021120
+:rate 3222.989418 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000201  ;; seconds
+:reads 97510
+:read-bytes 199700480
+:rate 3250.322445 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000316  ;; seconds
+:reads 99300
+:read-bytes 203366400
+:rate 3309.982567 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000383  ;; seconds
+:reads 100206
+:read-bytes 205221888
+:rate 3340.178679 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000065  ;; seconds
+:reads 99150
+:read-bytes 203059200
+:rate 3304.996420 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000403  ;; seconds
+:reads 93667
+:read-bytes 191830016
+:rate 3122.212362 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000347  ;; seconds
+:reads 99050
+:read-bytes 202854400
+:rate 3301.647572 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000271  ;; seconds
+:reads 97315
+:read-bytes 199301120
+:rate 3243.818682 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000593  ;; seconds
+:reads 94329
+:read-bytes 386371584
+:rate 6288.537848 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000378  ;; seconds
+:reads 92975
+:read-bytes 380825600
+:rate 6198.294284 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000353  ;; seconds
+:reads 95804
+:read-bytes 392413184
+:rate 6386.895757 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000005  ;; seconds
+:reads 97219
+:read-bytes 398209024
+:rate 6481.266127 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000127  ;; seconds
+:reads 93205
+:read-bytes 381767680
+:rate 6213.653514 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 61.360760  ;; seconds
+:reads 1112
+:read-bytes 4554752
+:rate 72.489324 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 64.950188  ;; seconds
+:reads 679
+:read-bytes 2781184
+:rate 41.816661 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 61.195122  ;; seconds
+:reads 1111
+:read-bytes 4550656
+:rate 72.620167 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 61.416249  ;; seconds
+:reads 1020
+:read-bytes 4177920
+:rate 66.431931 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 60.222281  ;; seconds
+:reads 617
+:read-bytes 2527232
+:rate 40.981510 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000203  ;; seconds
+:reads 94050
+:read-bytes 770457600
+:rate 12539.957573 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000054  ;; seconds
+:reads 94780
+:read-bytes 776437760
+:rate 12637.321960 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000462  ;; seconds
+:reads 96831
+:read-bytes 793239552
+:rate 12910.700588 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000383  ;; seconds
+:reads 96393
+:read-bytes 789651456
+:rate 12852.317959 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000237  ;; seconds
+:reads 93827
+:read-bytes 768630784
+:rate 12510.217251 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 2 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000569  ;; seconds
+:reads 81948
+:read-bytes 671318016
+:rate 10926.296382 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 2 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000595  ;; seconds
+:reads 81417
+:read-bytes 666968064
+:rate 10855.492350 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 2 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000381  ;; seconds
+:reads 80416
+:read-bytes 658767872
+:rate 10722.065248 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 2 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000392  ;; seconds
+:reads 81540
+:read-bytes 667975680
+:rate 10871.928970 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 2 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 2
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000291  ;; seconds
+:reads 81863
+:read-bytes 670621696
+:rate 10915.013729 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000124  ;; seconds
+:reads 97541
+:read-bytes 49940992
+:rate 812.839987 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000126  ;; seconds
+:reads 96817
+:read-bytes 49570304
+:rate 806.806639 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000099  ;; seconds
+:reads 92361
+:read-bytes 47288832
+:rate 769.673730 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000119  ;; seconds
+:reads 96273
+:read-bytes 49291776
+:rate 802.273409 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 512 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :tcp
+:duration 60.000442  ;; seconds
+:reads 98536
+:read-bytes 50450432
+:rate 821.127284 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000058  ;; seconds
+:reads 97782
+:read-bytes 50064384
+:rate 814.849212 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000260  ;; seconds
+:reads 100344
+:read-bytes 51376128
+:rate 836.196376 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000215  ;; seconds
+:reads 97662
+:read-bytes 50002944
+:rate 813.847084 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000270  ;; seconds
+:reads 95584
+:read-bytes 48939008
+:rate 796.529749 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 512 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 512 ;; in bytes
+:transport :udp
+:duration 60.000153  ;; seconds
+:reads 96699
+:read-bytes 49509888
+:rate 805.822945 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000007  ;; seconds
+:reads 95231
+:read-bytes 195033088
+:rate 3174.366296 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000178  ;; seconds
+:reads 95137
+:read-bytes 194840576
+:rate 3171.223925 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000140  ;; seconds
+:reads 93352
+:read-bytes 191184896
+:rate 3111.726073 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000058  ;; seconds
+:reads 92168
+:read-bytes 188760064
+:rate 3072.263697 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 2048 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :tcp
+:duration 60.000533  ;; seconds
+:reads 91031
+:read-bytes 186431488
+:rate 3034.339712 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000202  ;; seconds
+:reads 96169
+:read-bytes 196954112
+:rate 3205.622541 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000370  ;; seconds
+:reads 93977
+:read-bytes 192464896
+:rate 3132.547349 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000647  ;; seconds
+:reads 96195
+:read-bytes 197007360
+:rate 3206.465424 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000436  ;; seconds
+:reads 93763
+:read-bytes 192026624
+:rate 3125.410622 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 2048 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 2048 ;; in bytes
+:transport :udp
+:duration 60.000248  ;; seconds
+:reads 93794
+:read-bytes 192090112
+:rate 3126.453744 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000013  ;; seconds
+:reads 88627
+:read-bytes 363016192
+:rate 5908.465386 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000315  ;; seconds
+:reads 92517
+:read-bytes 378949632
+:rate 6167.767619 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000209  ;; seconds
+:reads 91030
+:read-bytes 372858880
+:rate 6068.645528 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000328  ;; seconds
+:reads 90063
+:read-bytes 368898048
+:rate 6004.167177 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 4096 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :tcp
+:duration 60.000060  ;; seconds
+:reads 92325
+:read-bytes 378163200
+:rate 6154.993845 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 60.748993  ;; seconds
+:reads 932
+:read-bytes 3817472
+:rate 61.367272 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 62.519739  ;; seconds
+:reads 792
+:read-bytes 3244032
+:rate 50.671997 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 61.654827  ;; seconds
+:reads 1522
+:read-bytes 6234112
+:rate 98.743283 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 69.207268  ;; seconds
+:reads 820
+:read-bytes 3358720
+:rate 47.393866 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 4096 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 4096 ;; in bytes
+:transport :udp
+:duration 66.074877  ;; seconds
+:reads 805
+:read-bytes 3297280
+:rate 48.732592 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000041  ;; seconds
+:reads 89417
+:read-bytes 732504064
+:rate 11922.258520 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000467  ;; seconds
+:reads 89021
+:read-bytes 729260032
+:rate 11869.374283 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.103385  ;; seconds
+:reads 91474
+:read-bytes 749355008
+:rate 12175.553839 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000014  ;; seconds
+:reads 92166
+:read-bytes 755023872
+:rate 12288.797133 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 8192 -p tcp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :tcp
+:duration 60.000396  ;; seconds
+:reads 93469
+:read-bytes 765698048
+:rate 12462.451081 ;; KB/second
+)
+)
+(
+;; ./hammernfs -i 1 -v 3 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 1
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000289  ;; seconds
+:reads 75678
+:read-bytes 619954176
+:rate 10090.351398 ;; KB/second
+)
+;; ./hammernfs -i 2 -v 3 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 2
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000108  ;; seconds
+:reads 76780
+:read-bytes 628981760
+:rate 10237.314906 ;; KB/second
+)
+;; ./hammernfs -i 3 -v 3 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 3
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000687  ;; seconds
+:reads 78200
+:read-bytes 640614400
+:rate 10426.547283 ;; KB/second
+)
+;; ./hammernfs -i 4 -v 3 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 4
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000651  ;; seconds
+:reads 77982
+:read-bytes 638828544
+:rate 10397.487187 ;; KB/second
+)
+;; ./hammernfs -i 5 -v 3 -t 60 -b 8192 -p udp 192.132.95.193:/nfs.test/nfstestfile
+(
+:export-name "/nfs.test"
+:testpath "nfstestfile"
+:iteration 5
+:nfs-version 3
+:blocksize 8192 ;; in bytes
+:transport :udp
+:duration 60.000021  ;; seconds
+:reads 78296
+:read-bytes 641400832
+:rate 10439.463013 ;; KB/second
+)
+)

@@ -48,7 +48,12 @@
 
 (defvar *nfs-dircache-update-interval* 2)
 
-;; should always be larger than *openfilereaptime*.  FIXME: Why?
+(defvar *open-file-reap-time* 2)
+
+;; Value should always be larger than *open-file-reap-time*.  This is
+;; because the open file reaper needs the cached stat information when
+;; closing a file that was opened for writing, so that it can update the
+;; atime/mtime of the file.
 (defvar *attr-cache-reap-time* 5) 
 
 (defvar *disable-persistent-fhandles* nil)

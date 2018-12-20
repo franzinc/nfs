@@ -1,5 +1,3 @@
-$Id: notes.txt,v 1.2 2003/06/06 17:04:57 dancy Exp $
-
 			*Implementation notes*
 
 *Discussion of NFSv2 readdir*
@@ -131,13 +129,19 @@ operation, then close the file.... for every block of data.
 
 To avoid this potential constant opening and closing of the file, this
 NFS server employs and open file cache.  A parameter
-*openfilereaptime* (defaults value: 2) controls how long files are
+*open-file-reap-time* (defaults value: 2) controls how long files are
 held open after their last access.  The default value should be fine
 for most people but you may want to make an adjustment if your
 situation calls for it.  Just remember that a file will stay open
-*openfilereaptime* seconds longer than the last access to it.. so
+*open-file-reap-time* seconds longer than the last access to it.. so
 attempted accesses on the Windows-side may not work during that time
 [due to file locking].
+
+When *open-file-reap-time* is zero, don't cache open files in the
+*open-file-cache* hash table.  This will incur a performance penalty,
+but one that some customers may be willing to bear for the benefit of
+not running into sharing violations on Windows, when accessing files
+modified or created by clients.
 
 Similarly, calls to stat() are cached for *statcachereaptime* (default
 value: 5) seconds.  Most NFS calls return information from the stat()
@@ -146,6 +150,6 @@ or directory locally on the NFS server.  NFS clients may not see the
 change for up to *statcachereaptime* seconds.
 
 Note that *statcachereaptime* should be larger than
-*openfilereaptime*.  This is is because the open file reaper needs the
+*open-file-reap-time*.  This is because the open file reaper needs the
 cached stat information when closing a file that was opened for
 writing [so that it can update the atime/mtime of the file].

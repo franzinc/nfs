@@ -75,6 +75,12 @@ NFS.
 
 TBD
 
+* Behavior change and source tweak: Rename the variable
+  *openfilereaptime* to open-file-reap-time*.  When this variable is
+  zero (default is 2) do not cache open files in the
+  *open-file-cache* hash table.  This change is described in more
+  detail in notes.txt.
+
 ### Version 6.3.3 [30 August, 2017]
 
 * Fix: The nfsd thread could crash if a persistent file handle with a
