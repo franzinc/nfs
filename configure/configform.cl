@@ -761,27 +761,29 @@
         (return nil))
     t))
         
-        
-  
-  
 
 ;; returns the cleaned-up name.
 ;; or returns nil after complaining.
 (defun check-export-name (form name)
-  (block nil
-    (setf name (user::canonicalize-name name))
-    (unless (user::canonical-name-p name)
-      (pop-up-message-dialog form 
-			     "New export" 
-			     (format nil "Your chosen name, ('~A') is invalid, it must begin with a '/'" name)
-			     error-icon
-			     "OK"))
-    ;; Check for duplicates
-    (when (member name (export-names) :test #'string=)
-      (pop-up-message-dialog form "New export" "That name is already in use" error-icon "OK")
-      (return nil))
-    name))
+  (macrolet ((ret (&optional expr)
+                  `(return-from check-export-name ,expr)))
     
+    (flet ((complain (title text)
+             (pop-up-message-dialog form title text error-icon "OK")))
+      
+      ;; Strip leading and trailing whitespace
+      (setf name (string-trim '(#\space #\tab) name))
+      
+      ;; Check for duplicates
+      (let ((exp (find-export name)))
+        (when exp
+          (complain "Duplicate Export Name"
+                    (format nil "Export name ~s is equivalent to existing export ~s"
+                      name (nfs-export-name exp)))
+          (ret nil)))
+      
+      ;; Good to go
+      name)))
 
 (defun configform-new-export-button-on-change (widget
                                                new-value

@@ -63,6 +63,7 @@
       "sunrpc-service"
       "portmap" 
       "ipaddr" 
+      "directory-tree"
       "export"
       "configure"
       "nfs-log"

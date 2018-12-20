@@ -502,11 +502,11 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :static-text-18 :static-text-19
                                               :group-box-3
                                               :set-showmount-disable-checkbox
-					      :disable-persistent-fhandles-checkbox
                                               :dircache-update-interval
                                               :attr-cache-reap-time :static-text-20
                                               :static-text-21 :static-text-25
                                               :static-text-26
+                                              :disable-persistent-fhandles-checkbox
                                               :enable-32bit-file-id-truncate-checkbox))
                              (make-instance 'tab-info :id :log :label "Logging" :widgets
                                             '(:log-rotation-file-count

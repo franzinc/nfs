@@ -76,20 +76,7 @@
 (defun mountproc3-null (arg vers peer cbody)
   (mountproc-null arg vers peer cbody))
 
-;; Note: DIRPATH is provided by the NFS client so we need to be clear
-;; about what we accept and what it means.
-;;
-;; Constraints:
-;; * DIRPATH cannot be a blank string.  This means that we cannot allow blank
-;;   export names.   I think this is a reasonable restriction.
-;; * DIRPATH must have a leading slash.
-;; * DIRPATH may or may not have trailing slashes.  If there are
-;;   trailing slashes, they will be ignored.  This means that export
-;;   names are not allowed to have trailing slashes. 
-;; 
-;; These contraints are verified and enforced by
-;; user::locate-nearest-export-by-nfs-path and its helpers.
-
+;; Note that DIRPATH is allowed to name a file or directory beneath an export.
 (defun mountproc-mnt-common (dirpath vers peer)
   "Returns the file handle (fh struct) corresponding to DIRFH if 
    successful.  Otherwise returns an NFS error code"
@@ -173,30 +160,27 @@
 
 (defun mountproc-export (arg vers peer cbody)
   (declare (ignore arg cbody))
+
   (when mount:*showmount-disabled*
     (when *mountd-debug* 
       (user::logit-stamp "MNT~d: ~A: EXPORT is disabled via config.~%" vers (sunrpc:peer-dotted peer)))
     (return-from mountproc-export))
+
   (if *mountd-debug* 
       (user::logit-stamp "MNT~d: ~a: EXPORT~%" vers (sunrpc:peer-dotted peer))) 
+
   (let (res)
-    (dotimes (n (length user::*exports*))
-      (let ((export (svref user::*exports* n)))
-	(setf res  
-	      (make-exportnode 
-	       :ex-dir (user::nfs-export-name export)
-	       :ex-groups 
-	       (let ((groups (reverse (user::nfs-export-hosts-allow export)))
-		     grp)
-		 (dotimes (g (length groups))
-		   (setf grp
-			 (make-groupnode
-			  :gr-name 
-			  (user::network-address-to-printable-string 
-                            (elt groups g))
-			  :gr-next grp)))
-		 grp)
-	       :ex-next res))))
+    (user::do-exports (export-name export)
+      (setf res  
+        (make-exportnode 
+         :ex-dir export-name
+         :ex-groups (let (grp)
+                      (dolist (g (user::nfs-export-hosts-allow export))
+                        (setf grp
+                          (make-groupnode
+                           :gr-name (user::network-address-to-printable-string g)
+                           :gr-next grp))))
+         :ex-next res)))
     res))
 
 (defun mountproc3-export (arg vers peer cbody)

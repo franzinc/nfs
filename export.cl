@@ -2,20 +2,25 @@
 
 (eval-when (compile) (declaim (optimize (speed 3))))
 
-(defparameter *exports* nil)
+;; Reset by prepare-exports
+(defparameter *exports* (directory-tree:make-directory-tree))
+
 (defvar *exports-lock* 
     (mp:make-process-lock :name "*exports* lock"))
+
 (defparameter *old-exports* nil)
-(defparameter *next-export-id* 1)
+(defparameter *last-export-id* 0)
 
 
-;; couldn't use "export" or "exp"
 (defstruct nfs-export
-  id
+  id ;; used as fsid in getattr calls.
   
   ;; Canonicalized name.  This will either be the string "/", or a
   ;; string that begins with a slash and which does not have a
   ;; trailing slash.
+
+  ;; The name the user selected for the export.  Though we save that information
+  ;; here, this slot is not actually used in operation.
   name 
 
   path
@@ -28,12 +33,16 @@
   ro-users
   )
 
+;; Called by read-nfs-cfg before making any define-export calls.
 (defun prepare-exports ()
   (mp:with-process-lock (*exports-lock*)
-    (setf *old-exports* (coerce *exports* 'list))
-    (setf *exports* nil)))
+    
+    ;; *old-exports* is processed by finalize-exports
+    (setf *old-exports* *exports*)
+    (setf *exports* (directory-tree:make-directory-tree))))
 
-;; selections will be a list of strings (or a single string, which
+;; Called by define-export (below).
+;; SELECTIONS will be a list of strings (or a single string, which
 ;; will be converted to a list).
 (defun expand-access-list (selections table)
   (if (not (listp selections))
@@ -52,6 +61,7 @@
        else
 	    (remove-duplicates res :test #'equalp))))
 
+;; Called by read-nfs-cfg
 (defun define-export (&key name path (uid 9999) (gid 9999)
 			   (umask 0) (set-mode-bits 0)
 			   hosts-allow rw-users ro-users 
@@ -60,127 +70,92 @@
     (error ":name must be specified for define-export"))
   (when (null path)
     (error ":path must be specified for define-export"))
-  (let ((canonical-name (canonicalize-name name)))
-    (if canonical-name
-	(mp:with-process-lock (*exports-lock*)
-	  (setf *exports*
-	    (append *exports*
-		    (list
-		     (make-nfs-export
-		      :id (select-export-id)
-		      :name canonical-name
-		      :path (cleanup-dir path)
-		      :uid uid
-		      :gid gid
-		      :umask umask
-		      :set-mode-bits set-mode-bits
-		      :hosts-allow (expand-access-list hosts-allow host-lists)
-		      :rw-users (expand-access-list rw-users user-lists)
-		      :ro-users (expand-access-list ro-users user-lists)
-		      )))))
-      (logit-stamp "Export with name '~A' isn't an acceptable name, flush your configuration and reconfigure!"
-		   name))))
+  
+  (mp:with-process-lock (*exports-lock*)
+    (let ((export (make-nfs-export
+                   :id (incf *last-export-id*)
+                   :name name
+                   :path (cleanup-dir path)
+                   :uid uid
+                   :gid gid
+                   :umask umask
+                   :set-mode-bits set-mode-bits
+                   :hosts-allow (expand-access-list hosts-allow host-lists)
+                   :rw-users    (expand-access-list rw-users    user-lists)
+                   :ro-users    (expand-access-list ro-users    user-lists)
+                   )))
+      ;; If a duplicate name is seen, the newer export definition will take precedence.
+      (directory-tree:insert-directory-tree *exports* name export))))
 
+;; CALLBACK will be called with 
+;; 1) The canonical export name (begins with a slash)
+;; 2) The export struct
+(defun map-exports (callback &key (exports *exports*))
+  (declare (dynamic-extent callback))
+  (directory-tree:map-directory-tree exports callback))
 
-;; used as fsid in getattr calls.
-(defun select-export-id ()
-  (prog1 
-      *next-export-id* 
-    (incf *next-export-id*)))
-
-(defun exports-match-p (exp1 exp2)
-  (and 
-   (string= (nfs-export-name exp1) (nfs-export-name exp2))
-   (equalp (nfs-export-path exp1) (nfs-export-path exp2))))
+(defmacro do-exports ((export-name export &key (exports '*exports*)) &body body)
+  `(map-exports 
+    (lambda (,export-name ,export)
+      (declare (ignorable ,export-name ,export))
+      ,@body)
+    :exports ,exports))
 
 (defun finalize-exports ()
   ;; Check for exports that have been removed or changed.
-  (let (new-exports)
-    (mp:with-process-lock (*exports-lock*)
-      (dolist (exp *exports*)
-	(let ((oldexp (find exp *old-exports* :test #'exports-match-p)))
-	  (if* oldexp
-	     then
-		  ;; a (possibly) changed export.   Update the existing (old)
-		  ;; export structure with the new information.
-		  (setf (nfs-export-uid oldexp) (nfs-export-uid exp))
-		  (setf (nfs-export-gid oldexp) (nfs-export-gid exp))
-		  (setf (nfs-export-umask oldexp) (nfs-export-umask exp))
-		  (setf (nfs-export-set-mode-bits oldexp)
-		    (nfs-export-set-mode-bits exp))
-		  (setf (nfs-export-hosts-allow oldexp)
-		    (nfs-export-hosts-allow exp))
-		  (setf (nfs-export-rw-users oldexp) (nfs-export-rw-users exp))
-		  (setf (nfs-export-ro-users oldexp) (nfs-export-ro-users exp))
-		  ;; Remove entry from old exports.
-		  (setf *old-exports* (remove oldexp *old-exports* :test #'eq))
-		  ;; add to list of good exports
-		  (push oldexp new-exports)
-	     else
-		  ;; new
-		  (push exp new-exports))))
+  (mp:with-process-lock (*exports-lock*)
+    (do-exports (export-name exp)
+      (let ((oldexp (directory-tree:find-data *old-exports* export-name)))
+        (when (and oldexp 
+                   (equalp (nfs-export-path oldexp) (nfs-export-path exp)))
+          ;; The current export has a name and directory that matches
+          ;; a prior export definition (one in *old-exports*).  This means that
+          ;; the configuration of an old export has possibly been updated.
+          ;; Update the old export structure with the new
+          ;; information so that filehandles which still reference it will see
+          ;; the new settings.
+          
+          ;;(format t "Updating the config of old export ~a~%" export-name)
+          (setf (nfs-export-uid           oldexp) (nfs-export-uid           exp))
+          (setf (nfs-export-gid           oldexp) (nfs-export-gid           exp))
+          (setf (nfs-export-umask         oldexp) (nfs-export-umask         exp))
+          (setf (nfs-export-set-mode-bits oldexp) (nfs-export-set-mode-bits exp))
+          (setf (nfs-export-hosts-allow   oldexp) (nfs-export-hosts-allow   exp))
+          (setf (nfs-export-rw-users      oldexp) (nfs-export-rw-users      exp))
+          (setf (nfs-export-ro-users      oldexp) (nfs-export-ro-users      exp))
+          ;; Remove entry from old exports (by setting its data to nil).  Any
+          ;; entries that remain in *old-exports* will be processes later in
+          ;; finalize-exports (see below).
+          (directory-tree:insert-directory-tree *old-exports* export-name nil)))))
+  ;; end with-process-lock
+  
+  ;; *old-exports* now only contains exports that existed before but which don't
+  ;; now.  The file handles for those exports need to be invalidated.
+  (do-exports (export-name export :exports *old-exports*)
+    ;;(format t "Invaliding old export ~a~%" export-name)
+    (invalidate-export-fhandles export)))
 
-      ;; Convert to an array for efficient access and sort by longest
-      ;; export first, which allows regexp searching to function properly.
-      (setf *exports* (coerce new-exports 'vector))
-      (sort *exports* #'string> :key #'nfs-export-name))
-
-    ;; *old-exports* is now the list of exports that existed before but
-    ;; which don't now.  The file handles for that export need to be 
-    ;; invalidated.
-    (dolist (exp *old-exports*)
-      (invalidate-export-fhandles exp))))
-
-;; Assumptions:
-;; * The caller has verified that trailing-slashified EXPORT-NAME
-;;   is a prefix of trailing-slashified REQUESTED-PATH.
-(defun compute-tail-path (export-name requested-path)
-  "EXPORT-NAME and REQUESTED-PATH must be canonicalized names
- 
-   If REQUESTED-PATH is equal to EXPORT-NAME, returns NIL.  This
-   indicates that there is no attempt to mount a directory within 
-   the export.
-
-   If REQUESTED-PATH is a subpath of EXPORT-NAME, returns a 
-   string containing the subpath without a leading slash (and,
-   since REQUESTED-PATH is a canonical path, without a trailing
-   slash."
-  (let* ((export-name-len    (length export-name))
-	 (requested-path-len (length requested-path)))
-    (when (> requested-path-len export-name-len)
-      (if* (= export-name-len 1)
-	 then ;; export name must be "/".  Sanity check.
-	      (assert (string= export-name "/"))
-	      (subseq requested-path 1)
-	 else
-	      (subseq requested-path (1+ export-name-len))))))
 
 ;; Called by mount::mountproc-mnt-common, :operator
 (defun locate-nearest-export-by-nfs-path (path)
-  "PATH is provided by the NFS client when requesting
-   a file handle during a MOUNT request. 
- 
-   If PATH cannot be canonicalized, NIL is returned.
+  ;; PATH is provided by the NFS client when requesting
+  ;; a file handle during a MOUNT request. PATH may refer to 
+  ;; a file or subdirectory beneath an export.  
+  
+  ;; This function locates the nearest (i.e. most specific) export that covers
+  ;; PATH. If one is found, returns two values:
+  ;; 1) The nearest export (struct)
+  ;; 2) If PATH contained components beyond the export name, 
+  ;;    the scond return value will be a string with the remaining
+  ;;    components of the path.  The string will not have a leading
+  ;;    or trailing slash.  If there is no tail component (i.e.,
+  ;;    PATH matched exactly with an export name) the second return
+  ;;    value is nil.
+  ;;    
+  ;; If no suitable export is found, nil is returned.
 
-   Returns NIL if PATH does not correspond to any
-   defined export.
-  "
-  (when (setf path (ignore-errors (canonicalize-name path)))
-    ;; We scan the sorted exports using a trailing slash so that we know that
-    ;; we're making comparisons at path-component boundaries.
-    (let ((slashified-path (trailing-slashify path)))
-      (mp:with-process-lock (*exports-lock*)
-	(if (null *exports*)
-	    (return-from locate-nearest-export-by-nfs-path nil))
-
-	;; *exports* is sorted so that the longest export names are first
-	(loop for exp in-sequence *exports*
-	    do (let* ((export-name            (nfs-export-name   exp))
-		      (slashified-export-name (trailing-slashify export-name)))
-		 (when (prefixp slashified-export-name slashified-path)
-		   ;; Found the best export.  Collect information about any
-		   ;; subdirectory of the mount that was requested.
-		   (return (values exp (compute-tail-path export-name path))))))))))
+  (mp:with-process-lock (*exports-lock*)
+    (directory-tree:find-nearest-data *exports* path)))
 
 (defun extract-path-drive-and-tail (path)
   (multiple-value-bind (matched whole drive tail)
@@ -231,6 +206,7 @@
 	 then (subseq string (1+ pos))
 	 else nil))))
 
+;; Called by locate-nearest-export-by-real-path (this file)
 (defun real-path-prefix-p (path prefix)
   "PATH and PREFIX must be strings.  PREFIX must be in standard form
    (as returned by cleanup-dir) which means it may or may not have
@@ -275,18 +251,15 @@
 (defun locate-nearest-export-by-real-path (path)
   (let (best-export best-tail)
     (mp:with-process-lock (*exports-lock*)
-      (when *exports*
-	(dotimes (n (length *exports*))
-	  (let ((exp (svref *exports* n)))
-	    (let* ((prefix (nfs-export-path exp))
-		   (tail (real-path-prefix-p path prefix)))
-	      (when (and tail
-			 (or (null best-export)
-			     (> (length prefix) (length (nfs-export-path best-export)))))
-		(setf best-export exp)
-		(setf best-tail tail)))))))
+      (do-exports (_ exp)
+        (let* ((prefix (nfs-export-path exp))
+               (tail (real-path-prefix-p path prefix)))
+          (when (and tail
+                     (or (null best-export)
+                         (> (length prefix) (length (nfs-export-path best-export)))))
+            (setf best-export exp)
+            (setf best-tail tail)))))
     (values best-export best-tail)))
-
 
 (defun export-host-access-allowed-p (exp addr)
   (declare (optimize speed (safety 0) (debug 0)))

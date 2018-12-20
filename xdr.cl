@@ -237,8 +237,8 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
   (setf (get 'xdr-store-signed-int 'sys::immed-args-call)
     '((:machine-integer :lisp :lisp) :machine-integer))
   (setq comp::*assemble-function-body*
-    '((xdr-get-signed-int . "xdr-get-signed-int.lap")
-      (xdr-store-signed-int . "xdr-store-signed-int.lap"))))
+    `((xdr-get-signed-int . ,(merge-pathnames "xdr-get-signed-int.lap" *compile-file-pathname*))
+      (xdr-store-signed-int . ,(merge-pathnames "xdr-store-signed-int.lap" *compile-file-pathname*)))))
 
 ;; code vector really defined by xdr-get-signed-int.lap
 (defun xdr-get-signed-int (usb8 position)

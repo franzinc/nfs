@@ -8,24 +8,27 @@ clients.  Exports have several important parameters:
   
  * name: The 'name' of an export is the string that clients use to
    identify the export.  Export names can be of any length and can
-   contain any characters.  However, these rules must be followed:
-    
-     * An export name must begin with a slash (/).
-     * An export name must not end with a slash except in the
-       case where the export name is simply a single slash.
-   
-   It is recommended that you use a string that doesn't contain any
-   spaces or other characters that have special meaning in a Unix
-   shell. 
+   contain any characters.  Export names typically begin with a slash
+   (/) but this is not required. It is recommended that you use a name
+   that doesn't contain any spaces or other characters that have
+   special meaning in a Unix shell.
 
-   Examples of valid export names:
+   Export names exist in a hierarchical namespace.  When an NFS client
+   requests a mount for an export, the deepest matching export is
+   used. For example, consider the following set of exports:
 
-     /  
-     /data
-     /x/y/z
+      /my-exports
+      /my-exports/top-level/sub1
+      /my-exports/top-level/sub2
+
+   A mount request for /my-exports/top-level will use the /my-exports
+   export.
+
+   Also note that a mount request for my-exports, /my-exports, or
+   /my-exports/ will all use the /my-exports export.
 
  * path: This is the local directory that will be shared by the
-   export.  It can also be a UNC share (e.g., \\host\share).
+   export.  It can also be a UNC share (e.g., \\host\share\).
 
  * uid: All files will appear to be owned by this user id.  NFS
    clients accessing with this user id will have read/write permission
