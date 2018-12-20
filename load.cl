@@ -1,7 +1,7 @@
 ;; -*- mode: common-lisp -*-
 ;;
 ;; Copyright (C) 2001 Franz Inc, Berkeley, CA.  All rights reserved.
-;; Copyright (C) 2002-2014 Franz Inc, Oakland, CA.  All rights reserved.
+;; Copyright (C) 2002-2018 Franz Inc, Oakland, CA.  All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -28,6 +28,19 @@
 ;;(pushnew :nfs-debug *features* :test #'eq)
 ;;(pushnew :nfs-profiling *features* :test #'eq)
 ;;(pushnew :nfs-telnet-server *features* :test #'eq)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; RPC build
+
+(load (compile-file-if-needed "rpcgen"))
+
+(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x"))
+  (write-line file)
+  (rpcgen file))
+
+(rpcgen "nfs.x" :out-base "gen-nfs")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (eval-when (compile load eval)
 (defparameter *filelist*
@@ -68,7 +81,6 @@
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"
-      "date/date"
       #+nfs-demo "demoware/demoware"
       ))
 )

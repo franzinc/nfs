@@ -29,7 +29,7 @@ ifeq ($(NEWSDK),yes)
 
 SIGNTOOL = "$(NEWSDKDIR)/signtool.exe"
 
-CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2016-08-11.p12
+CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2017-09-08.p12
 CERTOK = $(shell if test -f "$(CERT)"; then echo yes; else echo no; fi)
 ifeq ($(CERTOK),yes)
 SIGNTOOL += sign /v /f $(CERT)
@@ -50,7 +50,7 @@ default: build
 # near `dists' for why.
 all: clean dists
 
-MODULES = date:master demoware:master
+MODULES = demoware:master
 
 prereqs: FORCE
 	@bin/verify_modules.sh $(MODULES)
@@ -101,7 +101,7 @@ else
 env = 
 endif
 
-do_build: prereqs rpc commit-id.cl FORCE
+do_build: prereqs commit-id.cl
 # make sure the demo and non-demo versions do not share fasls:
 	rm -fr nfs *.fasl b.tmp build.out
 	echo '(dribble "build.out")' >> b.tmp
@@ -122,14 +122,6 @@ endif
 	fi
 	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
-rpc: FORCE
-	echo '(load (compile-file-if-needed "rpcgen"))' > b.tmp
-	echo '(dolist (file (list "sunrpc.x" "portmap.x" "mount.x" "nlm.x" "nsm.x")) (write-line file) (rpcgen file))' >> b.tmp
-	echo '(rpcgen "nfs.x" :out-base "gen-nfs")' >> b.tmp
-	echo '(exit 0)' >> b.tmp
-	$(LISPEXE) +B +cn +s b.tmp -batch
-	rm b.tmp
-
 # Forcibly rebuild the configure program
 configure: FORCE
 	@rm -fr configure/configure
@@ -147,6 +139,9 @@ DEMOEXE = dists/setup-nfs-$(version)-demo.exe
 installer: installer-common
 	$(MAKENSIS) /V1 /DVERSION=$(version) /DVERSION2=$(version) nfs.nsi
 ifdef SIGNTOOL
+ifneq ($(CERTOK),yes)
+	@echo CERT is not setup properly; exit 1
+endif
 	$(SIGNTOOL) $(EXE)
 endif
 	sha256sum $(EXE) > $(EXE).sha256sum
