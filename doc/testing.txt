@@ -50,6 +50,11 @@ Server:
 
 Client:
 
+ * OPTIONAL: on Ubuntu, if NFS client utilities are wanted, for
+   testing (for "mount -t nfs" to work):
+
+    # apt-get install nfs-common
+
  * "make hammernfs" and then "scp -rq" this nfs repo directory over to
    the client.
 
