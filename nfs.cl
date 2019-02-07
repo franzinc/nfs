@@ -395,7 +395,8 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 				   (*print-pretty* t)
 				   (*print-structure* nil)
 				   (*print-array* nil)
-				   (tpl:*zoom-print-circle* t)
+				   ;; nil makes for better backtraces
+				   (tpl:*zoom-print-circle* nil)
 				   (tpl:*zoom-print-level* nil)
 				   (tpl:*zoom-print-length* nil))
 			       (ignore-errors
