@@ -52,7 +52,7 @@
   (refs 0 :type fixnum)
   (file-id 0 :type file-id-type) ;; like inode number
   export
-  parent ;; nil if root
+  parent ;; parent fh, or nil if this fh is the root of an export.
   children ;; hash of basenames of directory children. values are fh's.  NIL if not used yet.
   verifier ;; used by create call w/ exclusive mode.
   alternate-names ;; list of basenames of known hard links to this file within the same directory
@@ -168,7 +168,7 @@
     (setf (fh-file-id fh) id)))
 
 (defun populate-persistent-fhandle (fh)
-  "If a file id is found for FILENAME,
+  "If a file id is found for FH's pathname,
    populates (fh-vec FH) with it, populates (fh-file-id FH),
    and returns the 64-bit file id.
 
@@ -261,14 +261,19 @@
 	;; We reach here if there is already an existing entry in *fhandles*
 	;; for the file-id of FH.  Scenarios which could result in
 	;; this state: 
-	;; * A file or directory was renamed/moved outside of Allegro NFS.
-	;; * A file id was recycled.  This seems to be a low probability event.
+        ;; * A file or directory previously known to Allegro NFS was
+        ;;   moved or renamed outside by some means other than NFS.
+        ;;
+        ;; * A file id was recycled.  This seems to be a low probability event.
+        ;;
 	;; * A new hard link is discovered.  In this case the removal of the
 	;;   prior entry from the parent fh is the wrong thing to do.
 	;;   However, I don't think it's a big deal.  In the worst case, alternating
 	;;   access to each of the hard link names will result in repeated adjustment
-	;;   of the file handle database.
-	;; * ??
+        ;;   of the file handle database.
+        ;;
+        ;; * A file is accessible from multiple exports.  We treat this the
+        ;;   same as the "new hard link" case.
       
 	(when debug
 	  (logit-stamp "~%Replacing mapping for fileid ~a in *fhandles*.~%Was ~a, now ~a~%"
@@ -334,24 +339,28 @@
 ;; Called by:
 ;;;nfsd-link, :operator
 ;;;remove-fhandle, :operator
+
+;; The return value is undefined.
 (defun update-alternate-pathnames (fh op altname)
   (ecase op
     (:add 
      (push altname (fh-alternate-names fh)))
     (:remove
-     (let* ((parent-pathname (fh-pathname (fh-parent fh)))
-	    (alt-path-to-remove (add-filename-to-dirname parent-pathname altname :lookup)))
-       (if* (equalp alt-path-to-remove (fh-pathname fh))
-	  then ;; The caller has requested that we remove the primary name.
-	       ;; Promote the first alternate pathname to the primary pathname (if there is one).
-	       (let ((first-alt-pathname (pop (fh-alternate-names fh))))
-		 (when first-alt-pathname
-		   (setf (fh-pathname fh) 
-		     (add-filename-to-dirname parent-pathname first-alt-pathname :lookup))))
-	  else ;; The caller has requested the removal of an alternate name.
-	       (setf (fh-alternate-names fh)
-		 (delete altname (fh-alternate-names fh) :test #'equalp))
-	       t)))))
+     (let ((parent-fh (fh-parent fh)))
+       (when parent-fh ;; bug25700. 
+         (let* ((parent-pathname (fh-pathname parent-fh))
+                (alt-path-to-remove (add-filename-to-dirname parent-pathname altname :lookup)))
+           (if* (equalp alt-path-to-remove (fh-pathname fh))
+              then ;; The caller has requested that we remove the primary name.
+                   ;; Promote the first alternate pathname to the primary pathname (if there is one).
+                   (let ((first-alt-pathname (pop (fh-alternate-names fh))))
+                     (when first-alt-pathname
+                       (setf (fh-pathname fh) 
+                         (add-filename-to-dirname parent-pathname first-alt-pathname :lookup))))
+              else ;; The caller has requested the removal of an alternate name.
+                   (setf (fh-alternate-names fh)
+                     (delete altname (fh-alternate-names fh) :test #'equalp)))))))))
+
 
 (defun remove-fhandle-from-hash (fh)
   (let ((vec (fh-vec fh)))
@@ -361,7 +370,7 @@
 
 ;; To be used with file deletion (or deletion as a side effect
 ;; of renaming onto an existing file).
-;; Called by: nfsd-rename, nfsd-remove, nfsd-rmdir
+;; Called by: insert-fhandle, nfsd-rmdir, nfsd-remove, nfsd-rename
 (defun remove-fhandle (fh filename)
   (declare (optimize (speed 3) (safety 0)))
   (with-fhandles-lock ()
@@ -372,9 +381,10 @@
     
     ;; remove entry from parent directory.
     (let ((parent (fh-parent fh)))
-      (if (null parent)
-	  (error "remove-fhandle: ~S has no parent" fh))
-      (remhash filename (fh-children parent)))))
+      ;; parent will be nil if remove-fhandle is called by insert-fhandle when
+      ;; it finds a "prior-fh" and that prior-fh is an export [bug25700]
+      (when parent
+        (remhash filename (fh-children parent))))))
 
 ;; parentname is the updated directory name.
 ;; yourname is the new basename
