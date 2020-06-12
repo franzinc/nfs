@@ -37,9 +37,15 @@ endif
 
 endif
 
-LISPDIR ?= /c/acl10.1.patched
+# The variable NFSWIDTH is introduced here in anticipation of a 64bit version;
+# NFS source not conditionalized for 64bit will not compile when NFSWIDTH=64.
+VCREDIST ?= $(shell if test "$(NFSWIDTH)" = "64"; then echo x64; else echo x86; fi)
+defaultlisp = $(shell if test "$(NFSWIDTH)" = "64"; then echo .64.patched; else echo .patched; fi)
+LISPDIR ?= /c/acl10.1$(defaultlisp)
 LISPEXE = $(LISPDIR)/mlisp
 MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
+# The variable NFSVERSIONMOD specifies a modifier appended to the 
+# name of the installer and to the name of the installed application.
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
 major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
@@ -109,6 +115,13 @@ do_build: prereqs commit-id.cl
 ifdef DEMOWARE
 	echo '(push :nfs-demo *features*)' >> b.tmp
 endif
+# The variable NFSDEVEL is  introduced here in anticipation of a 64bit version.
+ifdef NFSDEVEL
+	echo '(push :nfs-devel *features*)' >> b.tmp
+endif
+ifdef NFSDEBUGXDR
+	echo '(push :nfs-debug-xdr *features*)' >> b.tmp
+endif
 	echo '(load "load.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
@@ -117,8 +130,8 @@ endif
 	@rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 	rm -fr nfs/system-dlls
-	if test ! -f nfs/vcredist_x86.exe; then \
-	    cp -p "$(LISPDIR)/vcredist_x86.exe" nfs/; \
+	if test ! -f nfs/vcredist_$(VCREDIST).exe; then \
+	    cp -p "$(LISPDIR)/vcredist_$(VCREDIST).exe" nfs/; \
 	fi
 	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
@@ -137,7 +150,7 @@ EXE     = dists/setup-nfs-$(version).exe
 DEMOEXE = dists/setup-nfs-$(version)-demo.exe
 
 installer: installer-common
-	$(MAKENSIS) /V1 /DVERSION=$(version) /DVERSION2=$(version) nfs.nsi
+	$(MAKENSIS) /V1 /DVERSION=$(version)$(NFSVERSIONMOD) /DVERSION2=$(version)$(NFSVERSIONMOD) nfs.nsi
 ifdef SIGNTOOL
 ifneq ($(CERTOK),yes)
 	@echo CERT is not setup properly; exit 1
@@ -237,26 +250,32 @@ results: FORCE
 	    prev=$$v; \
 	done
 
-LOCAL_TEST_DIR = /home/tmp/layer/nfs.test
-REMOTE_TEST_DIR = /c/tmp/nfs.test
-TEST_HOST = thunder
-TEST_NFSPATH = /net/thunder/nfs.test
+# The following 3 variables must be set externally to specify
+# the current test machine configuration.
+LOCAL_TEST_DIR ?= /home/tmp/layer/nfs.test
+REMOTE_TEST_DIR ?= /c/tmp/nfs.test
+TEST_HOST ?= thunder
+TEST_NFSPATH = /net/$(TEST_HOST)/nfs.test
 
 ###### times for various iterations:
 #   1 iteration  takes ~75 seconds.
 # 240 iterations takes ~5.5 hours.
 # 600 iterations takes ~13 hours.
-STRESS_ITERATIONS = 600
+STRESS_ITERATIONS ?= 600
 
 # Each test gets progressively longer
 runtests: testnfs test-nfs-low
+	date
 	./test-nfs-low $(TEST_HOST):/c
-	test/misc-tests.sh $(TEST_HOST) /net/$(TEST_HOST)/c
+#	test/misc-tests.sh $(TEST_HOST) /net/$(TEST_HOST)/c
+#   The above test does not always work because of Win10 permission issues.
+	./test/misc-tests.sh $(TEST_HOST) $(TEST_NFSPATH) $(REMOTE_TEST_DIR)
 	./testnfs -l $(LOCAL_TEST_DIR) -t $(REMOTE_TEST_DIR) \
 		$(TEST_HOST) $(TEST_NFSPATH)
-	test/bigfile-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 
-	test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) \
+	./test/bigfile-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) 
+	./test/stress-test.sh $(LOCAL_TEST_DIR) $(TEST_NFSPATH) \
 		$(STRESS_ITERATIONS)
+	date
 
 ###############################################################################
 # misc

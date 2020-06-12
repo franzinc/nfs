@@ -9,12 +9,13 @@ function die {
 
 testhost=$1
 nfspath=$2
+hostpath=$3
 
 # Make sure we can ls the entire c:/ directory
 function test1 {
-    local count1a="$(ssh $testhost /bin/ls -1 c:/ | wc -l)"
+    local count1a="$(ssh $testhost /bin/ls -1 $hostpath | wc -l)"
     local count1b="$(/bin/ls -1 $nfspath | wc -l)"
-    local count2a="$(ssh $testhost /bin/ls -l c:/ | tail -n +2 | wc -l)"
+    local count2a="$(ssh $testhost /bin/ls -l $hostpath | tail -n +2 | wc -l)"
     local count2b="$(/bin/ls -l $nfspath | tail -n +2 | wc -l)"
 
     [ "$count1a" ] || die count1a is empty
