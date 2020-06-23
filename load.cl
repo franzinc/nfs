@@ -29,6 +29,8 @@
 ;;(pushnew :nfs-profiling *features* :test #'eq)
 ;;(pushnew :nfs-telnet-server *features* :test #'eq)
 
+(format t "~&~% *features*=~S~%" *features*)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RPC build
 
@@ -45,7 +47,7 @@
 (eval-when (compile load eval)
 (defparameter *filelist*
     '("config-defs"
-      "bswap"
+      #-nfs-lisp-bsw "bswap"
       "utf8"
       "utils"
       "xdr" 

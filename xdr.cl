@@ -230,7 +230,30 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; LAP HACKING notes
+;;   There are two features that define 3 useful states:
+;;   #-nfs-hack-lap #+nfs-lisp-bsw    No LAP hacking involved; byte swapping done 
+;;                                    by explicit Lisp code.
+;;   #-nfs-hack-lap #-nfs-lisp-bsw    Use hacked LAP to gnerate optimized code
+;;                                    for distribution.
+;;
+;;   #+nfs-hack-lap #-nfs-lisp-bsw    Interactive compilation that displays 
+;;                                    LAP code that needs to be edited.
+;;      In this mode, the compiler compiles versions of xdr-get-signed-int
+;;   and xdr-store-signed-int that fetch and set a 4-byte integer from an octet
+;;   array.  The compiler stops in a break during the compilation to allow the 
+;;   generated LAP code display.  This Lap code is manually copied to files
+;;   xdr-get-signed-int.lap and xdr-stored-signed-int.lap where the hardware 
+;;   byte swap instruction is inserted in the appropriate place.
+;;
+;;      The hardware byte swap instructions are defined in bswap.cl.
+;; 
 
+#+nfs-hack-lap
+(eval-when (compile)
+  (setq comp::*hack-compiler-output* t)
+  )
+#-(or nfs-hack-lap nfs-lisp-bsw)
 (eval-when (compile)
   (setf (get 'xdr-get-signed-int 'sys::immed-args-call)
     '((:lisp :lisp) :machine-integer))
@@ -240,18 +263,79 @@ create-xdr: 'vec' parameter must be specified and must be a vector"))
     `((xdr-get-signed-int . ,(merge-pathnames "xdr-get-signed-int.lap" *compile-file-pathname*))
       (xdr-store-signed-int . ,(merge-pathnames "xdr-store-signed-int.lap" *compile-file-pathname*)))))
 
+(defmacro xdr-get-signed-int-lisp-macro (usbvar pos)
+  (or (and (symbolp usbvar))
+      (error "Args must be variables"))
+  `(let ((result 0) (posvar (ash ,pos 2)))
+     (declare (fixnum posvar
+		      #+64bit result
+		      ))
+     (declare (optimize (speed 3) (safety 0)))
+     (cond
+      ((< 127 (setq result (aref (the (simple-array (unsigned-byte 8) (*)) ,usbvar)
+				 posvar)))
+       ;; Negative number, collect 2s complement.
+       (dotimes (i 3)
+	 (setq result (ash result 8))
+	 (setq result
+	       (logior result
+		       (aref (the (simple-array (unsigned-byte 8) (*)) ,usbvar)
+			      (+ posvar 1 i)))))
+       (- result #x100000000))
+      (t
+       (dotimes (i 3)
+	 (setq result (ash result 8))
+	 (setq result (logior result
+			      (aref (the (simple-array (unsigned-byte 8) (*)) ,usbvar)
+				    (+ posvar 1 i)))))
+       result))))
+
 ;; code vector really defined by xdr-get-signed-int.lap
 (defun xdr-get-signed-int (usb8 position)
+  ;; position, as a Lisp number is a word index in this call!
+  #+(or nfs-hack-lap (not nfs-lisp-bsw))
   (declare (optimize speed (safety 0) (debug 0)))
+  #+(or nfs-hack-lap (not nfs-lisp-bsw))
   (excl::ll :aref-mi
-      ;; (aref-mi doesn't support this like aref-nat):
-      ;;      #.(sys::mdparam 'comp::md-lvector-data0-norm)
-      usb8 position))
+	    ;; (aref-mi doesn't support this like aref-nat):
+	    ;;      #.(sys::mdparam 'comp::md-lvector-data0-norm)
+	    usb8 position)
+  #+nfs-lisp-bsw
+  (xdr-get-signed-int-lisp-macro usb8 position) 
+  )
+
+(defun xdr-get-signed-int-lisp (usbvar posvar)
+  (xdr-get-signed-int-lisp-macro usbvar posvar))
+
+(defmacro xdr-store-signed-int-lisp-macro (valvar usbvar pos)
+  (or (and (symbolp valvar) (symbolp usbvar))
+      (error "Args must be variables"))
+  `(let ((octets ,valvar) (posvar (ash ,pos 2)))
+     ;;(declare (:explain :inlining))
+     (declare (fixnum posvar
+		      #+64bit octets
+		      ))
+     (declare (optimize (speed 3) (safety 0)))
+     (dotimes (i 4)
+       (setf (aref (the (simple-array (unsigned-byte 8) (*)) ,usbvar)
+		   (+ posvar (- 3 i)))
+	     (logand #xff octets))
+       (setq octets (ash octets -8)))
+     ,valvar)
+  )
 
 ;; code vector really defined by xdr-store-signed-int.lap
 (defun xdr-store-signed-int (value usb8 position)
+  #+(or nfs-hack-lap (not nfs-lisp-bsw))
   (declare (optimize speed (safety 0) (debug 0)))
-  (excl::ll :aset-nat usb8 position value))
+  #+(or nfs-hack-lap (not nfs-lisp-bsw))
+  (excl::ll :aset-nat usb8 position value)
+  #+nfs-lisp-bsw
+  (xdr-store-signed-int-lisp-macro value usb8 position)
+  )
+
+(defun xdr-store-signed-int-lisp (valvar usbvar posvar)
+  (xdr-store-signed-int-lisp-macro valvar usbvar posvar))
 
 (defun xdr-int (xdr &optional int)
   (declare (optimize (speed 3) (debug 0) (safety 0)))

@@ -27,24 +27,27 @@ NEWSDKDIR = /c/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/bin
 NEWSDK = $(shell if test -d "$(NEWSDKDIR)"; then echo yes; else echo no; fi)
 ifeq ($(NEWSDK),yes)
 
-SIGNTOOL = "$(NEWSDKDIR)/signtool.exe"
+SIGNTOOL = ficodesign
 
-CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2017-09-08.p12
+# Add the directory containing "signtool.exe" to PATH so scm-bin/ficodesign can find it
+PATH := $(PATH):$(NEWSDKDIR)
+
+CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2019-11-05.p12
 CERTOK = $(shell if test -f "$(CERT)"; then echo yes; else echo no; fi)
 ifeq ($(CERTOK),yes)
-SIGNTOOL += sign /v /f $(CERT)
+SIGNTOOL += /v /f $(CERT)
 endif
 
 endif
 
-# The variable NFSWIDTH is introduced here in anticipation of a 64bit version;
-# NFS source not conditionalized for 64bit will not compile when NFSWIDTH=64.
+# The variable NFSWIDTH specifies a 64bit version;
 VCREDIST ?= $(shell if test "$(NFSWIDTH)" = "64"; then echo x64; else echo x86; fi)
 defaultlisp = $(shell if test "$(NFSWIDTH)" = "64"; then echo .64.patched; else echo .patched; fi)
 LISPDIR ?= /c/acl10.1$(defaultlisp)
 LISPEXE = $(LISPDIR)/mlisp
 MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
-# The variable NFSVERSIONMOD specifies a modifier appended to the 
+
+# The variable VER_SUFFIX specifies a modifier appended to the 
 # name of the installer and to the name of the installed application.
 
 version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
@@ -54,7 +57,10 @@ default: build
 
 # use `dists' because `dist dist-demo' does not work.. see comment below
 # near `dists' for why.
-all: clean dists
+all:
+	$(MAKE) $(MFLAGS) clean dists NFSWIDTH=64 NFSLISPBSW=yes VER_SUFFIX=-64
+	$(MAKE) $(MFLAGS) clean dists
+	$(MAKE) $(MFLAGS) tag
 
 MODULES = demoware:master
 
@@ -90,7 +96,7 @@ delete_tag: FORCE
 	git.sh push origin :refs/tags/$(tag_name)
 
 build: check_cpp
-	@$(MAKE) $(MFLAGS) do_build
+	$(MAKE) $(MFLAGS) do_build
 
 check_cpp: FORCE
 	@if ! which cpp > /dev/null 2>&1; then \
@@ -99,7 +105,7 @@ check_cpp: FORCE
 	fi
 
 build-demo: FORCE
-	@$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
+	$(MAKE) $(MFLAGS) DEMOWARE=xxx do_build
 
 ifdef ACL_BUILD_ACLMALLOC_HEAP_START
 env = env ACL_BUILD_ACLMALLOC_HEAP_START=$(ACL_BUILD_ACLMALLOC_HEAP_START)
@@ -115,19 +121,16 @@ do_build: prereqs commit-id.cl
 ifdef DEMOWARE
 	echo '(push :nfs-demo *features*)' >> b.tmp
 endif
-# The variable NFSDEVEL is  introduced here in anticipation of a 64bit version.
-ifdef NFSDEVEL
-	echo '(push :nfs-devel *features*)' >> b.tmp
-endif
-ifdef NFSDEBUGXDR
-	echo '(push :nfs-debug-xdr *features*)' >> b.tmp
+# The variable NFSLISPBSW specifies byte swap in Lisp instead of machine instr.
+ifdef NFSLISPBSW
+	echo '(push :nfs-lisp-bsw *features*)' >> b.tmp
 endif
 	echo '(load "load.cl")' >> b.tmp
 	echo '(buildit)' >> b.tmp
 	echo '(dribble)' >> b.tmp
 	echo '(exit 0)' >> b.tmp
 	$(env) $(LISPEXE) +B +cn +s b.tmp -batch
-	@rm -f b.tmp
+	rm -f b.tmp
 	if test -f nfs.cfg; then cp -p nfs.cfg nfs; fi
 	rm -fr nfs/system-dlls
 	if test ! -f nfs/vcredist_$(VCREDIST).exe; then \
@@ -137,7 +140,7 @@ endif
 
 # Forcibly rebuild the configure program
 configure: FORCE
-	@rm -fr configure/configure
+	rm -fr configure/configure
 	$(MAKE) -C configure 'LISPDIR=$(LISPDIR)'
 
 installer-common: FORCE
@@ -146,11 +149,17 @@ installer-common: FORCE
 	cp -pr configure/configure nfs
 	mkdir -p dists
 
-EXE     = dists/setup-nfs-$(version).exe
-DEMOEXE = dists/setup-nfs-$(version)-demo.exe
+EXE     = dists/setup-nfs-$(version)$(VER_SUFFIX).exe
+DEMOEXE = dists/setup-nfs-$(version)$(VER_SUFFIX)-demo.exe
+
+ifeq ($(NFSWIDTH),64)
+INSTALLDIR = AllegroNFS64
+else
+INSTALLDIR = AllegroNFS
+endif
 
 installer: installer-common
-	$(MAKENSIS) /V1 /DVERSION=$(version)$(NFSVERSIONMOD) /DVERSION2=$(version)$(NFSVERSIONMOD) nfs.nsi
+	$(MAKENSIS) /V1 /DINSTALLDIR=$(INSTALLDIR) /DVERSION=$(version)$(VER_SUFFIX) /DVERSION2=$(version)$(VER_SUFFIX) nfs.nsi
 ifdef SIGNTOOL
 ifneq ($(CERTOK),yes)
 	@echo CERT is not setup properly; exit 1
@@ -162,7 +171,7 @@ endif
 installer-demo: installer-common
 	$(MAKENSIS) /V1 /DNFSDEMO=true \
 		/DVERSION="$(version) Demo" \
-		/DVERSION2=$(version)-demo \
+		/DVERSION2=$(version)$(VER_SUFFIX)-demo \
 		nfs.nsi
 ifdef SIGNTOOL
 	$(SIGNTOOL) $(DEMOEXE)
@@ -183,7 +192,6 @@ dists: clean check_tag_name
 	fi
 	$(MAKE) $(MFLAGS) dist
 	$(MAKE) $(MFLAGS) dist-demo
-	$(MAKE) $(MFLAGS) tag
 
 dist: build installer
 

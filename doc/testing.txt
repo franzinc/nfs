@@ -14,11 +14,15 @@ setup:
    - sshd must be running (and ONALL_SSH_PORT_thunder set properly)
    - make a directory c:/tmp/nfs.test and put a copy of some large
      file there and call it `nfstestfile'
-   - NFS share e:/nfs.test as `nfs.test'
+   - NFS shares c:/ as '/c' and c:/tmp/nfs.test as `/nfs.test'
  * linux: freon:
    - make sure /home/tmp/layer/nfs.test exists and put a copy of the
      same `nfstestfile' there (via some means other than NFS)
    - make `testnfs'
+   - mounts /net/<winhost>/c and .../nfs.test exist
+     ie:   sudo mkdir /net/<winhost>/c
+     	   sudo mount <winhost>:/c /net/<winhost>/c ...
+   - others???
 
 *******************************************************************************
 ** Performance
