@@ -32,8 +32,8 @@
 (defvar *program-mode* nil) ;; nil or :service
 (defvar *console-sockets* nil)
 (defvar *console-sockets-lock* (mp:make-process-lock))
-(defvar *log-rotation-current-count* 0)
-(defvar *log-file* "sys:nfsdebug-~D.txt")
+;;(defvar *log-rotation-current-count* 0) ; moved to config-defs
+;;(defvar *log-file* "sys:nfsdebug-~D.txt") ; moved to config-defs
 (defvar *nfs-debug-stream* nil)
 
 (defun log-rotateable (string)
@@ -44,10 +44,7 @@ a given string."
 	     *log-rotation-file-size-magnitude*)
          (+ (file-length *log-stream*)
 	    (length string)))))
-
-(defun make-log-rotation-name (index)
-  "Appends a version onto the logfile name."
-  (format nil *log-file* index))
+;;defun make-log-rotation-name ; moved to config-defs
 
 (defun rotate-log ()
   "Rotates *log-stream*"
@@ -131,21 +128,7 @@ a given string."
   (require :streamc) ;; for make-broadcast-stream
   )
 
-(defun find-latest-log-file ()
-  (let ((latest (make-log-rotation-name 0)))
-    ;; Ensure the file exists.
-    (unless (probe-file latest)
-      (with-open-file (f latest 
-			 :direction :output
-			 :if-does-not-exist :create)))
-    (loop for i from 0 to (1- *log-rotation-file-count*)
-	  when (probe-file (make-log-rotation-name i))
-	  do (let ((newest (make-log-rotation-name i)))
-	       (when (< (file-write-date latest)
-			(file-write-date newest))
-		 (setf latest newest
-		       *log-rotation-current-count* i))))
-    latest))
+;; defun find-latest-log-file   ; moved to config-defs
 
 (defun setup-logging (&optional reopen)
   (mp:with-process-lock (*log-stream-lock*)

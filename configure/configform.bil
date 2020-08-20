@@ -14,7 +14,7 @@
 ;; (Pass :owner to this function; :parent is for compatibility.)
 (defun make-configform
     (&key parent (owner (or parent (screen *system*))) exterior
-     (interior (make-box 198 123 731 465)) (name :configform)
+     (interior (make-box 159 252 692 594)) (name :configform)
      (title "NFS Server for Windows Configuration Utility") (border :frame) (child-p t)
      form-p)
   (let ((owner
@@ -462,6 +462,14 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                        'configform-combo-box-log-rotation-file-size-magnitude-on-change
                        :range (list :Kb :Mb :Gb :Tb) :tab-control
                        (list :tab-control :log) :top 71 :value :Mb :width 38)
+        (make-instance 'static-text :font (make-font-ex nil "Segoe UI / Default" 12)
+                       :height 31 :left 27 :name :log-file-location :tab-control
+                       (list :tab-control :log) :top 143 :value "Log file is ..." :width
+                       481)
+        (make-instance 'static-text :font (make-font-ex nil "Segoe UI / Default" 12)
+                       :left 24 :name :static-text-14 :tab-control
+                       (list :tab-control :log) :top 189 :value
+                       "Other log files may be present with similar names." :width 486)
         (make-instance 'tab-control :font (make-font-ex nil "Tahoma / ANSI" 11) :height
                        287 :left 10 :name :tab-control :range
                        (list (make-instance 'tab-info :id :exports :label "Exports"
@@ -514,7 +522,8 @@ Leave an entry blank to use an automatically-assigned port number." :width 339)
                                               :static-text-log-rotation
                                               :static-text-log-rotation-file-size
                                               :static-text-log-rotation-file-count
-                                              :combo-box-log-rotation-file-size-magnitude))
+                                              :combo-box-log-rotation-file-size-magnitude
+                                              :log-file-location :static-text-14))
                              (make-instance 'tab-info :id :debug :label "Debug" :widgets
                                             '(:nfs-debug-checkbox :portmap-debug-checkbox
                                               :mountd-debug-checkbox :nlm-debug-checkbox

@@ -176,6 +176,9 @@
     (format nil "~D" user::*log-rotation-file-size*))
   (setf (value (my-find-component :log-rotation-file-count form))
     (format nil "~D" user::*log-rotation-file-count*))
+  (setf (value (my-find-component :log-file-location form))
+    (format nil "The most recent log file is ~A" 
+      (or (ignore-errors (truename (apply 'user::find-latest-log-file nil))) "UNKNOWN, maybe sys:debug-*.txt")))
   (setf (value (my-find-component :dircache-update-interval form))
     (format nil "~D" user::*nfs-dircache-update-interval*))
   (setf (value (my-find-component :attr-cache-reap-time form))

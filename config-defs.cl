@@ -32,12 +32,14 @@
 (defvar *nfs-debug-timings* nil)
 (defvar *nfs-set-mtime-on-write* nil)
 (defvar *nfs-debug-filter* #x0fffffff)
+(defvar *log-file* "sys:nfsdebug-~D.txt")
 
 ;; Needs UI [rfe8202]
 (defvar *executable-types* '("exe" "com" "bat"))
 
 (defvar *log-rotation-file-size* 0)
 (defvar *log-rotation-file-count* 1)
+(defvar *log-rotation-current-count* 0)
 
 (defvar *kilobyte* 1024)
 (defvar *megabyte* (* *kilobyte* *kilobyte*))
@@ -59,6 +61,26 @@
 (defvar *disable-persistent-fhandles* nil)
 
 (defvar *enable-32bit-file-id-truncate* nil)
+
+(defun make-log-rotation-name (index)
+  "Appends a version onto the logfile name."
+  (format nil *log-file* index))
+
+(defun find-latest-log-file ()
+  (let ((latest (make-log-rotation-name 0)))
+    ;; Ensure the file exists.
+    (unless (probe-file latest)
+      (with-open-file (f latest 
+			 :direction :output
+			 :if-does-not-exist :create)))
+    (loop for i from 0 to (1- *log-rotation-file-count*)
+	  when (probe-file (make-log-rotation-name i))
+	  do (let ((newest (make-log-rotation-name i)))
+	       (when (< (file-write-date latest)
+			(file-write-date newest))
+		 (setf latest newest
+		       *log-rotation-current-count* i))))
+    latest))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PORTMAP
