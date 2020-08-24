@@ -73,6 +73,8 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
+ * Fix: Uid and gid values above (2^25 - 1) in User Lists were ignored. 
+
 TBD
 
 * Behavior change and source tweak: Rename the variable

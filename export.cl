@@ -273,7 +273,7 @@
   (declare (optimize speed (safety 0) (debug 0)))
   (let ((rw-users (nfs-export-rw-users exp)))
     (or (eq rw-users t)
-	(eq uid (nfs-export-uid exp))
+	(eql uid (nfs-export-uid exp))
 	(member uid rw-users :test #'eq))))
 
 ;; uid is an integer (or nil if auth-unix auth info was
@@ -283,5 +283,5 @@
   (let ((ro-users (nfs-export-ro-users exp)))
     (or (eq ro-users t)
 	(export-user-write-access-allowed-p exp uid)
-	(member uid ro-users :test #'eq))))
+	(member uid ro-users :test #'eql))))
 

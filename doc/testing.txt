@@ -15,6 +15,7 @@ setup:
    - make a directory c:/tmp/nfs.test and put a copy of some large
      file there and call it `nfstestfile'
    - NFS shares c:/ as '/c' and c:/tmp/nfs.test as `/nfs.test'
+       specify the uid of the test user
  * linux: freon:
    - make sure /home/tmp/layer/nfs.test exists and put a copy of the
      same `nfstestfile' there (via some means other than NFS)
@@ -22,7 +23,10 @@ setup:
    - mounts /net/<winhost>/c and .../nfs.test exist
      ie:   sudo mkdir /net/<winhost>/c
      	   sudo mount <winhost>:/c /net/<winhost>/c ...
-   - others???
+ * Manual test to verify that large uid is accepted [bug26156]:
+       Create a user with a uid bigger than a 32-bit fixnum
+       such as 600000000 and modify config file to specify 
+       this user.
 
 *******************************************************************************
 ** Performance
