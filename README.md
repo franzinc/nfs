@@ -73,15 +73,28 @@ exported NFS shares.
 Changes in this section will appear in the next release of Allegro
 NFS.
 
- * Fix: Uid and gid values above (2^25 - 1) in User Lists were ignored. 
-
 TBD
 
-* Behavior change and source tweak: Rename the variable
-  *openfilereaptime* to open-file-reap-time*.  When this variable is
-  zero (default is 2) do not cache open files in the
-  *open-file-cache* hash table.  This change is described in more
-  detail in notes.txt.
+### Version 7.0.0 [NOT YET RELEASED]
+
+* Feature: 64-bit version now available.  The 32-bit service on
+  Windows 10 sometimes has trouble starting due to drivers or other
+  software grabbing virtual memory regions.  The 64-bit version should
+  not have the issue.
+
+* Feature: when `*open-file-reap-time*` is zero (default is 2)
+  do not cache open files in the `*open-file-cache*` hash table.  This
+  change is described in more detail in doc/notes.txt.
+  NOTE: this variable renamed from `*openfilereaptime*`.
+
+* For backtraces that appear in the log file: turn off circularity
+  detection, so the backtraces are more readable.
+
+* Fix: uid and gid values above (2^25 - 1) in User Lists were ignored. 
+
+* Fix: better handle errors when sending responses to UDP clients.
+  The origin of these errors was always mysterious, but they should be
+  handled more reliably now.
 
 ### Version 6.3.3 [30 August, 2017]
 
