@@ -50,8 +50,7 @@ MAKENSIS ?= "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe"
 # The variable VER_SUFFIX specifies a modifier appended to the 
 # name of the installer and to the name of the installed application.
 
-version := $(shell grep 'defvar .nfsd-version' nfs-common.cl | sed -e 's,.*"\([a-z0-9.]*\)".*,\1,')
-major-version := $(shell echo $(version) | sed -e 's/\(.*\)\.[0-9]*/\1/')
+version := $(shell ./anfs-version)
 
 default: build
 

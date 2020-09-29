@@ -1,0 +1,18 @@
+#! /usr/bin/env bash
+# print the version in nfs-common.cl to stdout
+
+set -eu
+
+string="$(grep 'defvar .nfsd-version' nfs-common.cl)"
+
+if [[ $string =~ nfsd-version..\"([0-9]+)\.([0-9]+)\.([0-9]+)(-(beta[0-9]+))?\" ]]
+then
+    if [ "${BASH_REMATCH[5]-}" ]; then
+	echo ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}-${BASH_REMATCH[5]}
+    else
+	echo ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}
+    fi
+else
+    echo $0: could not extract version from $* 1>&2
+fi
+
