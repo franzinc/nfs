@@ -157,8 +157,13 @@ else
 INSTALLDIR = AllegroNFS
 endif
 
+COMMON_INSTALLER_OPTIONS = /DINSTALLDIR=$(INSTALLDIR) 
+
 installer: installer-common
-	$(MAKENSIS) /V1 /DINSTALLDIR=$(INSTALLDIR) /DVERSION=$(version)$(VER_SUFFIX) /DVERSION2=$(version)$(VER_SUFFIX) nfs.nsi
+	$(MAKENSIS) /V1 $(COMMON_INSTALLER_OPTIONS) \
+		/DVERSION=$(version)$(VER_SUFFIX) \
+		/DVERSION2=$(version)$(VER_SUFFIX) \
+		nfs.nsi
 ifdef SIGNTOOL
 ifneq ($(CERTOK),yes)
 	@echo CERT is not setup properly; exit 1
@@ -168,7 +173,8 @@ endif
 	sha256sum $(EXE) > $(EXE).sha256sum
 
 installer-demo: installer-common
-	$(MAKENSIS) /V1 /DNFSDEMO=true \
+	$(MAKENSIS) /V1  $(COMMON_INSTALLER_OPTIONS) \
+		/DNFSDEMO=true \
 		/DVERSION="$(version) Demo" \
 		/DVERSION2=$(version)$(VER_SUFFIX)-demo \
 		nfs.nsi
