@@ -208,6 +208,10 @@ DEST = ../nfs-outgoing/$(tag_name)
 
 publish: FORCE
 	mkdir -p $(DEST)
+	$(MAKE) $(MFLAGS) NFSWIDTH=64 NFSLISPBSW=yes VER_SUFFIX=-64 publish_aux
+	$(MAKE) $(MFLAGS) publish_aux
+
+publish_aux: FORCE
 	cp -p $(EXE)               $(DEST)
 	cp -p $(EXE).sha256sum     $(DEST)
 	cp -p $(DEMOEXE)           $(DEST)
