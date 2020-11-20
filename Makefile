@@ -175,7 +175,7 @@ endif
 installer-demo: installer-common
 	$(MAKENSIS) /V1  $(COMMON_INSTALLER_OPTIONS) \
 		/DNFSDEMO=true \
-		/DVERSION="$(version) Demo" \
+		/DVERSION="$(version)$(VER_SUFFIX) Demo" \
 		/DVERSION2=$(version)$(VER_SUFFIX)-demo \
 		nfs.nsi
 ifdef SIGNTOOL
