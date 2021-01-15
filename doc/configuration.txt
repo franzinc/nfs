@@ -6,12 +6,12 @@ The primary configurable item in Allegro NFS Server is the export.
 Exports define a directory tree that will be made accessible to NFS
 clients.  Exports have several important parameters:
   
- * name: The 'name' of an export is the string that clients use to
-   identify the export.  Export names can be of any length and can
-   contain any characters.  Export names typically begin with a slash
-   (/) but this is not required. It is recommended that you use a name
-   that doesn't contain any spaces or other characters that have
-   special meaning in a Unix shell.
+ * name: The name of an export is the string that clients use to
+   identify the export.  While just about any string is allowed, it is
+   recommended that you use a string that doesn't contain any spaces
+   or other characters that have special meaning in a Unix
+   shell. Also, export names customarily begin with a slash (/), but
+   this is not a requirement.
 
    Export names exist in a hierarchical namespace.  When an NFS client
    requests a mount for an export, the deepest matching export is
@@ -45,15 +45,12 @@ clients.  Exports have several important parameters:
    Directories report mode 0777.  You can use the umask to turn some
    of the default mode bits off before reporting them back to the
    client.  Unless you have special needs, it is recommended that you
-   leave the umask setting at 0.  See the Notes section below for more
-   information.
+   leave the umask setting at 0. The parameter is expressed in octal
+   notation.
 
-   The parameter is expressed in octal notation.
-
- * Set mode bits: This parameter is the flipside of the umask.  It is
+ * Set mode bits: This parameter is the inverse of the umask.  It is
    expressed in octal notation and specifies which mode bits should be
-   turned on before reporting them back to the client.  See the Notes
-   section below for more information.
+   turned on before reporting them back to the client.
 
  * Allowed host lists: By default, no remote hosts are allowed to
    access an export.  You can use this parameter to specify lists of
@@ -145,13 +142,6 @@ IP addresses can be specified in several ways:
 
 * Global settings *
  
-  * NFS/Mount protocol debugging: You can turn these options on if you
-    want to see what's going on at the protocol level.  Debugging
-    output will be generated in the console window and in the
-    nfsdebug.txt file in the Allegro NFS installation directory.  Be
-    careful!  Turning on NFS protocol debugging can generate lots of
-    output and severely degrade the performance of Allegro NFS.
-
   * Use system portmapper: Possible values are auto, yes and no,
     meaning auto-detect and use another running portmapper, always use
     the system portmapper and always use the Allegro portmapper,
@@ -161,13 +151,181 @@ IP addresses can be specified in several ways:
     you choose 'no' and a portmapper is running on your system, then
     Allegro NFS will not be able to start up properly.
 
+    A manual restart of the NFS service or a system reboot is needed
+    if this parameter is changed.
+
+  * Set file modification time after every write: This sets the file
+    modification time on each write and is approximately slows down
+    writes by 10%.
+
+    The default is unchecked.
+
+  * Subprogram port assignment: If you want to assign port numbers to
+    the nfs subprocesses (mountd, statd, and lockd) so that they
+    always use a specific port, you do so here. If you have a
+    firewall, we recommend that you
+    read https://nfsforwindows.com/support/faq#Q3 for more information
+    on this topic.
+
+  * Disable export listings via remote showmount: If this option is
+    checked, then clients using the showmount command cannot obtain a
+    listing of all exports. This might be desired for security
+    reasons.
+
+    The default is unchecked.
+
+  * Disable persistent file handles: For NTFS volumes, by default, the
+    server keeps a mapping from client file handles to local file
+    names.  This means when the server is restarted (the NFS service
+    or the machine), clients will not got a stale file handle error. 
+    There is overhead to maintain this mapping, and when a large
+    number of files are involved, it could be significant.  Checking
+    this option turns off this feature.
+
+    The default is unchecked.
+
+  * Directory caching time: The amount of time directory contents are
+    cached.  See the Caching section below for more information.
+
+    The default is 2 seconds.
+
+  * File attribute caching time: The amount of time file attributes
+    (size, mtime and ctime) are cached.  See the Caching section below
+    for more information.
+
+    The defaultis 5 seconds.
+
+  * Truncate file-ids to 32-bits for clients: This option should only
+    be turned on for badly behaved clients that cannot handle 64-bit
+    file-ids (it is a bug in the client).  When turned on, file-ids
+    are truncated to 32-bits to make those buggy clients happy.
+
+    The default is unchecked.
+
+----------------------------------------------------------------------------
+
+* Logging settings *
+
+These settings allow the rotation of log files to be scheduled.  By
+default, no rotation is done and the log file being allowed to grow to
+an unlimited size.  If a non-zero Max log file size is set, then log
+files will be rotated when the log file reaches that size.  The number
+of log files to keep is set with Max # of log files and it defaults to
+1.
+
+----------------------------------------------------------------------------
+
+* Debug settings *
+
+  * NFS, et al protocol debugging: You can turn these options on if
+    you want to see what's going on at the protocol level.  Debugging
+    output will be generated in the console window and in the current
+    log file (see the configuration utility to determine the name of
+    the current log file).  Be careful!  Turning on NFS protocol
+    debugging can generate lots of output and severely degrade the
+    performance of Allegro NFS.  It can also lead to filling up your
+    installation disk.
+
+    When checked, the NFS protocol debugging item allows selection of
+    individual NFS procedures to be logged.  By default all procedures
+    are logged.
+
+  * Memory management debugging: This option prints detailed
+    information about memory management.  It should probably only be
+    turned on at the request of the support department.
+
+  * Log time stamps: This option causes each log entry to be given a
+    date and time stamp, so behavior of server and clients can be
+    correlated.
+
+----------------------------------------------------------------------------
+
+* Caching *
+
+*Open file cache*
+
+Because the NFS protocol does not have an open call, clients simply
+make read and write calls to files.  A basic implementation of a
+user-mode NFS server would have to open the file, do the read or write
+operation, then close the file for every block of data.
+
+To avoid this potential constant opening and closing of the file,
+we employ an open file cache.  The configuration program does not have
+an option to set this, but it can be set by editing the nfs.cfg file
+in the installation directory.  If you edit the file, you will see
+this
+
+    (common-lisp-user::*open-file-reap-time* 2)
+
+The default 2 seconds can be changed to any integer greater than zero.
+
+The value of that parameter controls how long files are held open
+after their last access.  The default value should be fine for most
+people but you may want to make an adjustment if your situation calls
+for it.  Files will stay open for that number of seconds longer than
+the last access to it, and if a program on the server side tries to
+access the file, then it will fail due to Windows file locking.
+
+When this parameter is zero, the server will not cache open files, but
+it will incur a performance penalty.  That penalty might be better
+than sharing violations by the Windows operating system.
+
+*File attribute caching*
+
+Similarly, calls to stat() are cached for (default value: 5) seconds.
+Most NFS calls return information from the stat() call along with
+their results.  Keep this in mind if you edit a file or directory
+locally on the NFS server.  NFS clients may not see the change for up
+to this amount of seconds.
+
+Note: the file attribute cache seconds should be larger than
+*open-file-reap-time* discussed above.  This is because the open file
+reaper needs the cached stat information when closing a file that was
+opened for writing, so it can update the atime/mtime of the file.
+
+*Directory caching*
+
+When a client removes a directory containing files on the server, the
+way buffered reads of the directory entries is done can cause problems
+in NFSv2.  It leads to a directory changing while the client reads it
+and it can lead to wildly inconsistent results and failure to remove
+the directory, because it is not empty.
+
+This problem does not impact UNIX NFS servers because they were
+written with UNIX filesystems in mind, and also because they are
+implemented in the kernel.  Allegro NFS is not implemented in the
+Windows kernel and it has to content with the Windows filesystems and
+operating system.
+
+To make client directory removal work, we cache:
+
+* information about directories.  The Directory caching time (see
+  above) defaults to 2 seconds.  This cache contains the contents of
+  the directory along with a time stamp, and
+
+* client operations that modify a directory (unlink, create, rename)
+  will be recorded in the directory cache, as long as they occur
+  within the Directory caching seconds of the last operation.
+
+This caching also has the side effect of making the operations a bit
+faster, but the important thing is that for removal of directories to
+work, the Directory cache time must be large enough for them to
+complete.  Increase the value of this parameter if you are having
+problems.
+
+Note: while a directory's contents is cached, any changes to the
+directory made by a local user on the NFS server will not be visible
+to the NFS client for the number of cached seconds.  Tuning may be
+needed to find a balance between directory removal success and
+confusion avoidance.
+
 ----------------------------------------------------------------------------
 
 * Misc *
 
 Exports should always grant at least read access to user id 0 (root)
 so that the root user on remote systems can successfully mount the
-export.  [Mount requests are usually made under user id 0].
+export.  (Mount requests are usually made under user id 0).
 
 Umask/set-mode-bits: It may seem that the default file mode bits
 (typically rw-rw-rw-) that are reported by the NFS server are too
@@ -196,7 +354,7 @@ then do its own security checks and grant write access only to user
 ids 100, 400, 401, and 402.  However, if the umask were set to 022
 then the NFS client would conclude that the files could only be
 written to by user 100... and attempts by user ids 400, 401, and 402
-would not even be passed on to the NFS server.... defeating the
+would not even be passed on to the NFS server, defeating the
 utility of user lists.   
 
 Using the default umask and set-mode-bits settings (both 0) will avoid

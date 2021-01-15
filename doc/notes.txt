@@ -93,12 +93,12 @@ This program uses the Common Lisp (directory) function to read the
 contents of a directory to respond to a 'readdir' call.  To combat the
 'rm -r' issue, the following things were done.
 
-1) Calls to (directory) are cached for *nfs-dircachereaptime*
-   (defaults to 5) seconds.   The cache contains the contents of the
+1) Calls to (directory) are cached for *nfs-dircache-update-interval*
+   (defaults to 2) seconds.   The cache contains the contents of the
    directory, along with a timestamp.
 2) NFS operations that modify a directory (unlink, create, rename)
    will be recorded in the directory cache (as long as they occur
-   within *nfs-dircachereaptime* of the last operation).
+   within *nfs-dircache-update-interval* of the last operation).
 3) The unlink operation doesn't shift the contents of the directory
    listing.  Instead, it just sets the corresponding entry to nil.
    The code that handles the readdir call knows to ignore these
@@ -109,16 +109,16 @@ contents of a directory to respond to a 'readdir' call.  To combat the
 This caching of (directory) calls also has the side effect of making
 the operations a bit faster.
 
-For an rm -r to work w/o problems, *nfs-dircachereaptime* must be
-large enough to keep the directory contents cached while rm -r
+For an rm -r to work w/o problems, *nfs-dircache-update-interval* must
+be large enough to keep the directory contents cached while rm -r
 descends through subdirectories.  You can adjust this parameter if you
 are having problems.
 
 Note that while a directory listing is cached, any changes to the
 directory made by a local user on the NFS server will not be visible
-to the NFS client for *nfs-dircachereaptime* seconds.  You'll want to
-adjust *nfs-dircachereaptime* to balance between rm -r success and
-confusion avoidance.
+to the NFS client for *nfs-dircache-update-interval* seconds.  You'll
+want to adjust *nfs-dircache-update-interval* to balance between rm -r
+success and confusion avoidance.
 
 *Other information caching*
 
@@ -143,13 +143,13 @@ but one that some customers may be willing to bear for the benefit of
 not running into sharing violations on Windows, when accessing files
 modified or created by clients.
 
-Similarly, calls to stat() are cached for *statcachereaptime* (default
-value: 5) seconds.  Most NFS calls return information from the stat()
-call along with their results.  Keep this in mind if you edit a file
-or directory locally on the NFS server.  NFS clients may not see the
-change for up to *statcachereaptime* seconds.
+Similarly, calls to stat() are cached for *attr-cache-reap-time*
+(default value: 5) seconds.  Most NFS calls return information from
+the stat() call along with their results.  Keep this in mind if you
+edit a file or directory locally on the NFS server.  NFS clients may
+not see the change for up to *attr-cache-reap-time* seconds.
 
-Note that *statcachereaptime* should be larger than
+Note that *attr-cache-reap-time* should be larger than
 *open-file-reap-time*.  This is because the open file reaper needs the
 cached stat information when closing a file that was opened for
-writing [so that it can update the atime/mtime of the file].
+writing, so that it can update the atime/mtime of the file.
