@@ -23,21 +23,12 @@ ifeq ($(DO_MAKEFILE_LOCAL),yes)
 include Makefile.local
 endif
 
-NEWSDKDIR = /c/Program Files (x86)/Microsoft SDKs/Windows/v7.1A/bin
+NEWSDKDIR = /c/Program Files (x86)/Windows Kits/10/bin/x86
 NEWSDK = $(shell if test -d "$(NEWSDKDIR)"; then echo yes; else echo no; fi)
 ifeq ($(NEWSDK),yes)
-
-SIGNTOOL = ficodesign
-
+FICODESIGN = ficodesign
 # Add the directory containing "signtool.exe" to PATH so scm-bin/ficodesign can find it
 PATH := $(PATH):$(NEWSDKDIR)
-
-CERT = c:/src/scm/acl10.1.32/src/cl/release-keys/windows/code-signing-certificate-2019-11-05.p12
-CERTOK = $(shell if test -f "$(CERT)"; then echo yes; else echo no; fi)
-ifeq ($(CERTOK),yes)
-SIGNTOOL += /v /f $(CERT)
-endif
-
 endif
 
 # The variable NFSWIDTH specifies a 64bit version;
@@ -164,11 +155,8 @@ installer: installer-common
 		/DVERSION=$(version)$(VER_SUFFIX) \
 		/DVERSION2=$(version)$(VER_SUFFIX) \
 		nfs.nsi
-ifdef SIGNTOOL
-ifneq ($(CERTOK),yes)
-	@echo CERT is not setup properly; exit 1
-endif
-	$(SIGNTOOL) $(EXE)
+ifdef FICODESIGN
+	$(FICODESIGN) $(EXE)
 endif
 	sha256sum $(EXE) > $(EXE).sha256sum
 
@@ -178,8 +166,8 @@ installer-demo: installer-common
 		/DVERSION="$(version)$(VER_SUFFIX) Demo" \
 		/DVERSION2=$(version)$(VER_SUFFIX)-demo \
 		nfs.nsi
-ifdef SIGNTOOL
-	$(SIGNTOOL) $(DEMOEXE)
+ifdef FICODESIGN
+	$(FICODESIGN) $(DEMOEXE)
 endif
 	sha256sum $(DEMOEXE) > $(DEMOEXE).sha256sum
 
