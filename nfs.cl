@@ -258,7 +258,7 @@ NFS: ~a: Sending program unavailable response for prog=~D~%"
 (defun get-high-res-time ()
   (multiple-value-bind (secs usecs)
       (excl::acl-internal-real-time)
-    (+ secs (* usecs #.(expt 10.0 -6)))))
+    (+ secs (* usecs #.(coerce (expt 10.0 -6) 'double-float)))))
 
 (eval-when (compile load eval)
   (if (/= 1000 internal-time-units-per-second)
