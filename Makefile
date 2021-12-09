@@ -3,6 +3,9 @@
 #
 # Rules of note:
 #
+# - make the 32-bit and 64-bit versions
+#   $ make all ...other make args, see below...
+#
 # - make release candidate 2:
 #   $ make all release_suffix=rc2
 #
