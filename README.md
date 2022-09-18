@@ -75,7 +75,14 @@ NFS.
 
 TBD
 
-### Version 7.0.0 [NOT YET RELEASED]
+### Version 7.1.0 [TBD]
+
+* Fix logging time stamps
+
+* Change how the demo expiration is done, since recent versions of
+  Windows have made the old scheme less reliable.
+
+### Version 7.0.0 [4 Feb 2021]
 
 * Feature: 64-bit version now available.  The 32-bit service on
   Windows 10 sometimes has trouble starting due to drivers or other

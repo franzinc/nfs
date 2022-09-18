@@ -11,7 +11,7 @@
 ;; NOTE: the form of the version *must* be a.b.c.  If you're starting
 ;;       a new release, say 6.0, then use 6.0.0.  For betas, use
 ;;       something like 6.2.0-beta3.
-(defvar *nfsd-version* "7.0.1")
+(defvar *nfsd-version* "7.1.0")
 (defvar *nfsd-long-version*
     (format nil "~a (NFSv2/NFSv3)" *nfsd-version*))
 (load (merge-pathnames "commit-id.cl" *load-pathname*))

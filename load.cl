@@ -63,7 +63,7 @@
       "main" ;; needs to be before "nfs"
       "nfs"
       #+nfs-telnet-server "telnet"
-      #+nfs-demo "demoware/demoware"
+      #+nfs-demo "demoware/demoware2"
       ))
 )
 

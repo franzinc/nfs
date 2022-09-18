@@ -53,7 +53,7 @@ default: build
 all:
 	$(MAKE) $(MFLAGS) clean dists NFSWIDTH=64 NFSLISPBSW=yes VER_SUFFIX=-64
 	$(MAKE) $(MFLAGS) clean dists
-	$(MAKE) $(MFLAGS) tag
+	$(MAKE) $(MFLAGS) tag FORCE=$(FORCE)
 
 MODULES = demoware:master
 
@@ -67,12 +67,14 @@ tag_name = nfs-$(version)
 endif
 
 check_tag_name: FORCE
+ifndef FORCE
 	@if git tag | grep -q '^$(tag_name)$$'; then \
 	    echo ERROR: git tag $(tag_name) already exists; \
 	    exit 1; \
 	else \
 	    echo '**** TAG: $(tag_name)'; \
 	fi
+endif
 
 commit-id.cl: FORCE
 	echo -n '(defvar *nfsd-commit-id* "' > commit-id.cl
