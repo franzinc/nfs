@@ -11,19 +11,21 @@ setup:
  * See the variables near the `runtests' rule in Makefile, make sure
    they are all correct
  * windows: thunder:
-   - sshd must be running (and ONALL_SSH_PORT_thunder set properly)
+   - sshd must be running
    - make a directory c:/tmp/nfs.test and put a copy of some large
      file there and call it `nfstestfile'
    - NFS shares c:/ as '/c' and c:/tmp/nfs.test as `/nfs.test'
        specify the uid of the test user
- * linux: freon:
+ * linux: gremlin:
    - make sure /home/tmp/layer/nfs.test exists and put a copy of the
      same `nfstestfile' there (via some means other than NFS)
-   - make `testnfs'
+   - `make testnfs`
    - mounts /net/<winhost>/c and .../nfs.test exist
      ie:   sudo mkdir /net/<winhost>/c
      	   sudo mount <winhost>:/c /net/<winhost>/c ...
- * Manual test to verify that large uid is accepted [bug26156]:
+   - `export ONALL_SSH_PORT_thunder=8100` where 8100 is taken from
+     your SSH config file and is your assigned SSHD port number
+ * Manually test to verify that large uid is accepted [bug26156]:
        Create a user with a uid bigger than a 32-bit fixnum
        such as 600000000 and modify config file to specify 
        this user.
